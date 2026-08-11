@@ -10,15 +10,35 @@ from .qualifier import QualificationResult, qualify_award_result
 from .registry import find_award_policy
 from .sources.pulitzer import lookup as pulitzer_lookup
 
-_SOURCE_LOOKUPS: tuple[Callable[[str, str], list[AwardResult]], ...] = (
-    pulitzer_lookup,
-)
-
 
 @dataclass(frozen=True, slots=True)
 class AwardAssessment:
     result: AwardResult
     qualification: QualificationResult
+
+
+@dataclass(frozen=True, slots=True)
+class SourceFailure:
+    source_name: str
+    error_type: str
+    message: str
+
+
+@dataclass(frozen=True, slots=True)
+class AwardLookupReport:
+    assessments: tuple[AwardAssessment, ...]
+    failures: tuple[SourceFailure, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class _SourceLookup:
+    name: str
+    lookup: Callable[[str, str], list[AwardResult]]
+
+
+_SOURCE_LOOKUPS: tuple[_SourceLookup, ...] = (
+    _SourceLookup(name='Pulitzer Prizes', lookup=pulitzer_lookup),
+)
 
 
 def assess_award_result(result: AwardResult) -> AwardAssessment:
@@ -28,8 +48,8 @@ def assess_award_result(result: AwardResult) -> AwardAssessment:
     return AwardAssessment(result=result, qualification=qualification)
 
 
-def lookup_awards(title: str, author: str) -> list[AwardAssessment]:
-    """Search configured award sources and return assessed results."""
+def lookup_awards(title: str, author: str) -> AwardLookupReport:
+    """Search configured award sources and return assessments plus failures."""
     cleaned_title = title.strip()
     cleaned_author = author.strip()
     if not cleaned_title:
@@ -38,7 +58,22 @@ def lookup_awards(title: str, author: str) -> list[AwardAssessment]:
         raise ValueError('author must be a non-empty string')
 
     assessments: list[AwardAssessment] = []
-    for source_lookup in _SOURCE_LOOKUPS:
-        for result in source_lookup(cleaned_title, cleaned_author):
+    failures: list[SourceFailure] = []
+    for source in _SOURCE_LOOKUPS:
+        try:
+            results = source.lookup(cleaned_title, cleaned_author)
+        except Exception as exc:
+            failures.append(
+                SourceFailure(
+                    source_name=source.name,
+                    error_type=type(exc).__name__,
+                    message=str(exc),
+                )
+            )
+            continue
+        for result in results:
             assessments.append(assess_award_result(result))
-    return assessments
+    return AwardLookupReport(
+        assessments=tuple(assessments),
+        failures=tuple(failures),
+    )
