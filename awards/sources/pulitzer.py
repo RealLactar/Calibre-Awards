@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import threading
 import unicodedata
 import urllib.error
 import urllib.request
@@ -144,6 +145,23 @@ def _fetch_category_pages(
         html = _fetch_html(opener, url, referer=HOME_URL, allow_challenge=False)
         pages.append((category, url, html))
     return pages
+
+
+_category_pages_cache: tuple[tuple[str, str, str], ...] | None = None
+_cache_lock = threading.Lock()
+
+
+def _get_category_pages() -> tuple[tuple[str, str, str], ...]:
+    """Return cached category pages, fetching once per process on success."""
+    global _category_pages_cache
+    with _cache_lock:
+        if _category_pages_cache is not None:
+            return _category_pages_cache
+        opener = _build_opener()
+        _warmup(opener)
+        pages = tuple(_fetch_category_pages(opener))
+        _category_pages_cache = pages
+        return pages
 
 
 # ---------------------------------------------------------------------------
@@ -385,9 +403,7 @@ def lookup(title: str, author: str) -> list[AwardResult]:
     if not cleaned_author:
         raise ValueError('author must be a non-empty string')
 
-    opener = _build_opener()
-    _warmup(opener)
-    pages = _fetch_category_pages(opener)
+    pages = _get_category_pages()
 
     matches: list[AwardResult] = []
     for category, url, html in pages:

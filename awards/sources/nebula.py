@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import threading
 import unicodedata
 import urllib.error
 import urllib.request
@@ -122,6 +123,22 @@ def _fetch_best_novel_pages(
     if not pages:
         raise NebulaSourceError('Nebula Best Novel archive returned no pages')
     return pages
+
+
+_best_novel_pages_cache: tuple[tuple[str, str], ...] | None = None
+_cache_lock = threading.Lock()
+
+
+def _get_best_novel_pages() -> tuple[tuple[str, str], ...]:
+    """Return cached Best Novel pages, fetching once per process on success."""
+    global _best_novel_pages_cache
+    with _cache_lock:
+        if _best_novel_pages_cache is not None:
+            return _best_novel_pages_cache
+        opener = _build_opener()
+        pages = tuple(_fetch_best_novel_pages(opener))
+        _best_novel_pages_cache = pages
+        return pages
 
 
 # ---------------------------------------------------------------------------
@@ -402,8 +419,7 @@ def lookup(title: str, author: str) -> list[AwardResult]:
     if not cleaned_author:
         raise ValueError('author must be a non-empty string')
 
-    opener = _build_opener()
-    pages = _fetch_best_novel_pages(opener)
+    pages = _get_best_novel_pages()
 
     matches: list[AwardResult] = []
     seen_results: set[tuple[int, str, str, str, str | None]] = set()
