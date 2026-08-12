@@ -19,6 +19,57 @@ _ACTIVE_THREADS = set()
 _THREAD_CLEANUP_RECEIVER = None
 
 
+def _format_year_category(result):
+    year_text = '' if result.award_year is None else str(result.award_year)
+    category_text = result.category or ''
+    if year_text and category_text:
+        return f'{year_text} — {category_text}'
+    return year_text or category_text
+
+
+def _format_assessment(assessment):
+    result = assessment.result
+    lines = [
+        f'{result.work_title} — {result.work_author}',
+        '',
+        result.award_name,
+    ]
+    year_category = _format_year_category(result)
+    if year_category:
+        lines.append(year_category)
+    lines.extend([
+        result.status,
+        assessment.qualification.decision.name,
+        '',
+        f'Source: {result.source_name}',
+    ])
+    if result.source_url:
+        lines.append(f'URL: {result.source_url}')
+    return '\n'.join(lines)
+
+
+def _format_lookup_report(report):
+    """Temporary plain-text report; replaceable by a configurable template later."""
+    if not report.assessments and not report.failures:
+        return 'No award results found.'
+
+    sections = [_format_assessment(item) for item in report.assessments]
+    body = '\n\n'.join(sections)
+
+    if report.failures:
+        failure_lines = ['Source problems:', '']
+        for failure in report.failures:
+            failure_lines.append(
+                f'{failure.source_name} — {failure.error_type} — {failure.message}'
+            )
+        failure_block = '\n'.join(failure_lines).strip()
+        if body:
+            return f'{body}\n\n{failure_block}'
+        return failure_block
+
+    return body
+
+
 class _AwardLookupThread(QThread):
     """Run awards.engine.lookup_awards() off the GUI thread."""
 
@@ -55,10 +106,7 @@ class _LookupUiReceiver(QObject):
             info_dialog(
                 dialog,
                 'Calibre Awards',
-                (
-                    f'Assessments: {len(report.assessments)}\n'
-                    f'Source failures: {len(report.failures)}'
-                ),
+                _format_lookup_report(report),
                 show=True,
             )
         except RuntimeError:
