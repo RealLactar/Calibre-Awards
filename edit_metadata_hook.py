@@ -7,7 +7,11 @@ from calibre.ebooks.metadata import authors_to_string
 from calibre.gui2 import error_dialog, info_dialog
 from calibre.gui2.metadata.single import MetadataSingleDialogBase
 from calibre_plugins.calibre_awards.awards.engine import lookup_awards
-from calibre_plugins.calibre_awards.awards.formatter import format_lookup_report
+from calibre_plugins.calibre_awards.awards.formatter import (
+    DEFAULT_AWARD_OUTPUT_TEMPLATE,
+    format_lookup_report,
+)
+from calibre_plugins.calibre_awards.config import prefs
 from qt.core import QObject, QPushButton, QThread, pyqtSignal
 
 BUTTON_OBJECT_NAME = 'calibre_awards_check_awards_button'
@@ -56,7 +60,10 @@ class _LookupUiReceiver(QObject):
             info_dialog(
                 dialog,
                 'Calibre Awards',
-                format_lookup_report(report),
+                format_lookup_report(
+                    report,
+                    template=_award_output_template(),
+                ),
                 show=True,
             )
         except RuntimeError:
@@ -107,6 +114,12 @@ def _thread_cleanup_receiver():
         # Created on the GUI thread during a Check Awards click.
         _THREAD_CLEANUP_RECEIVER = _ThreadCleanupReceiver()
     return _THREAD_CLEANUP_RECEIVER
+
+
+def _award_output_template():
+    stored = prefs['award_output_template']
+    text = '' if stored is None else str(stored).strip()
+    return text or DEFAULT_AWARD_OUTPUT_TEMPLATE
 
 
 def _start_award_lookup(dialog, button):
