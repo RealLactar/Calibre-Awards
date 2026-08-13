@@ -1,54 +1,112 @@
-"""Plain-text formatting for award lookup reports.
+"""Plain-text formatting for award lookup reports."""
 
-Temporary fixed layout; later this module will support a user-configurable
-output template such as: <placement> - <year> <award> - <category>
-"""
+from __future__ import annotations
 
+import re
 
-def _format_year_category(result):
-    year_text = '' if result.award_year is None else str(result.award_year)
-    category_text = result.category or ''
-    if year_text and category_text:
-        return f'{year_text} — {category_text}'
-    return year_text or category_text
+DEFAULT_AWARD_OUTPUT_TEMPLATE = '<placement> - <year> <award> - <category>'
 
+_PLACEHOLDER_PATTERN = re.compile(
+    '|'.join(
+        re.escape(name)
+        for name in ('<placement>', '<year>', '<award>', '<category>')
+    )
+)
 
-def _format_assessment(assessment):
-    result = assessment.result
-    lines = [
-        f'{result.work_title} — {result.work_author}',
-        '',
-        result.award_name,
-    ]
-    year_category = _format_year_category(result)
-    if year_category:
-        lines.append(year_category)
-    lines.extend([
-        result.status,
-        assessment.qualification.decision.name,
-        '',
-        f'Source: {result.source_name}',
-    ])
-    if result.source_url:
-        lines.append(f'URL: {result.source_url}')
-    return '\n'.join(lines)
+_MISSING_PLACEMENT = '<placement missing>'
+_MISSING_YEAR = '<year missing>'
+_MISSING_AWARD = '<award missing>'
+_MISSING_CATEGORY = '<category missing>'
 
 
-def format_lookup_report(report) -> str:
-    """Format an AwardLookupReport as plain text for temporary display."""
+def _ordinal(rank: int) -> str:
+    if 11 <= rank % 100 <= 13:
+        suffix = 'th'
+    else:
+        suffix = {1: 'st', 2: 'nd', 3: 'rd'}.get(rank % 10, 'th')
+    return f'{rank}{suffix}'
+
+
+def _nonempty_text(value) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
+
+
+def _format_placement(result) -> str:
+    rank = getattr(result, 'rank', None)
+    if rank is not None:
+        return _ordinal(rank)
+    status = _nonempty_text(getattr(result, 'status', None))
+    if status is not None:
+        return status
+    return _MISSING_PLACEMENT
+
+
+def _format_year(result) -> str:
+    year = getattr(result, 'award_year', None)
+    if year is None:
+        return _MISSING_YEAR
+    return str(year)
+
+
+def _format_award(result) -> str:
+    award = _nonempty_text(getattr(result, 'award_name', None))
+    if award is not None:
+        return award
+    return _MISSING_AWARD
+
+
+def _format_category(result) -> str:
+    category = _nonempty_text(getattr(result, 'category', None))
+    if category is not None:
+        return category
+    return _MISSING_CATEGORY
+
+
+def format_award_result(
+    result,
+    template: str = DEFAULT_AWARD_OUTPUT_TEMPLATE,
+) -> str:
+    """Format one AwardResult using a placeholder template.
+
+    Known placeholders in the original template are substituted exactly once.
+    Placeholder-looking text inside substituted values is left unchanged.
+    """
+    values = {
+        '<placement>': _format_placement(result),
+        '<year>': _format_year(result),
+        '<award>': _format_award(result),
+        '<category>': _format_category(result),
+    }
+    return _PLACEHOLDER_PATTERN.sub(lambda match: values[match.group(0)], template)
+
+
+def _format_failure_block(failures) -> str:
+    failure_lines = ['Source problems:', '']
+    for failure in failures:
+        failure_lines.append(
+            f'{failure.source_name} — {failure.error_type} — {failure.message}'
+        )
+    return '\n'.join(failure_lines).strip()
+
+
+def format_lookup_report(
+    report,
+    template: str = DEFAULT_AWARD_OUTPUT_TEMPLATE,
+) -> str:
+    """Format an AwardLookupReport as plain text for display."""
     if not report.assessments and not report.failures:
         return 'No award results found.'
 
-    sections = [_format_assessment(item) for item in report.assessments]
-    body = '\n\n'.join(sections)
+    body = '\n'.join(
+        format_award_result(item.result, template)
+        for item in report.assessments
+    )
 
     if report.failures:
-        failure_lines = ['Source problems:', '']
-        for failure in report.failures:
-            failure_lines.append(
-                f'{failure.source_name} — {failure.error_type} — {failure.message}'
-            )
-        failure_block = '\n'.join(failure_lines).strip()
+        failure_block = _format_failure_block(report.failures)
         if body:
             return f'{body}\n\n{failure_block}'
         return failure_block
