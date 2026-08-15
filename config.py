@@ -123,7 +123,7 @@ class ConfigWidget(QWidget):
         layout.addWidget(default_label)
 
         self.enabled_checkbox = QCheckBox(
-            'Write qualifying awards to a custom column',
+            'Write selected awards to a custom column',
             self,
         )
         self.enabled_checkbox.setChecked(
