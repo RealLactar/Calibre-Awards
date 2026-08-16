@@ -7,6 +7,7 @@ from dataclasses import dataclass
 
 from .model import AwardResult
 from .sources.hugo import lookup as hugo_lookup
+from .sources.locus import lookup as locus_lookup
 from .sources.nebula import lookup as nebula_lookup
 from .sources.pulitzer import lookup as pulitzer_lookup
 
@@ -35,5 +36,10 @@ AWARD_SOURCES: tuple[AwardSource, ...] = (
         key='hugo',
         display_name='Hugo Awards',
         lookup=hugo_lookup,
+    ),
+    AwardSource(
+        key='locus',
+        display_name='Locus Awards',
+        lookup=locus_lookup,
     ),
 )
