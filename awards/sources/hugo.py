@@ -42,6 +42,16 @@ _ALT_TITLE_RE = re.compile(
 _BY_AUTHOR_RE = re.compile(r'^,?\s*by\s+(?P<author>.+)$', re.IGNORECASE | re.DOTALL)
 _COMMA_AUTHOR_RE = re.compile(r'^,\s+(?P<author>.+)$', re.DOTALL)
 _TIE_SUFFIX_RE = re.compile(r'\s*\(tie\)\s*$', re.IGNORECASE)
+_BALLOT_COUNT_NOTE_RE = re.compile(
+    r'^\(\s*'
+    r'(?:\d{1,3}(?:,\d{3})+|\d+)'
+    r'\s+final\s+ballots?'
+    r',\s*'
+    r'(?:\d{1,3}(?:,\d{3})+|\d+)'
+    r'\s+nominating\s+ballots?'
+    r'\s*\)$',
+    re.IGNORECASE,
+)
 
 
 class HugoSourceError(RuntimeError):
@@ -222,6 +232,11 @@ def _collapse_ws(text: str) -> str:
     return re.sub(r'\s+', ' ', text).strip()
 
 
+def _is_ballot_count_note(text: str) -> bool:
+    cleaned = _collapse_ws(text)
+    return bool(cleaned) and _BALLOT_COUNT_NOTE_RE.fullmatch(cleaned) is not None
+
+
 def _is_non_work(text: str) -> bool:
     cleaned = _collapse_ws(text).casefold()
     if not cleaned:
@@ -382,6 +397,7 @@ class _HugoBestNovelParser(HTMLParser):
             and not self._in_best_novel_list
             and not self._capturing_li
             and _collapse_ws(data)
+            and not _is_ballot_count_note(data)
         ):
             self._pending_best_novel = False
         if not self._capturing_li:

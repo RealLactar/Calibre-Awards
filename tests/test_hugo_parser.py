@@ -13,6 +13,7 @@ URL_1985 = 'https://www.thehugoawards.org/hugo-history/1995-hugo-awards-2/'
 URL_2015 = 'https://www.thehugoawards.org/hugo-history/2015-hugo-awards/'
 URL_2025 = 'https://www.thehugoawards.org/hugo-history/2025-hugo-awards/'
 URL_2026 = 'https://www.thehugoawards.org/hugo-history/2026-hugo-awards/'
+URL_2016 = 'https://www.thehugoawards.org/hugo-history/2016-hugo-awards/'
 
 HTML_1966 = """
 <p><strong>Best Novel</strong></p>
@@ -134,6 +135,28 @@ HTML_MALFORMED_STRONG_TITLE = """
 <li class="winner"><strong>Ancillary Justice</strong>, Ann Leckie (Orbit US/Orbit UK)</li>
 <li><strong>Warbound, Book III of the Grimnoir Chronicle</strong>s, Larry Correia (Baen Books)</li>
 <li><strong>Parasite</strong>, Mira Grant (Orbit US/Orbit UK)</li>
+</ul>
+"""
+
+HTML_2016 = """
+<p><strong>Best Novel</strong> (2903 final ballots, 3695 nominating ballots)</p>
+<ul>
+<li class="winner"><em>The Fifth Season</em> by N.K. Jemisin (Orbit)</li>
+<li><em>Uprooted</em> by Naomi Novik (Del Rey)</li>
+<li><em>Ancillary Mercy</em> by Ann Leckie (Orbit)</li>
+<li><em>Seveneves: A Novel</em> by Neal Stephenson (William Morrow)</li>
+<li><em>The Cinder Spires: The Aeronaut’s Windlass</em> by Jim Butcher (Roc)</li>
+</ul>
+<p><strong>Best Novella</strong></p>
+<ul>
+<li class="winner"><em>Binti</em> by Nnedi Okorafor (Tor.com)</li>
+</ul>
+"""
+
+HTML_ARBITRARY_PARENTHETICAL = """
+<p><strong>Best Novel</strong> (see Worldcon program notes)</p>
+<ul>
+<li class="winner"><em>Should Not Associate</em> by Intervening Author (Press)</li>
 </ul>
 """
 
@@ -290,6 +313,49 @@ class HugoParserTests(unittest.TestCase):
         self.assertEqual(result.source_name, 'Hugo Awards')
         self.assertEqual(result.source_url, URL_1966)
         self.assertIsNone(result.notes)
+
+    def test_2016_ballot_count_note_does_not_drop_best_novel(self):
+        records = hugo._parse_best_novel_html(HTML_2016, 2016, URL_2016)
+        fifth = _find_records(
+            records,
+            title='The Fifth Season',
+            author='N.K. Jemisin',
+        )
+        self.assertEqual(len(fifth), 1)
+        self.assertEqual(fifth[0].status, 'Winner')
+        self.assertEqual(fifth[0].award_year, 2016)
+        uprooted = _find_records(
+            records,
+            title='Uprooted',
+            author='Naomi Novik',
+        )
+        self.assertEqual(len(uprooted), 1)
+        self.assertEqual(uprooted[0].status, 'Finalist')
+        self.assertEqual(len(records), 5)
+        self.assertNotIn('Binti', [record.work_title for record in records])
+
+    def test_2016_ballot_count_note_accepts_comma_grouped_numbers(self):
+        html = HTML_2016.replace(
+            '(2903 final ballots, 3695 nominating ballots)',
+            '(2,903 final ballots, 2,416 nominating ballots)',
+        )
+        records = hugo._parse_best_novel_html(html, 2016, URL_2016)
+        self.assertEqual(
+            _find_records(
+                records, title='The Fifth Season', author='N.K. Jemisin'
+            )[0].status,
+            'Winner',
+        )
+
+    def test_arbitrary_parenthetical_commentary_does_not_keep_pending_list(self):
+        records = hugo._parse_best_novel_html(
+            HTML_ARBITRARY_PARENTHETICAL,
+            2016,
+            'https://example.test/parenthetical',
+        )
+        titles = [record.work_title for record in records]
+        self.assertEqual(records, [])
+        self.assertNotIn('Should Not Associate', titles)
 
     def test_intervening_markup_does_not_claim_a_later_list(self):
         records = hugo._parse_best_novel_html(
