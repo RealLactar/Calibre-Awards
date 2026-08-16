@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from .model import AwardResult
 from .qualifier import QualificationResult, qualify_award_result
 from .registry import find_award_policy
+from .sources.hugo import lookup as hugo_lookup
 from .sources.nebula import lookup as nebula_lookup
 from .sources.pulitzer import lookup as pulitzer_lookup
 
@@ -40,6 +41,7 @@ class _SourceLookup:
 _SOURCE_LOOKUPS: tuple[_SourceLookup, ...] = (
     _SourceLookup(name='Pulitzer Prizes', lookup=pulitzer_lookup),
     _SourceLookup(name='Nebula Awards', lookup=nebula_lookup),
+    _SourceLookup(name='Hugo Awards', lookup=hugo_lookup),
 )
 
 
