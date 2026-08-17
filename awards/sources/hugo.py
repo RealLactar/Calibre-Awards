@@ -15,6 +15,7 @@ from http.cookiejar import CookieJar
 from urllib.parse import urlencode
 
 from ..model import AwardResult
+from .hugo_rankings import HugoRanking, HUGO_BEST_NOVEL_RANKINGS
 
 TIMEOUT_SECONDS = 30
 PAGES_ENDPOINT = 'https://www.thehugoawards.org/wp-json/wp/v2/pages'
@@ -49,8 +50,16 @@ _BALLOT_COUNT_NOTE_RE = re.compile(
     r',\s*'
     r'(?:\d{1,3}(?:,\d{3})+|\d+)'
     r'\s+nominating\s+ballots?'
+    r'(?:\s*,\s*[^)]+)?'
     r'\s*\)$',
     re.IGNORECASE,
+)
+_TRANSLATOR_AUTHOR_SUFFIX_RE = re.compile(
+    r',\s*(?:translated by\s+.+|.+\s+translator)\s*$',
+    re.IGNORECASE,
+)
+_WORD_SEPARATOR_HYPHEN_RE = re.compile(
+    r'(\w)[\u2010\u2011\u2012\u2013\u2014\u2212-](\w)'
 )
 
 
@@ -553,9 +562,15 @@ def _normalize_text(value: str) -> str:
     return text
 
 
+def _normalize_title_for_match(value: str) -> str:
+    text = _normalize_text(value)
+    text = _WORD_SEPARATOR_HYPHEN_RE.sub(r'\1 \2', text)
+    return _collapse_ws(text)
+
+
 def _titles_equivalent(query_title: str, record_title: str) -> bool:
-    query_norm = _normalize_text(query_title)
-    record_norm = _normalize_text(record_title)
+    query_norm = _normalize_title_for_match(query_title)
+    record_norm = _normalize_title_for_match(record_title)
     if query_norm == record_norm:
         return True
 
@@ -580,15 +595,84 @@ def _titles_match(query_title: str, record: _ParsedRecord) -> bool:
     )
 
 
+def _strip_trailing_name_parenthetical(author: str) -> str:
+    stripped = author.rstrip()
+    if not stripped.endswith(')'):
+        return stripped
+    start = stripped.rfind('(')
+    if start <= 0:
+        return stripped
+    group = stripped[start:]
+    remainder = stripped[:start].rstrip(' ,')
+    if not remainder or not any(character.isalpha() for character in group):
+        return stripped
+    return remainder
+
+
+def _canonical_author(author: str) -> str:
+    stripped = _TRANSLATOR_AUTHOR_SUFFIX_RE.sub('', author).rstrip(' ,')
+    stripped = _strip_trailing_name_parenthetical(stripped)
+    return stripped or author
+
+
+def _author_match_forms(author: str) -> set[str]:
+    forms = {_normalize_text(author)}
+    forms.add(_normalize_text(_canonical_author(author)))
+    return forms
+
+
 def _authors_match(query_author: str, record_author: str) -> bool:
-    return _normalize_text(query_author) == _normalize_text(record_author)
+    return bool(_author_match_forms(query_author) & _author_match_forms(record_author))
 
 
 def _record_matches(record: _ParsedRecord, title: str, author: str) -> bool:
     return _titles_match(title, record) and _authors_match(author, record.work_author)
 
 
+def _ranking_matches_record(ranking: HugoRanking, record: _ParsedRecord) -> bool:
+    if ranking.award_year != record.award_year:
+        return False
+    title_ok = any(
+        _titles_equivalent(ranking.work_title, candidate)
+        for candidate in record.match_titles
+    )
+    if not title_ok:
+        return False
+    return _authors_match(ranking.work_author, record.work_author)
+
+
+def _ranking_for_record(record: _ParsedRecord) -> HugoRanking | None:
+    found = [
+        ranking
+        for ranking in HUGO_BEST_NOVEL_RANKINGS
+        if _ranking_matches_record(ranking, record)
+    ]
+    if len(found) != 1:
+        return None
+    return found[0]
+
+
+def _enrichment_is_consistent(record: _ParsedRecord, ranking: HugoRanking) -> bool:
+    if ranking.rank == 1:
+        return record.status == 'Winner'
+    return record.status != 'Winner'
+
+
 def _to_award_result(record: _ParsedRecord) -> AwardResult:
+    ranking = _ranking_for_record(record)
+    if ranking is None or not _enrichment_is_consistent(record, ranking):
+        return AwardResult(
+            work_title=record.work_title,
+            work_author=record.work_author,
+            award_name='Hugo Award',
+            award_year=record.award_year,
+            category='Best Novel',
+            status=record.status,
+            rank=None,
+            source_name='Hugo Awards',
+            source_url=record.source_url,
+            notes=None,
+        )
     return AwardResult(
         work_title=record.work_title,
         work_author=record.work_author,
@@ -596,10 +680,10 @@ def _to_award_result(record: _ParsedRecord) -> AwardResult:
         award_year=record.award_year,
         category='Best Novel',
         status=record.status,
-        rank=None,
+        rank=ranking.rank,
         source_name='Hugo Awards',
-        source_url=record.source_url,
-        notes=None,
+        source_url=ranking.source_url,
+        notes='tie' if ranking.tied else None,
     )
 
 

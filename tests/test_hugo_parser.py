@@ -138,6 +138,23 @@ HTML_MALFORMED_STRONG_TITLE = """
 </ul>
 """
 
+HTML_2015 = """
+<p><strong>Best Novel</strong> (5653 final ballots, 1827 nominating ballots, 587 entries, range 212-387)</p>
+<ul>
+<li class="winner"><strong>The Three Body Problem</strong>, Cixin Liu, Ken Liu translator (Tor Books)</li>
+<li><strong>The Goblin Emperor</strong>, Katherine Addison (Sarah Monette) (Tor Books)</li>
+<li><strong>Ancillary Sword</strong>, Ann Leckie (Orbit US/Orbit UK)</li>
+<li><strong>No Award</strong></li>
+<li><strong>Skin Game</strong>, Jim Butcher (Orbit UK/Roc Books)</li>
+<li><strong>The Dark Between the Stars</strong>, Kevin J. Anderson (Tor Books)</li>
+</ul>
+<p><strong>Best Novella</strong> (5337 final ballots, 1083 nominating ballots, 201 entries, range 145-338)</p>
+<ul>
+<li class="winner"><strong>No Award</strong></li>
+<li><strong>Flow</strong>, Arlan Andrews, Sr. (Analog, 11-2014)</li>
+</ul>
+"""
+
 HTML_2016 = """
 <p><strong>Best Novel</strong> (2903 final ballots, 3695 nominating ballots)</p>
 <ul>
@@ -298,6 +315,23 @@ class HugoParserTests(unittest.TestCase):
         self.assertTrue(hugo._record_matches(dune, 'Dune', 'Frank Herbert'))
         self.assertFalse(hugo._record_matches(world, 'Dune', 'Frank Herbert'))
         self.assertFalse(hugo._record_matches(dune, 'Dune World', 'Frank Herbert'))
+        self.assertFalse(hugo._record_matches(dune, 'The Three', 'Frank Herbert'))
+
+    def test_word_separator_hyphen_matches_but_prefix_does_not(self):
+        three_body = hugo._parse_best_novel_html(HTML_2015, 2015, URL_2015)[0]
+        self.assertEqual(three_body.work_title, 'The Three Body Problem')
+        self.assertTrue(
+            hugo._record_matches(three_body, 'The Three Body Problem', 'Cixin Liu')
+        )
+        self.assertTrue(
+            hugo._record_matches(three_body, 'The Three-Body Problem', 'Cixin Liu')
+        )
+        self.assertFalse(
+            hugo._record_matches(three_body, 'The Three', 'Cixin Liu')
+        )
+        self.assertFalse(
+            hugo._record_matches(three_body, 'The Three Body Problem', 'Ann Leckie')
+        )
 
     def test_to_award_result_fields(self):
         dune = _find_records(
@@ -313,6 +347,23 @@ class HugoParserTests(unittest.TestCase):
         self.assertEqual(result.source_name, 'Hugo Awards')
         self.assertEqual(result.source_url, URL_1966)
         self.assertIsNone(result.notes)
+
+    def test_2015_ballot_count_note_with_entries_does_not_drop_best_novel(self):
+        records = hugo._parse_best_novel_html(HTML_2015, 2015, URL_2015)
+        titles = [record.work_title for record in records]
+        three_body = _find_records(
+            records,
+            title='The Three Body Problem',
+            author='Cixin Liu, Ken Liu translator',
+        )
+        self.assertEqual(len(three_body), 1)
+        self.assertEqual(three_body[0].status, 'Winner')
+        skin = _find_records(records, title='Skin Game', author='Jim Butcher')
+        self.assertEqual(len(skin), 1)
+        self.assertEqual(skin[0].status, 'Finalist')
+        self.assertEqual(len(records), 5)
+        self.assertNotIn('No Award', titles)
+        self.assertNotIn('Flow', titles)
 
     def test_2016_ballot_count_note_does_not_drop_best_novel(self):
         records = hugo._parse_best_novel_html(HTML_2016, 2016, URL_2016)
