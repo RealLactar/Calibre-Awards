@@ -49,6 +49,13 @@ class AwardResultFormattingTests(unittest.TestCase):
             'Winner - 1988 Pulitzer Prize - Fiction',
         )
 
+    def test_explicit_rank_1_is_ordinal_not_winner(self):
+        result = _result(status='Winner', rank=1)
+        self.assertEqual(
+            format_award_result(result),
+            '1st - 1988 Pulitzer Prize - Fiction',
+        )
+
     def test_explicit_rank_2_is_ordinal(self):
         result = _result(status='Winner', rank=2)
         self.assertEqual(
@@ -70,6 +77,13 @@ class AwardResultFormattingTests(unittest.TestCase):
             '4th - 1988 Pulitzer Prize - Fiction',
         )
 
+    def test_explicit_rank_5_is_ordinal(self):
+        result = _result(rank=5)
+        self.assertEqual(
+            format_award_result(result),
+            '5th - 1988 Pulitzer Prize - Fiction',
+        )
+
     def test_eleventh_twelfth_thirteenth_use_th(self):
         self.assertEqual(
             format_award_result(_result(rank=11)),
@@ -89,6 +103,16 @@ class AwardResultFormattingTests(unittest.TestCase):
         self.assertEqual(
             format_award_result(result),
             '21st - 1988 Pulitzer Prize - Fiction',
+        )
+
+    def test_twenty_second_and_twenty_third(self):
+        self.assertEqual(
+            format_award_result(_result(rank=22)),
+            '22nd - 1988 Pulitzer Prize - Fiction',
+        )
+        self.assertEqual(
+            format_award_result(_result(rank=23)),
+            '23rd - 1988 Pulitzer Prize - Fiction',
         )
 
     def test_missing_award_year_uses_marker(self):

@@ -1,750 +1,939 @@
-"""Offline unittest coverage for the Locus Awards winner parser and harvest."""
+"""Offline unittest coverage for the SFADB Locus Awards source."""
 
 from __future__ import annotations
 
-import json
 import unittest
 from unittest.mock import patch
 
+from awards.engine import _lookup_awards_from_sources
+from awards.qualifier import QualificationDecision, qualify_award_result
+from awards.source_registry import AwardSource
 from awards.sources import locus
 
-ABOUT_URL = locus.ABOUT_URL
-URL_2018 = 'https://locusmag.com/2018/06/2018-locus-awards-winners/'
-URL_2020 = 'https://locusmag.com/2020/06/locus-awards-winners-2020/'
-URL_2024 = 'https://locusmag.com/2024/06/2024-locus-awards-winners/'
-URL_2026 = 'https://locusmag.com/2026/05/2026-locus-awards-winners/'
-URL_2017 = 'https://locusmag.com/2017/06/2017-locus-awards-winners/'
-URL_REPORT = 'https://locusmag.com/feature/2024-locus-awards-online-report/'
-URL_INTRO_2026 = 'https://locusmag.com/2026/05/2026-locus-awards-winners/'
+URL_1990 = 'https://www.sfadb.com/Locus_Awards_1990'
+URL_1971 = 'https://www.sfadb.com/Locus_Awards_1971'
+URL_1979 = 'https://www.sfadb.com/Locus_Awards_1979'
+URL_2010 = 'https://www.sfadb.com/Locus_Awards_2010'
+URL_2018 = 'https://www.sfadb.com/Locus_Awards_2018'
+URL_2024 = 'https://www.sfadb.com/Locus_Awards_2024'
+URL_2026 = 'https://www.sfadb.com/Locus_Awards_2026'
+URL_SIMMONS = 'https://www.sfadb.com/Dan_Simmons'
+URL_CHERRYH = 'https://www.sfadb.com/C_J_Cherryh'
 
-HTML_ABOUT = f"""
-<html><body>
-<p>Recent winners. <a href="{URL_INTRO_2026}">You can read all about the 2026 winners here</a>.</p>
-<p>For a full list visit the <a href="https://www.sfadb.com/Locus_Awards">Science Fiction Awards Database</a>.</p>
-<h2 style="text-align: left;">Previous Winners</h2>
-<p>Here are the winners and reports from across the years.</p>
-<p><center>2026: <a href="{URL_2026}">Winners</a> • <em>Report forthcoming</em><br />
-2026: <a href="{URL_2026}">Winners</a> • <em>duplicate should not repeat</em><br />
-2024: <a href="{URL_2024}">Winners</a> • <a href="{URL_REPORT}">Report</a><br />
-2020: <a href="{URL_2020}">Winners</a> • <a href="">Report</a><br />
-2023: <a href="https://example.com/fake">Winners</a> • <em>external should be ignored</em><br />
-2018: <a href="{URL_2018}">Winners</a> • <a href="https://locusmag.com/2018/08/locus-awards-weekend/">Report</a><br />
-2017: <a href="{URL_2017}">Winners</a> • <a href="https://example.invalid/2017-report">Report</a></center></p>
-<h2>Frequently Asked Questions</h2>
-<p>2016: <a href="https://locusmag.com/2016/06/2016-locus-awards-winners/">Winners</a></p>
-<p><a href="https://locusmag.com/about-the-locus-awards/">About</a></p>
+
+def _author_page(name: str, rows: str) -> str:
+    return f"""
+<html><head><title>sfadb : {name} Awards</title></head>
+<body>
+<div class="pagetitle">{name}</div>
+<div class="awardlistingsectionheader">— Locus Awards and Poll — </div>
+<div class="entryblock2">
+<div class="titleleft"><a href="Locus_Awards">Locus Awards</a></div>
+{rows}
+</div>
+<div class="awardlistingsectionheader">— Hugo Awards — </div>
+<div class="titlemid"><b>Unrelated Hugo Work</b> — novel — winner</div>
 </body></html>
 """
 
-HTML_2026 = """
-<div class="entry-content">
-<p>The Locus Science Fiction Foundation announced the 2026 Locus Awards.</p>
-<p><span style="color: #008080;"><strong>SCIENCE FICTION NOVEL</strong></span></p>
-<ul>
-<li>WINNER:&nbsp;<strong>Death of the Author</strong>, Nnedi Okorafor (Morrow; Gollancz)&nbsp;<span class="purchase_links"><a href="https://www.amazon.com/s?k=9780063445789&amp;tag=locusmag06-20">amazon</a> / <a href="https://bookshop.org/a/18487/9780063445789">bookshop</a></span></li>
-</ul>
-<ul>
-<li><strong>The Folded Sky</strong>, Elizabeth Bear (Saga; Gollancz)</li>
-<li><strong>Shroud</strong>, Adrian Tchaikovsky (Tor UK; Orbit US)</li>
-</ul>
-<p><span style="color: #008080;"><strong>FANTASY NOVEL</strong></span></p>
-<ul>
-<li>WINNER: <strong>The Everlasting</strong>, Alix E. Harrow (Tor; Tor UK)</li>
-</ul>
-<ul>
-<li><strong>The Devils</strong>, Joe Abercrombie (Tor; Gollancz)</li>
-</ul>
-<p><span style="color: #008080;"><strong>HORROR NOVEL</strong></span></p>
-<ul>
-<li>WINNER: <strong>The Buffalo Hunter Hunter</strong>, Stephen Graham Jones (Saga; Titan UK)</li>
-</ul>
-<p><span style="color: #008080;"><strong>YOUNG ADULT NOVEL</strong></span></p>
-<ul>
-<li>WINNER: <strong>Starstrike</strong>, Yoon Ha Lee (Delacorte; Solaris UK) [SF]</li>
-</ul>
-<p><span style="color: #008080;"><strong>FIRST NOVEL</strong></span></p>
-<ul>
-<li>WINNER: <strong>Sour Cherry</strong>, Natalia Theodoridou (Tin House; Wildfire UK) [F]</li>
-</ul>
-<p><span style="color: #008080;"><strong>TRANSLATED NOVEL</strong></span></p>
-<ul>
-<li>WINNER:&nbsp;<strong>On the Calculation of Volume III</strong>, Solvej Balle, tr. Sophia Hersi Smith &amp; Jennifer Russell (New Directions; Faber &amp; Faber) [SF]</li>
-</ul>
-<p><span style="color: #008080;"><strong>NOVELLA</strong></span></p>
-<ul>
-<li>WINNER: <strong>The River Has Roots</strong>, Amal El-Mohtar (Tordotcom)</li>
-</ul>
-<p><span style="color: #008080;"><strong>MAGAZINE</strong></span></p>
-<ul>
-<li>WINNER: <em>Clarkesworld</em></li>
-</ul>
+
+def _entry(year: int, title: str, category: str, place_html: str) -> str:
+    return f"""
+<div class="dateleftindent"><a href="Locus_Awards_{year}">{year}</a>: </div>
+<div class="titlemid"><b>{title}</b> ({year} publisher)
+ — {category} — {place_html}</div>
+"""
+
+
+HTML_SIMMONS = _author_page(
+    'Dan Simmons',
+    _entry(2010, 'Drood', 'fantasy novel', '3rd place')
+    + _entry(1990, 'Hyperion', 'sf novel', '<span class="win">winner</span>')
+    + _entry(1990, 'Phases of Gravity', 'sf novel', '9th place')
+    + _entry(1990, 'Carrion Comfort', 'horror novel', '<span class="win">winner</span>')
+    + _entry(2008, 'Muse of Fire', 'novella', '5th place'),
+)
+
+HTML_CHERRYH_LIVE_SHAPE = """
+<html><body>
+<div class="pagetitle">C. J. Cherryh</div>
+<div class="awardlistingsectionheader">— Locus Awards and Poll — </div>
+<div class="dateleftindent"><a href="Locus_Awards_1990">1990</a>: </div>
+<div class="titlemid"><b>Rimrunners</b>   (Warner)
+sf novel — 2nd place</div>
+</body></html>
+"""
+
+
+HTML_EFFINGER = _author_page(
+    'George Alec Effinger',
+    _entry(1990, 'A Fire in the Sun', 'sf novel', '5th place'),
+)
+
+HTML_ANDERSON = _author_page(
+    'Poul Anderson',
+    _entry(1990, 'The Boat of a Million Years', 'sf novel', '6th place'),
+)
+
+HTML_WELLS = _author_page(
+    'Martha Wells',
+    _entry(2024, 'System Collapse', 'sf novel', '<span class="win">winner</span>'),
+)
+
+HTML_WILLIS = _author_page(
+    'Connie Willis',
+    _entry(2024, 'The Road to Roswell', 'sf novel', '5th place'),
+)
+
+HTML_TCHAIKOVSKY = _author_page(
+    'Adrian Tchaikovsky',
+    _entry(2024, 'Lords of Uncreation', 'sf novel', '6th place'),
+)
+
+HTML_OKORAFOR = _author_page(
+    'Nnedi Okorafor',
+    _entry(2026, 'Death of the Author', 'sf novel', '<span class="win">winner</span>'),
+)
+
+HTML_BEAR = _author_page(
+    'Elizabeth Bear',
+    _entry(2026, 'The Folded Sky', 'sf novel', '4th place'),
+)
+
+HTML_SCALZI = _author_page(
+    'John Scalzi',
+    _entry(2026, 'The Shattering Peace', 'sf novel', '5th place')
+    + _entry(2018, 'The Collapsing Empire', 'sf novel', '<span class="win">winner</span>'),
+)
+
+HTML_LIU = _author_page(
+    'Ken Liu',
+    _entry(2026, 'All That We See or Seem', 'sf novel', '6th place'),
+)
+
+HTML_KINGFISHER = _author_page(
+    'T. Kingfisher',
+    _entry(2026, 'Hemlock &amp; Silver', 'fantasy novel', '3rd place (tie)'),
+)
+
+HTML_KUANG = _author_page(
+    'R. F. Kuang',
+    _entry(2026, 'Katabasis', 'fantasy novel', '3rd place (tie)'),
+)
+
+HTML_BENNETT = _author_page(
+    'Robert Jackson Bennett',
+    _entry(2026, 'A Drop of Corruption', 'fantasy novel', '5th place'),
+)
+
+HTML_NIVEN = _author_page(
+    'Larry Niven',
+    _entry(1971, 'Ringworld', 'novel', '<span class="win">winner</span>'),
+)
+
+HTML_MCINTYRE = _author_page(
+    'Vonda N. McIntyre',
+    _entry(1979, 'Dreamsnake', 'novel', '<span class="win">winner</span>'),
+)
+
+HTML_NO_LOCUS = """
+<html><body>
+<div class="pagetitle">Dan Simmons</div>
+<div class="awardlistingsectionheader">— Hugo Awards — </div>
+</body></html>
+"""
+
+HTML_MALFORMED_LOCUS = """
+<html><body>
+<div class="pagetitle">Dan Simmons</div>
+<div class="awardlistingsectionheader">— Locus Awards and Poll — </div>
+<div class="dateleftindent"><a href="Locus_Awards_1990">1990</a>: </div>
+</body></html>
+"""
+
+HTML_WRONG_PERSON = """
+<html><body>
+<div class="pagetitle">Someone Else</div>
+<div class="awardlistingsectionheader">— Locus Awards and Poll — </div>
+</body></html>
+"""
+
+HTML_1990 = """
+<div class="categoryblock">
+<div class="category">Sf Novel</div>
+<ol>
+<li value="1"> <span class="winner">Winner:</span> <b>Hyperion</b>, <a href="Dan_Simmons">Dan Simmons</a> (Doubleday Foundation)</li>
+<li value="2"> <b>Rimrunners</b>, <a href="C_J_Cherryh">C. J. Cherryh</a> (Warner)</li>
+<li value="3"> <b>Grass</b>, <a href="Sheri_S_Tepper">Sheri S. Tepper</a> (Doubleday Foundation)</li>
+<li value="4"> <b>Tides of Light</b>, <a href="Gregory_Benford">Gregory Benford</a> (Bantam Spectra)</li>
+<li value="5"> <b>A Fire in the Sun</b>, <a href="George_Alec_Effinger">George Alec Effinger</a> (Doubleday Foundation)</li>
+<li value="6"> <b>The Boat of a Million Years</b>, <a href="Poul_Anderson">Poul Anderson</a> (Tor)</li>
+<li value="7"> <b>Rama II</b>, <a href="Arthur_C_Clarke">Arthur C. Clarke</a> &amp; <a href="Gentry_Lee">Gentry Lee</a> (Bantam Spectra)</li>
+</ol>
+</div>
+<div class="categoryblock">
+<div class="category">Horror Novel</div>
+<ol>
+<li value="1"> <span class="winner">Winner:</span> <b>Carrion Comfort</b>, <a href="Dan_Simmons">Dan Simmons</a> (Dark Harvest)</li>
+</ol>
+</div>
+<div class="categoryblock">
+<div class="category">Novella</div>
+<ol>
+<li value="1"> <span class="winner">Winner:</span> <b>The Father of Stones</b>, <a href="Lucius_Shepard">Lucius Shepard</a></li>
+</ol>
+</div>
+"""
+
+HTML_1971 = """
+<div class="categoryblock">
+<div class="category">Novel</div>
+<ol>
+<li value="1"> <span class="winner">Winner:</span> <b>Ringworld</b>, <a href="Larry_Niven">Larry Niven</a> (Ballantine)</li>
+<li value="2"> (tie): <b>Tower of Glass</b>, <a href="Robert_Silverberg">Robert Silverberg</a> (Scribner's)</li>
+<li value="2"> (tie): <b>The Year of the Quiet Sun</b>, <a href="Wilson_Tucker">Wilson Tucker</a> (Ace)</li>
+<li value="4"> <b>And Chaos Died</b>, <a href="Joanna_Russ">Joanna Russ</a> (Ace)</li>
+<li value="5"> (tie): <b>Downward to the Earth</b>, <a href="Robert_Silverberg">Robert Silverberg</a></li>
+<li value="5"> (tie): <b>Fourth Mansions</b>, <a href="R_A_Lafferty">R. A. Lafferty</a> (Ace)</li>
+<li value="7"> <b>Tau Zero</b>, <a href="Poul_Anderson">Poul Anderson</a> (Doubleday)</li>
+</ol>
+</div>
+"""
+
+HTML_1979 = """
+<div class="categoryblock">
+<div class="category">Novel</div>
+<ol>
+<li value="1"> <span class="winner">Winner:</span> <b>Dreamsnake</b>, <a href="Vonda_N_McIntyre">Vonda N. McIntyre</a> (Houghton Mifflin)</li>
+<li value="2"> <b>Blind Voices</b>, <a href="Tom_Reamy">Tom Reamy</a> (Berkley Putnam)</li>
+</ol>
 </div>
 """
 
 HTML_2018 = """
-<div class="entry-content">
-<p><span style="color: #008080;"><strong>SCIENCE FICTION NOVEL</strong></span></p>
-<ul>
-<li><span style="color: #ff0000;">WINNER: <b><a style="color: #ff0000;" href="https://www.amazon.com/dp/076538888X/?tag=locusmag06-20">The Collapsing Empire</a></b>, John Scalzi (Tor US; Tor UK)</span></li>
-</ul>
-<ul>
-<li><b><a href="https://www.amazon.com/dp/0316332836/?tag=locusmag06-20">Persepolis Rising</a></b>, James S.A. Corey (Orbit US; Orbit UK)</li>
-</ul>
-<p><span style="color: #008080;"><strong>FANTASY NOVEL</strong></span></p>
-<ul>
-<li><span style="color: #ff0000;">WINNER: <b><a href="https://www.amazon.com/dp/0316229245/?tag=locusmag06-20">The Stone Sky</a></b>, N.K. Jemisin (Orbit US; Orbit UK)</span></li>
-</ul>
-<p><span style="color: #008080;"><strong>YOUNG ADULT BOOK</strong></span></p>
-<ul>
-<li><span style="color: #ff0000;">WINNER: <b><a href="https://www.amazon.com/dp/067078561X/?tag=locusmag06-20">Akata Warrior</a></b>, Nnedi Okorafor (Viking)</span></li>
-</ul>
-<p><span style="color: #008080;"><strong>FIRST NOVEL</strong></span></p>
-<ul>
-<li><span style="color: #ff0000;">WINNER: <b><a href="https://www.amazon.com/dp/148146650X/?tag=locusmag06-20">The Strange Case of the Alchemist’s Daughter</a></b>, Theodora Goss (Saga)</span></li>
-</ul>
+<div class="categoryblock">
+<div class="category">Sf Novel</div>
+<ol>
+<li value="1"> <span class="winner">Winner:</span> <b>The Collapsing Empire</b>, <a href="John_Scalzi">John Scalzi</a> (Tor US; Tor UK)</li>
+<li value="2"> <b>Provenance</b>, <a href="Ann_Leckie">Ann Leckie</a> (Orbit)</li>
+</ol>
 </div>
 """
 
 HTML_2024 = """
-<div class="nobullets">
-<p><strong>SCIENCE FICTION NOVEL</strong></p>
-<ul>
-<li>WINNER: <a href="https://www.amazon.com/s?k=978-1250826978&amp;tag=locusmag06-20"><b>System Collapse</b></a>, Martha Wells (Tordotcom)</li>
-</ul>
-<ul>
-<li><a href="https://www.amazon.com/s?k=978-1250827517&amp;tag=locusmag06-20"><b>The Jinn-Bot of Shantiport</b></a>, Samit Basu (Tordotcom)</li>
-</ul>
-<p><strong>HORROR NOVEL</strong></p>
-<ul>
-<li>WINNER: <a href="https://www.amazon.com/s?k=9781250829795&amp;tag=locusmag06-20"><b>A House with Good Bones</b></a>, T. Kingfisher (Nightfire; Titan UK)</li>
-</ul>
+<div class="categoryblock">
+<div class="category">Sf Novel</div>
+<ol>
+<li value="1"> <span class="winner">Winner:</span> <b>System Collapse</b>, <a href="Martha_Wells">Martha Wells</a> (Tordotcom)</li>
+<li value="2"> <b>Starter Villain</b>, <a href="John_Scalzi">John Scalzi</a> (Tor)</li>
+<li value="3"> <b>Translation State</b>, <a href="Ann_Leckie">Ann Leckie</a> (Orbit)</li>
+<li value="4"> <b>The Terraformers</b>, <a href="Annalee_Newitz">Annalee Newitz</a> (Tor)</li>
+<li value="5"> <b>The Road to Roswell</b>, <a href="Connie_Willis">Connie Willis</a> (Del Rey)</li>
+<li value="6"> <b>Lords of Uncreation</b>, <a href="Adrian_Tchaikovsky">Adrian Tchaikovsky</a> (Orbit)</li>
+</ol>
+</div>
+<div class="categoryblock">
+<div class="category">Young Adult Novel</div>
+<ol>
+<li value="1"> <span class="winner">Winner:</span> <b>Promises Stronger Than Darkness</b>, <a href="Charlie_Jane_Anders">Charlie Jane Anders</a> (Tor Teen)</li>
+</ol>
+</div>
+<div class="categoryblock">
+<div class="category">First Novel</div>
+<ol>
+<li value="1"> <span class="winner">Winner:</span> <b>The Saint of Bright Doors</b>, <a href="Vajra_Chandrasekera">Vajra Chandrasekera</a> (Tordotcom)</li>
+</ol>
 </div>
 """
 
-HTML_2025_BOLD_WINNER = """
-<p><b>SCIENCE FICTION NOVEL</b></p>
-<div class="mynomorebulletlist">
-<ul>
-<li style="font-weight: 400;"><b>WINNER: The Man Who Saw Seconds</b><span style="font-weight: 400;">, Alexander Boldizar (Clash) </span><a href="https://www.amazon.com/s?k=9781960988072&amp;tag=locusmag06-20"><span>amazon</span></a><span> / </span><a href="https://bookshop.org/a/18487/9781960988072"><span>bookshop</span></a></li>
-</ul>
-<ul>
-<li><b>Rakesfall</b>, Vajra Chandrasekera (Tordotcom; Solaris)</li>
-</ul>
+HTML_2026 = """
+<div class="categoryblock">
+<div class="category">Sf Novel</div>
+<ol>
+<li value="1"> <span class="winner">Winner:</span> <b>Death of the Author</b>, <a href="Nnedi_Okorafor">Nnedi Okorafor</a> (Morrow)</li>
+<li value="2"> <b>Shroud</b>, <a href="Adrian_Tchaikovsky">Adrian Tchaikovsky</a> (Tor)</li>
+<li value="3"> <b>Slow Gods</b>, <a href="Claire_North">Claire North</a> (Orbit)</li>
+<li value="4"> <b>The Folded Sky</b>, <a href="Elizabeth_Bear">Elizabeth Bear</a> (Saga)</li>
+<li value="5"> <b>The Shattering Peace</b>, <a href="John_Scalzi">John Scalzi</a> (Tor)</li>
+<li value="6"> <b>All That We See or Seem</b>, <a href="Ken_Liu">Ken Liu</a> (Saga)</li>
+</ol>
+</div>
+<div class="categoryblock">
+<div class="category">Fantasy Novel</div>
+<ol>
+<li value="1"> <span class="winner">Winner:</span> <b>The Everlasting</b>, <a href="Alix_E_Harrow">Alix E. Harrow</a> (Tor)</li>
+<li value="2"> <b>The Incandescent</b>, <a href="Emily_Tesh">Emily Tesh</a> (Tor)</li>
+<li value="3"> (tie): <b>Hemlock &amp; Silver</b>, <a href="T_Kingfisher">T. Kingfisher</a> (Tor)</li>
+<li value="3"> (tie): <b>Katabasis</b>, <a href="R_F_Kuang">R. F. Kuang</a> (Harper Voyager)</li>
+<li value="5"> <b>A Drop of Corruption</b>, <a href="Robert_Jackson_Bennett">Robert Jackson Bennett</a> (Del Rey)</li>
+<li value="6"> <b>Queen Demon</b>, <a href="Martha_Wells">Martha Wells</a> (Tor)</li>
+</ol>
+</div>
+<div class="categoryblock">
+<div class="category">Horror Novel</div>
+<ol>
+<li value="1"> <span class="winner">Winner:</span> <b>The Buffalo Hunter Hunter</b>, <a href="Stephen_Graham_Jones">Stephen Graham Jones</a> (Saga)</li>
+</ol>
+</div>
+<div class="categoryblock">
+<div class="category">Young Adult Book</div>
+<ol>
+<li value="1"> <span class="winner">Winner:</span> <b>Historical YA Book</b>, <a href="Example_Author">Example Author</a> (Tor)</li>
+</ol>
+</div>
+<div class="categoryblock">
+<div class="category">Translated Novel</div>
+<ol>
+<li value="1"> <span class="winner">Winner:</span> <b>On the Calculation of Volume III</b>, <a href="Solvej_Balle">Solvej Balle</a>, <a href="Sophia_Hersi_Smith">Sophia Hersi Smith</a> &amp; <a href="Jennifer_Russell">Jennifer Russell</a>, trans23 (New Directions; Faber &amp; Faber)</li>
+<li value="2"> <b>Red Sword</b>, <a href="Bora_Chung">Bora Chung</a>, translated by <a href="Anton_Hur">Anton Hur</a> (Honford Star)</li>
+<li value="3"> <b>The Wax Child</b>, <a href="Olga_Ravn">Olga Ravn</a>, translated by <a href="Martin_Aitken">Martin Aitken</a> (New Directions; Viking UK)</li>
+</ol>
 </div>
 """
 
-HTML_RED_WITHOUT_WINNER = """
-<p><strong>SCIENCE FICTION NOVEL</strong></p>
-<ul>
-<li><span style="color: #ff0000;"><b>Ancillary Justice</b>, Ann Leckie (Orbit)</span></li>
-</ul>
-<ul>
-<li><b>Neptune's Brood</b>, Charles Stross (Ace)</li>
-</ul>
+HTML_COAUTHOR = """
+<div class="categoryblock">
+<div class="category">Novel</div>
+<ol>
+<li value="2"> <b>The Mote in God's Eye</b>, <a href="Larry_Niven">Larry Niven</a> &amp; <a href="Jerry_Pournelle">Jerry Pournelle</a> (Simon &amp; Schuster)</li>
+</ol>
+</div>
 """
 
-HTML_UNLABELED_FIRST = """
-<p><strong>SCIENCE FICTION NOVEL</strong></p>
-<ul>
-<li><strong>Death of the Author</strong>, Nnedi Okorafor (Morrow)</li>
-</ul>
+HTML_MISSING_VALUE = """
+<div class="categoryblock">
+<div class="category">Sf Novel</div>
+<ol>
+<li> <span class="winner">Winner:</span> <b>Hyperion</b>, <a href="Dan_Simmons">Dan Simmons</a></li>
+<li value="2"> <b>Rimrunners</b>, <a href="C_J_Cherryh">C. J. Cherryh</a></li>
+</ol>
+</div>
 """
 
-HTML_TOP_TEN = """
-<p>The top ten finalists in each category are:</p>
-<p><strong>SCIENCE FICTION NOVEL</strong></p>
-<ul>
-<li><b>The Jinn-Bot of Shantiport</b>, Samit Basu (Tordotcom)</li>
-<li><b>A Fire Born of Exile</b>, Aliette de Bodard (Gollancz)</li>
-<li><b>Red Team Blues</b>, Cory Doctorow (Tor)</li>
-<li><b>Furious Heaven</b>, Kate Elliott (Ad Astra)</li>
-<li><b>Translation State</b>, Ann Leckie (Orbit)</li>
-<li><b>The Terraformers</b>, Annalee Newitz (Tor)</li>
-<li><b>Starter Villain</b>, John Scalzi (Tor)</li>
-<li><b>Lords of Uncreation</b>, Adrian Tchaikovsky (Orbit)</li>
-<li><b>System Collapse</b>, Martha Wells (Tordotcom)</li>
-<li><b>The Road to Roswell</b>, Connie Willis (Del Rey)</li>
-</ul>
+HTML_ZERO_VALUE = """
+<div class="categoryblock">
+<div class="category">Sf Novel</div>
+<ol>
+<li value="0"> <span class="winner">Winner:</span> <b>Hyperion</b>, <a href="Dan_Simmons">Dan Simmons</a></li>
+</ol>
+</div>
 """
 
-HTML_MAGAZINE_ONLY = """
-<p><strong>MAGAZINE</strong></p>
-<ul>
-<li>WINNER: <em>Clarkesworld</em></li>
-</ul>
-<p><strong>PUBLISHER</strong></p>
-<ul>
-<li>WINNER: Orbit</li>
-</ul>
+HTML_ALT_TITLE = """
+<div class="categoryblock">
+<div class="category">Sf Novel</div>
+<ol>
+<li value="15"> <b>Buying Time</b> (UK title: <b>The Long Habit of Living</b>), <a href="Joe_Haldeman">Joe Haldeman</a> (Morrow)</li>
+</ol>
+</div>
 """
 
-HTML_CONTEST = """
-<p>Contest</p>
-<ul>
-<li>WINNER: Free Subscription Drawing</li>
-</ul>
+HTML_OVERLAP_ANNUAL = """
+<div class="categoryblock">
+<div class="category">Sf Novel</div>
+<ol>
+<li value="3"> <b>Same Test Book</b>, <a href="Test_Author">Test Author</a> (Tor)</li>
+</ol>
+</div>
+<div class="categoryblock">
+<div class="category">First Novel</div>
+<ol>
+<li value="1"> <span class="winner">Winner:</span> <b>Same Test Book</b>, <a href="Test_Author">Test Author</a> (Tor)</li>
+</ol>
+</div>
 """
 
-HTML_EMPTY = '<html><body><p>No awards here.</p></body></html>'
+HTML_OVERLAP_AUTHOR = _author_page(
+    'Test Author',
+    _entry(1991, 'Same Test Book', 'sf novel', '3rd place')
+    + _entry(1991, 'Same Test Book', 'first novel', '<span class="win">winner</span>'),
+)
 
-HTML_FUZZY_CATEGORY = """
-<p><strong>Best Science Fiction Novel</strong></p>
-<ul>
-<li>WINNER: <strong>Should Not Match Category</strong>, A. Author (Press)</li>
-</ul>
-<p><strong>Science Fiction</strong></p>
-<ul>
-<li>WINNER: <strong>Also Should Not Match</strong>, B. Author (Press)</li>
-</ul>
-<p><strong>SCIENCE FICTION NOVEL</strong></p>
-<ul>
-<li>WINNER: <strong>Death of the Author</strong>, Nnedi Okorafor (Morrow)</li>
-</ul>
-"""
+HTML_OVERLAP_SF_ONLY = _author_page(
+    'Test Author',
+    _entry(1991, 'Same Test Book', 'sf novel', '3rd place'),
+)
 
+HTML_OVERLAP_FIRST_ONLY = _author_page(
+    'Test Author',
+    _entry(1991, 'Same Test Book', 'first novel', '<span class="win">winner</span>'),
+)
 
-def _find_records(records, *, title: str, author: str | None = None):
-    matches = [record for record in records if record.work_title == title]
-    if author is not None:
-        matches = [record for record in matches if record.work_author == author]
-    return matches
+URL_OVERLAP = 'https://www.sfadb.com/Locus_Awards_1991'
+URL_TEST_AUTHOR = 'https://www.sfadb.com/Test_Author'
 
 
-class LocusDiscoveryTests(unittest.TestCase):
-    def test_discovers_2018_forward_official_winner_links(self):
-        pages = locus._discover_winner_pages(HTML_ABOUT, ABOUT_URL)
+PAGES = {
+    URL_SIMMONS: HTML_SIMMONS,
+    URL_CHERRYH: HTML_CHERRYH_LIVE_SHAPE,
+    'https://www.sfadb.com/George_Alec_Effinger': HTML_EFFINGER,
+    'https://www.sfadb.com/Poul_Anderson': HTML_ANDERSON,
+    'https://www.sfadb.com/Martha_Wells': HTML_WELLS,
+    'https://www.sfadb.com/Connie_Willis': HTML_WILLIS,
+    'https://www.sfadb.com/Adrian_Tchaikovsky': HTML_TCHAIKOVSKY,
+    'https://www.sfadb.com/Nnedi_Okorafor': HTML_OKORAFOR,
+    'https://www.sfadb.com/Elizabeth_Bear': HTML_BEAR,
+    'https://www.sfadb.com/John_Scalzi': HTML_SCALZI,
+    'https://www.sfadb.com/Ken_Liu': HTML_LIU,
+    'https://www.sfadb.com/T_Kingfisher': HTML_KINGFISHER,
+    'https://www.sfadb.com/R_F_Kuang': HTML_KUANG,
+    'https://www.sfadb.com/Robert_Jackson_Bennett': HTML_BENNETT,
+    'https://www.sfadb.com/Larry_Niven': HTML_NIVEN,
+    'https://www.sfadb.com/Vonda_N_McIntyre': HTML_MCINTYRE,
+    URL_1990: HTML_1990,
+    URL_1971: HTML_1971,
+    URL_1979: HTML_1979,
+    URL_2018: HTML_2018,
+    URL_2024: HTML_2024,
+    URL_2026: HTML_2026,
+    URL_TEST_AUTHOR: HTML_OVERLAP_AUTHOR,
+    URL_OVERLAP: HTML_OVERLAP_ANNUAL,
+}
+
+
+def _fake_request(_opener, url: str) -> tuple[int, str]:
+    body = PAGES.get(url)
+    if body is None:
+        return 404, ''
+    return 200, body
+
+
+class LocusTestCase(unittest.TestCase):
+    def setUp(self) -> None:
+        locus._reset_runtime_state()
+
+    def tearDown(self) -> None:
+        locus._reset_runtime_state()
+
+
+class AuthorSlugTests(LocusTestCase):
+    def test_ordinary_and_initial_slugs(self):
+        self.assertEqual(locus._author_slug_candidates('Dan Simmons'), ('Dan_Simmons',))
+        self.assertEqual(locus._author_slug_candidates('C. J. Cherryh'), ('C_J_Cherryh',))
+        self.assertEqual(locus._author_slug_candidates('N. K. Jemisin'), ('N_K_Jemisin',))
+        self.assertEqual(locus._author_slug_candidates('T. Kingfisher'), ('T_Kingfisher',))
         self.assertEqual(
-            pages,
+            locus._author_slug_candidates('Ursula K. Le Guin'),
+            ('Ursula_K_Le_Guin',),
+        )
+
+    def test_diacritic_slug_prefers_ascii_fold(self):
+        self.assertEqual(
+            locus._author_slug_candidates('China Miéville'),
+            ('China_Mieville', 'China_Miéville'),
+        )
+        self.assertEqual(
+            locus._author_slug_candidates('Isabel Cañas'),
+            ('Isabel_Canas', 'Isabel_Cañas'),
+        )
+
+
+class AnnualParseTests(LocusTestCase):
+    def test_1990_sf_novel_ranks_and_winner(self):
+        records = locus._parse_annual_page(HTML_1990, 1990, URL_1990)
+        by_title = {record.work_title: record for record in records if record.category == 'Sf Novel'}
+        hyperion = by_title['Hyperion']
+        self.assertEqual(hyperion.rank, 1)
+        self.assertTrue(hyperion.winner)
+        self.assertEqual(hyperion.work_author, 'Dan Simmons')
+        self.assertEqual(by_title['Rimrunners'].rank, 2)
+        self.assertEqual(by_title['A Fire in the Sun'].rank, 5)
+        self.assertEqual(by_title['The Boat of a Million Years'].rank, 6)
+        self.assertFalse(by_title['Rimrunners'].winner)
+
+    def test_novella_is_recognized_but_not_emitted(self):
+        records = locus._parse_annual_page(HTML_1990, 1990, URL_1990)
+        self.assertFalse(any(record.category == 'Novella' for record in records))
+
+    def test_1971_ties_preserve_shared_ranks(self):
+        records = locus._parse_annual_page(HTML_1971, 1971, URL_1971)
+        novels = [record for record in records if record.category == 'Novel']
+        ranks = [record.rank for record in novels]
+        self.assertEqual(ranks, [1, 2, 2, 4, 5, 5, 7])
+        ties = [record for record in novels if record.tied]
+        self.assertEqual(
+            [(record.work_title, record.rank) for record in ties],
             [
-                (2026, URL_2026),
-                (2024, URL_2024),
-                (2020, URL_2020),
-                (2018, URL_2018),
+                ('Tower of Glass', 2),
+                ('The Year of the Quiet Sun', 2),
+                ('Downward to the Earth', 5),
+                ('Fourth Mansions', 5),
             ],
         )
 
-    def test_ignores_unrelated_and_pre_2018_links(self):
-        pages = locus._discover_winner_pages(HTML_ABOUT, ABOUT_URL)
-        urls = [url for _year, url in pages]
-        self.assertNotIn(URL_2017, urls)
-        self.assertNotIn(URL_REPORT, urls)
-        self.assertNotIn('https://www.sfadb.com/Locus_Awards', urls)
-        self.assertNotIn(
-            'https://locusmag.com/2016/06/2016-locus-awards-winners/',
-            urls,
-        )
+    def test_2026_fantasy_tie_skips_fourth(self):
+        records = locus._parse_annual_page(HTML_2026, 2026, URL_2026)
+        fantasy = {
+            record.work_title: record
+            for record in records
+            if record.category == 'Fantasy Novel'
+        }
+        self.assertEqual(fantasy['Hemlock & Silver'].rank, 3)
+        self.assertTrue(fantasy['Hemlock & Silver'].tied)
+        self.assertEqual(fantasy['Katabasis'].rank, 3)
+        self.assertTrue(fantasy['Katabasis'].tied)
+        self.assertEqual(fantasy['A Drop of Corruption'].rank, 5)
+        self.assertFalse(fantasy['A Drop of Corruption'].tied)
+        self.assertEqual(fantasy['Queen Demon'].rank, 6)
 
-    def test_uses_discovered_urls_not_synthesized_slugs(self):
-        pages = dict(locus._discover_winner_pages(HTML_ABOUT, ABOUT_URL))
-        self.assertEqual(pages[2020], URL_2020)
-        self.assertNotEqual(
-            pages[2020],
-            'https://locusmag.com/2020/06/2020-locus-awards-winners/',
-        )
-
-    def test_does_not_duplicate_repeated_links(self):
-        pages = locus._discover_winner_pages(HTML_ABOUT, ABOUT_URL)
-        urls = [url for _year, url in pages]
-        self.assertEqual(urls.count(URL_2026), 1)
-
-    def test_external_winners_url_is_not_accepted(self):
-        pages = locus._discover_winner_pages(HTML_ABOUT, ABOUT_URL)
-        urls = [url for _year, url in pages]
-        self.assertNotIn('https://example.com/fake', urls)
-        years = [year for year, _url in pages]
-        self.assertNotIn(2023, years)
-
-    def test_www_official_host_is_accepted(self):
-        html = """
-        <h2>Previous Winners</h2>
-        <p>2018: <a href="https://www.locusmag.com/2018/06/2018-locus-awards-winners/">Winners</a></p>
-        <h2>FAQ</h2>
-        """
-        pages = locus._discover_winner_pages(html, ABOUT_URL)
+    def test_distinct_category_labels_are_preserved(self):
+        records_1979 = locus._parse_annual_page(HTML_1979, 1979, URL_1979)
+        records_1990 = locus._parse_annual_page(HTML_1990, 1990, URL_1990)
+        records_2024 = locus._parse_annual_page(HTML_2024, 2024, URL_2024)
+        records_2026 = locus._parse_annual_page(HTML_2026, 2026, URL_2026)
+        labels = {
+            records_1979[0].category,
+            records_1990[0].category,
+            next(r.category for r in records_1990 if r.category == 'Horror Novel'),
+            next(r.category for r in records_2024 if r.category == 'Young Adult Novel'),
+            next(r.category for r in records_2024 if r.category == 'First Novel'),
+            next(r.category for r in records_2026 if r.category == 'Young Adult Book'),
+            next(r.category for r in records_2026 if r.category == 'Translated Novel'),
+            next(r.category for r in records_2026 if r.category == 'Fantasy Novel'),
+        }
         self.assertEqual(
-            pages,
-            [
-                (
-                    2018,
-                    'https://www.locusmag.com/2018/06/2018-locus-awards-winners/',
-                )
-            ],
+            labels,
+            {
+                'Novel',
+                'Sf Novel',
+                'Horror Novel',
+                'Young Adult Novel',
+                'First Novel',
+                'Young Adult Book',
+                'Translated Novel',
+                'Fantasy Novel',
+            },
         )
+        self.assertNotIn('Science Fiction Novel', labels)
 
+    def test_missing_li_value_is_an_error(self):
+        with self.assertRaises(locus.LocusSourceError) as ctx:
+            locus._parse_annual_page(HTML_MISSING_VALUE, 1990, URL_1990)
+        self.assertIn('li value', str(ctx.exception))
 
-class LocusWinnerParseTests(unittest.TestCase):
-    def test_parses_supported_2026_categories(self):
-        parsed = locus._parse_winner_page(HTML_2026, 2026, URL_2026)
-        self.assertTrue(parsed.recognized_winner_structure)
-        records = parsed.records
-        self.assertEqual(
-            _find_records(
-                records, title='Death of the Author', author='Nnedi Okorafor'
-            )[0].category,
-            'Science Fiction Novel',
+    def test_non_positive_li_value_is_an_error(self):
+        with self.assertRaises(locus.LocusSourceError):
+            locus._parse_annual_page(HTML_ZERO_VALUE, 1990, URL_1990)
+
+    def test_coauthors_are_joined_and_individually_matchable(self):
+        records = locus._parse_annual_page(
+            HTML_COAUTHOR, 1975, 'https://www.sfadb.com/Locus_Awards_1975'
         )
-        self.assertEqual(
-            _find_records(
-                records, title='The Everlasting', author='Alix E. Harrow'
-            )[0].category,
-            'Fantasy Novel',
-        )
-        self.assertEqual(
-            _find_records(
-                records,
-                title='The Buffalo Hunter Hunter',
-                author='Stephen Graham Jones',
-            )[0].category,
-            'Horror Novel',
-        )
-        self.assertEqual(
-            _find_records(
-                records, title='Sour Cherry', author='Natalia Theodoridou'
-            )[0].category,
-            'First Novel',
-        )
-        self.assertEqual(
-            _find_records(
-                records, title='Starstrike', author='Yoon Ha Lee'
-            )[0].category,
-            'Young Adult Novel',
-        )
-        translated = _find_records(
-            records,
-            title='On the Calculation of Volume III',
-            author='Solvej Balle',
-        )
-        self.assertEqual(len(translated), 1)
-        self.assertEqual(translated[0].category, 'Translated Novel')
-        self.assertNotIn('Sophia Hersi Smith', translated[0].work_author)
-
-    def test_parses_2018_young_adult_book_distinct_from_novel(self):
-        parsed = locus._parse_winner_page(HTML_2018, 2018, URL_2018)
-        akata = _find_records(
-            parsed.records, title='Akata Warrior', author='Nnedi Okorafor'
-        )
-        self.assertEqual(len(akata), 1)
-        self.assertEqual(akata[0].category, 'Young Adult Book')
-        self.assertNotEqual(akata[0].category, 'Young Adult Novel')
-
-    def test_parses_2024_and_2025_winner_markup(self):
-        parsed_2024 = locus._parse_winner_page(HTML_2024, 2024, URL_2024)
-        wells = _find_records(
-            parsed_2024.records, title='System Collapse', author='Martha Wells'
-        )
-        self.assertEqual(len(wells), 1)
-        self.assertEqual(wells[0].category, 'Science Fiction Novel')
-        kingfisher = _find_records(
-            parsed_2024.records,
-            title='A House with Good Bones',
-            author='T. Kingfisher',
-        )
-        self.assertEqual(len(kingfisher), 1)
-
-        parsed_2025 = locus._parse_winner_page(
-            HTML_2025_BOLD_WINNER,
-            2025,
-            'https://locusmag.com/2025/06/2025-locus-awards-winners/',
-        )
-        boldizar = _find_records(
-            parsed_2025.records,
-            title='The Man Who Saw Seconds',
-            author='Alexander Boldizar',
-        )
-        self.assertEqual(len(boldizar), 1)
-        self.assertNotIn('amazon', boldizar[0].work_author.casefold())
-        self.assertNotIn('Clash', boldizar[0].work_author)
-
-    def test_emits_only_explicit_winner_entries(self):
-        parsed = locus._parse_winner_page(HTML_2026, 2026, URL_2026)
-        titles = [record.work_title for record in parsed.records]
-        self.assertIn('Death of the Author', titles)
-        self.assertNotIn('The Folded Sky', titles)
-        self.assertNotIn('Shroud', titles)
-        self.assertNotIn('The Devils', titles)
-        self.assertNotIn('The River Has Roots', titles)
-
-    def test_unlabeled_first_item_is_not_winner(self):
-        parsed = locus._parse_winner_page(HTML_UNLABELED_FIRST, 2026, URL_2026)
-        self.assertFalse(parsed.recognized_winner_structure)
-        self.assertEqual(parsed.records, ())
-
-    def test_red_styling_without_winner_text_is_not_winner(self):
-        parsed = locus._parse_winner_page(HTML_RED_WITHOUT_WINNER, 2016, URL_2018)
-        self.assertFalse(parsed.recognized_winner_structure)
-        self.assertEqual(parsed.records, ())
-
-    def test_every_parsed_winner_has_rank_none(self):
-        for html, year, url in (
-            (HTML_2018, 2018, URL_2018),
-            (HTML_2024, 2024, URL_2024),
-            (HTML_2026, 2026, URL_2026),
-        ):
-            parsed = locus._parse_winner_page(html, year, url)
-            results = [locus._to_award_result(record) for record in parsed.records]
-            self.assertTrue(results)
-            for result in results:
-                self.assertIsNone(result.rank)
-                self.assertEqual(result.status, 'Winner')
-                self.assertEqual(result.award_name, 'Locus Award')
-                self.assertEqual(result.source_name, 'Locus Awards')
-                self.assertEqual(result.source_url, url)
-
-    def test_top_ten_list_creates_neither_ranks_nor_winners(self):
-        parsed = locus._parse_winner_page(HTML_TOP_TEN, 2024, URL_2024)
-        self.assertFalse(parsed.recognized_winner_structure)
-        self.assertEqual(parsed.records, ())
-
-    def test_unsupported_categories_do_not_leak(self):
-        parsed = locus._parse_winner_page(HTML_2026, 2026, URL_2026)
-        categories = {record.category for record in parsed.records}
-        self.assertNotIn('Novella', categories)
-        self.assertNotIn('Magazine', categories)
-        titles = [record.work_title for record in parsed.records]
-        self.assertNotIn('Clarkesworld', titles)
-
-    def test_science_fiction_and_fantasy_remain_distinct(self):
-        parsed = locus._parse_winner_page(HTML_2026, 2026, URL_2026)
-        sf = _find_records(parsed.records, title='Death of the Author')[0]
-        fantasy = _find_records(parsed.records, title='The Everlasting')[0]
-        self.assertEqual(sf.category, 'Science Fiction Novel')
-        self.assertEqual(fantasy.category, 'Fantasy Novel')
-        self.assertNotEqual(sf.category, fantasy.category)
-
-    def test_partial_category_names_do_not_match(self):
-        parsed = locus._parse_winner_page(HTML_FUZZY_CATEGORY, 2026, URL_2026)
-        titles = [record.work_title for record in parsed.records]
-        self.assertEqual(titles, ['Death of the Author'])
-        self.assertNotIn('Should Not Match Category', titles)
-        self.assertNotIn('Also Should Not Match', titles)
-
-    def test_valid_page_with_no_supported_category_is_recognized(self):
-        parsed = locus._parse_winner_page(HTML_MAGAZINE_ONLY, 2026, URL_2026)
+        record = records[0]
+        self.assertEqual(record.work_author, 'Larry Niven & Jerry Pournelle')
+        self.assertTrue(locus._record_matches(record, "The Mote in God's Eye", 'Larry Niven'))
         self.assertTrue(
-            parsed.recognized_winner_structure,
-            'WINNER: list items in recognized unsupported categories still '
-            'prove the page is a recognizable Locus winners listing',
+            locus._record_matches(record, "The Mote in God's Eye", 'Jerry Pournelle')
         )
-        self.assertEqual(parsed.records, ())
-
-    def test_winner_outside_recognized_category_does_not_validate_page(self):
-        parsed = locus._parse_winner_page(HTML_CONTEST, 2026, URL_2026)
-        self.assertFalse(parsed.recognized_winner_structure)
-        self.assertEqual(parsed.records, ())
-
-    def test_unrecognized_page_has_no_winner_structure(self):
-        parsed = locus._parse_winner_page(HTML_EMPTY, 2026, URL_2026)
-        self.assertFalse(parsed.recognized_winner_structure)
-        self.assertEqual(parsed.records, ())
-        top_ten = locus._parse_winner_page(HTML_TOP_TEN, 2024, URL_2024)
-        self.assertFalse(top_ten.recognized_winner_structure)
-
-
-class LocusMatchingTests(unittest.TestCase):
-    def setUp(self):
-        locus._archive_records_cache = None
-
-    def tearDown(self):
-        locus._archive_records_cache = None
-
-    def _prime_cache(self, records):
-        locus._archive_records_cache = tuple(records)
-
-    def test_exact_normalized_match_succeeds(self):
-        parsed = locus._parse_winner_page(HTML_2018, 2018, URL_2018)
-        self._prime_cache(parsed.records)
-        results = locus.lookup('The Collapsing Empire', 'John Scalzi')
-        self.assertEqual(len(results), 1)
-        self.assertEqual(results[0].status, 'Winner')
-        self.assertIsNone(results[0].rank)
-        self.assertEqual(results[0].award_year, 2018)
-
-    def test_initials_spacing_normalization(self):
-        parsed = locus._parse_winner_page(HTML_2018, 2018, URL_2018)
-        self._prime_cache(parsed.records)
-        results = locus.lookup('The Stone Sky', 'N. K. Jemisin')
-        self.assertEqual(len(results), 1)
-        self.assertEqual(results[0].work_author, 'N.K. Jemisin')
-
-    def test_curly_apostrophe_normalization(self):
-        parsed = locus._parse_winner_page(HTML_2018, 2018, URL_2018)
-        self._prime_cache(parsed.records)
-        results = locus.lookup(
-            "The Strange Case of the Alchemist's Daughter",
-            'Theodora Goss',
+        self.assertTrue(
+            locus._record_matches(
+                record, "The Mote in God's Eye", 'Larry Niven & Jerry Pournelle'
+            )
         )
+        self.assertFalse(locus._record_matches(record, "The Mote in God's Eye", 'Niven'))
+
+    def test_uk_alternate_title_is_not_a_primary_match(self):
+        records = locus._parse_annual_page(HTML_ALT_TITLE, 1990, URL_1990)
+        record = records[0]
+        self.assertEqual(record.work_title, 'Buying Time')
+        self.assertTrue(locus._titles_equivalent('Buying Time', record.work_title))
+        self.assertFalse(
+            locus._titles_equivalent('The Long Habit of Living', record.work_title)
+        )
+
+    def test_translated_winner_keeps_author_not_translators(self):
+        records = locus._parse_annual_page(HTML_2026, 2026, URL_2026)
+        translated = next(
+            record
+            for record in records
+            if record.work_title == 'On the Calculation of Volume III'
+        )
+        self.assertEqual(translated.work_author, 'Solvej Balle')
+        self.assertEqual(translated.linked_authors, ('Solvej Balle',))
+        self.assertTrue(
+            locus._record_matches(
+                translated,
+                'On the Calculation of Volume III',
+                'Solvej Balle',
+            )
+        )
+        self.assertFalse(
+            locus._record_matches(
+                translated,
+                'On the Calculation of Volume III',
+                'Sophia Hersi Smith',
+            )
+        )
+        self.assertFalse(
+            locus._record_matches(
+                translated,
+                'On the Calculation of Volume III',
+                'Jennifer Russell',
+            )
+        )
+
+    def test_translated_by_marker_keeps_author_not_translator(self):
+        records = locus._parse_annual_page(HTML_2026, 2026, URL_2026)
+        red_sword = next(
+            record for record in records if record.work_title == 'Red Sword'
+        )
+        self.assertEqual(red_sword.work_author, 'Bora Chung')
+        self.assertEqual(red_sword.linked_authors, ('Bora Chung',))
+        self.assertFalse(
+            locus._record_matches(red_sword, 'Red Sword', 'Anton Hur')
+        )
+
+
+class AuthorPageParseTests(LocusTestCase):
+    def test_one_dash_live_markup_still_finds_sf_novel(self):
+        page = locus._parse_author_page(HTML_CHERRYH_LIVE_SHAPE, URL_CHERRYH)
+        self.assertEqual(page.page_name, 'C. J. Cherryh')
+        self.assertEqual(len(page.entries), 1)
+        entry = page.entries[0]
+        self.assertEqual(entry.work_title, 'Rimrunners')
+        self.assertEqual(entry.category_text.casefold(), 'sf novel')
+        self.assertEqual(entry.rank, 2)
+        self.assertEqual(entry.annual_url, URL_1990)
+
+    def test_prefix_collision_does_not_match(self):
+        self.assertFalse(
+            locus._titles_equivalent('The Collapsing', 'The Collapsing Empire')
+        )
+        self.assertTrue(
+            locus._titles_equivalent('The Collapsing Empire', 'The Collapsing Empire')
+        )
+
+
+class LookupAndQualificationTests(LocusTestCase):
+    def _lookup(self, title: str, author: str):
+        with patch.object(locus, '_request_html', side_effect=_fake_request):
+            return locus.lookup(title, author)
+
+    def test_hyperion_winner_rank_one(self):
+        results = self._lookup('Hyperion', 'Dan Simmons')
         self.assertEqual(len(results), 1)
-
-    def test_title_prefix_collision_does_not_match(self):
-        parsed = locus._parse_winner_page(HTML_2018, 2018, URL_2018)
-        self._prime_cache(parsed.records)
-        self.assertEqual(locus.lookup('The Collapsing', 'John Scalzi'), [])
-
-    def test_same_title_wrong_author_does_not_match(self):
-        parsed = locus._parse_winner_page(HTML_2018, 2018, URL_2018)
-        self._prime_cache(parsed.records)
+        result = results[0]
+        self.assertEqual(result.award_name, 'Locus Award')
+        self.assertEqual(result.award_year, 1990)
+        self.assertEqual(result.category, 'Sf Novel')
+        self.assertEqual(result.status, 'Winner')
+        self.assertEqual(result.rank, 1)
+        self.assertEqual(result.source_name, 'Science Fiction Awards Database')
+        self.assertEqual(result.source_url, URL_1990)
         self.assertEqual(
-            locus.lookup('The Collapsing Empire', 'James S.A. Corey'),
-            [],
+            qualify_award_result(result).decision,
+            QualificationDecision.QUALIFIES,
         )
 
-
-class LocusHarvestCacheTests(unittest.TestCase):
-    def setUp(self):
-        locus._archive_records_cache = None
-
-    def tearDown(self):
-        locus._archive_records_cache = None
-
-    def _rest_item(self, slug: str, link: str, title: str, content: str):
-        return {
-            'slug': slug,
-            'link': link,
-            'title': {'rendered': title},
-            'content': {'rendered': content},
-        }
-
-    def _posts_payload(self, items, *, total=None):
-        headers = {
-            'X-WP-Total': str(len(items) if total is None else total),
-            'X-WP-TotalPages': '1',
-        }
-        return (200, headers, json.dumps(items))
-
-    def test_empty_index_raises_and_is_not_cached(self):
-        with patch.object(locus, '_fetch_html', return_value=HTML_EMPTY):
-            with self.assertRaises(locus.LocusSourceError) as ctx:
-                locus._get_archive_records()
-        self.assertIsNone(locus._archive_records_cache)
-        self.assertIn('did not yield any 2018+', str(ctx.exception))
-
-    def test_failed_rest_retrieval_raises_and_is_not_cached(self):
-        def fake_fetch_html(opener, url):
-            return HTML_ABOUT
-
-        def fake_posts(opener, slugs):
-            raise locus.LocusSourceError(
-                'Locus request failed with HTTP 500 for posts'
-            )
-
-        with (
-            patch.object(locus, '_fetch_html', side_effect=fake_fetch_html),
-            patch.object(locus, '_fetch_posts_response', side_effect=fake_posts),
-        ):
-            with self.assertRaises(locus.LocusSourceError) as ctx:
-                locus._get_archive_records()
-        self.assertIsNone(locus._archive_records_cache)
-        self.assertIn('HTTP 500', str(ctx.exception))
-
-    def test_malformed_rest_json_raises_and_is_not_cached(self):
-        with (
-            patch.object(locus, '_fetch_html', return_value=HTML_ABOUT),
-            patch.object(
-                locus,
-                '_fetch_posts_response',
-                return_value=(200, {'X-WP-Total': '1', 'X-WP-TotalPages': '1'}, '{'),
+    def test_1990_qualification_boundary(self):
+        cases = (
+            ('Rimrunners', 'C. J. Cherryh', 2, '2nd place', QualificationDecision.QUALIFIES),
+            (
+                'A Fire in the Sun',
+                'George Alec Effinger',
+                5,
+                '5th place',
+                QualificationDecision.QUALIFIES,
             ),
-        ):
-            with self.assertRaises(locus.LocusSourceError) as ctx:
-                locus._get_archive_records()
-        self.assertIsNone(locus._archive_records_cache)
-        self.assertIn('not valid JSON', str(ctx.exception))
-
-    def test_non_list_rest_payload_raises_and_is_not_cached(self):
-        with (
-            patch.object(locus, '_fetch_html', return_value=HTML_ABOUT),
-            patch.object(
-                locus,
-                '_fetch_posts_response',
-                return_value=(
-                    200,
-                    {'X-WP-Total': '1', 'X-WP-TotalPages': '1'},
-                    json.dumps({'slug': 'nope'}),
-                ),
+            (
+                'The Boat of a Million Years',
+                'Poul Anderson',
+                6,
+                '6th place',
+                QualificationDecision.DOES_NOT_QUALIFY,
             ),
-        ):
-            with self.assertRaises(locus.LocusSourceError) as ctx:
-                locus._get_archive_records()
-        self.assertIsNone(locus._archive_records_cache)
-        self.assertIn('was not a list', str(ctx.exception))
-
-    def test_missing_discovered_post_raises_and_is_not_cached(self):
-        items = [
-            self._rest_item(
-                '2026-locus-awards-winners',
-                URL_2026,
-                '2026 Locus Awards Winners',
-                HTML_2026,
-            )
-        ]
-        with (
-            patch.object(locus, '_fetch_html', return_value=HTML_ABOUT),
-            patch.object(
-                locus, '_fetch_posts_response', return_value=self._posts_payload(items)
-            ),
-        ):
-            with self.assertRaises(locus.LocusSourceError) as ctx:
-                locus._get_archive_records()
-        self.assertIsNone(locus._archive_records_cache)
-        self.assertIn('missing discovered winner slugs', str(ctx.exception))
-
-    def test_duplicate_rest_mapping_raises_and_is_not_cached(self):
-        item = self._rest_item(
-            '2026-locus-awards-winners',
-            URL_2026,
-            '2026 Locus Awards Winners',
-            HTML_2026,
         )
-        with (
-            patch.object(locus, '_fetch_html', return_value=HTML_ABOUT),
-            patch.object(
-                locus,
-                '_fetch_posts_response',
-                return_value=self._posts_payload([item, item], total=2),
-            ),
-        ):
-            with self.assertRaises(locus.LocusSourceError) as ctx:
-                locus._get_archive_records()
-        self.assertIsNone(locus._archive_records_cache)
-        self.assertIn('duplicate slug', str(ctx.exception))
+        for title, author, rank, status, decision in cases:
+            with self.subTest(title=title):
+                results = self._lookup(title, author)
+                self.assertEqual(len(results), 1)
+                result = results[0]
+                self.assertEqual(result.rank, rank)
+                self.assertEqual(result.status, status)
+                self.assertEqual(result.category, 'Sf Novel')
+                self.assertEqual(qualify_award_result(result).decision, decision)
 
-    def test_about_year_post_title_mismatch_raises_and_is_not_cached(self):
-        about = """
-        <h2>Previous Winners</h2>
-        <p>2024: <a href="https://locusmag.com/2024/06/2024-locus-awards-winners/">Winners</a></p>
-        <h2>FAQ</h2>
-        """
-        items = [
-            self._rest_item(
-                '2024-locus-awards-winners',
-                URL_2024,
-                '2025 Locus Awards Winners',
-                HTML_2024,
-            )
-        ]
-        with (
-            patch.object(locus, '_fetch_html', return_value=about),
-            patch.object(
-                locus, '_fetch_posts_response', return_value=self._posts_payload(items)
-            ),
-        ):
-            with self.assertRaises(locus.LocusSourceError) as ctx:
-                locus._get_archive_records()
-        self.assertIsNone(locus._archive_records_cache)
-        self.assertIn('did not match official post title', str(ctx.exception))
+    def test_recent_ranks(self):
+        cases = (
+            ('System Collapse', 'Martha Wells', 2024, 1, 'Winner'),
+            ('The Road to Roswell', 'Connie Willis', 2024, 5, '5th place'),
+            ('Lords of Uncreation', 'Adrian Tchaikovsky', 2024, 6, '6th place'),
+            ('Death of the Author', 'Nnedi Okorafor', 2026, 1, 'Winner'),
+            ('The Folded Sky', 'Elizabeth Bear', 2026, 4, '4th place'),
+            ('The Shattering Peace', 'John Scalzi', 2026, 5, '5th place'),
+            ('All That We See or Seem', 'Ken Liu', 2026, 6, '6th place'),
+            ('The Collapsing Empire', 'John Scalzi', 2018, 1, 'Winner'),
+        )
+        for title, author, year, rank, status in cases:
+            with self.subTest(title=title):
+                results = self._lookup(title, author)
+                self.assertEqual(len(results), 1)
+                result = results[0]
+                self.assertEqual(result.award_year, year)
+                self.assertEqual(result.rank, rank)
+                self.assertEqual(result.status, status)
+                self.assertEqual(result.source_name, 'Science Fiction Awards Database')
 
-    def test_unrecognized_indexed_page_raises_and_is_not_cached(self):
-        about = """
-        <h2>Previous Winners</h2>
-        <p>2024: <a href="https://locusmag.com/2024/06/2024-locus-awards-winners/">Winners</a></p>
-        <h2>FAQ</h2>
-        """
-        items = [
-            self._rest_item(
-                '2024-locus-awards-winners',
-                URL_2024,
-                '2024 Locus Awards Winners',
-                HTML_TOP_TEN,
-            )
-        ]
-        with (
-            patch.object(locus, '_fetch_html', return_value=about),
-            patch.object(
-                locus, '_fetch_posts_response', return_value=self._posts_payload(items)
-            ),
-        ):
-            with self.assertRaises(locus.LocusSourceError) as ctx:
-                locus._get_archive_records()
-        self.assertIsNone(locus._archive_records_cache)
-        self.assertIn('recognizable WINNER:', str(ctx.exception))
+    def test_rank_greater_than_five_is_still_returned(self):
+        results = self._lookup('The Boat of a Million Years', 'Poul Anderson')
+        self.assertEqual(results[0].rank, 6)
 
-    def test_catastrophic_zero_record_harvest_raises_and_is_not_cached(self):
-        magazine_about = """
-        <h2>Previous Winners</h2>
-        <p>2026: <a href="https://locusmag.com/2026/05/2026-locus-awards-winners/">Winners</a></p>
-        <h2>FAQ</h2>
-        """
-        items = [
-            self._rest_item(
-                '2026-locus-awards-winners',
-                URL_2026,
-                '2026 Locus Awards Winners',
-                HTML_MAGAZINE_ONLY,
-            )
-        ]
-        with (
-            patch.object(locus, '_fetch_html', return_value=magazine_about),
-            patch.object(
-                locus, '_fetch_posts_response', return_value=self._posts_payload(items)
-            ),
-        ):
-            with self.assertRaises(locus.LocusSourceError) as ctx:
-                locus._get_archive_records()
-        self.assertIsNone(locus._archive_records_cache)
-        self.assertIn('no explicit supported-category WINNER records', str(ctx.exception))
+    def test_1979_unified_novel_category(self):
+        results = self._lookup('Dreamsnake', 'Vonda N. McIntyre')
+        self.assertEqual(results[0].category, 'Novel')
+        self.assertEqual(results[0].award_year, 1979)
+        self.assertEqual(results[0].rank, 1)
 
-    def test_successful_complete_batch_harvest_is_cached(self):
-        about = """
-        <h2>Previous Winners</h2>
-        <p>2026: <a href="https://locusmag.com/2026/05/2026-locus-awards-winners/">Winners</a></p>
-        <h2>FAQ</h2>
-        """
-        items = [
-            self._rest_item(
-                '2026-locus-awards-winners',
-                URL_2026,
-                '2026 Locus Awards Winners',
-                HTML_2026,
-            )
-        ]
-        html_calls = {'count': 0}
-        rest_calls = {'count': 0}
+    def test_unrelated_title_does_not_fetch_annual_pages(self):
+        with patch.object(locus, '_request_html', side_effect=_fake_request) as mocked:
+            results = locus.lookup('No Such Book', 'Dan Simmons')
+        self.assertEqual(results, [])
+        self.assertEqual(
+            [call.args[1] for call in mocked.call_args_list],
+            [URL_SIMMONS],
+        )
 
-        def fake_html(opener, url):
-            html_calls['count'] += 1
-            return about
+    def test_novella_discovery_does_not_fetch_annual_page(self):
+        with patch.object(locus, '_request_html', side_effect=_fake_request) as mocked:
+            results = locus.lookup('Muse of Fire', 'Dan Simmons')
+        self.assertEqual(results, [])
+        self.assertEqual(
+            [call.args[1] for call in mocked.call_args_list],
+            [URL_SIMMONS],
+        )
 
-        def fake_posts(opener, slugs):
-            rest_calls['count'] += 1
-            self.assertEqual(slugs, ['2026-locus-awards-winners'])
-            return self._posts_payload(items)
+    def test_no_locus_section_is_empty_not_an_error(self):
+        def fake(_opener, url: str):
+            if url == URL_SIMMONS:
+                return 200, HTML_NO_LOCUS
+            return 404, ''
 
-        with (
-            patch.object(locus, '_fetch_html', side_effect=fake_html),
-            patch.object(locus, '_fetch_posts_response', side_effect=fake_posts),
-        ):
-            first = locus.lookup('Death of the Author', 'Nnedi Okorafor')
-            second = locus.lookup('Death of the Author', 'Nnedi Okorafor')
-        self.assertEqual(len(first), 1)
-        self.assertEqual(first[0].source_url, URL_2026)
-        self.assertEqual(first, second)
-        self.assertEqual(html_calls['count'], 1)
-        self.assertEqual(rest_calls['count'], 1)
-        self.assertIsNotNone(locus._archive_records_cache)
+        with patch.object(locus, '_request_html', side_effect=fake):
+            self.assertEqual(locus.lookup('Hyperion', 'Dan Simmons'), [])
 
-    def test_successful_harvest_is_reused_from_cache(self):
-        parsed = locus._parse_winner_page(HTML_2026, 2026, URL_2026)
-        locus._archive_records_cache = parsed.records
-        with patch.object(locus, '_harvest_records') as harvest:
-            results = locus.lookup('Death of the Author', 'Nnedi Okorafor')
-        harvest.assert_not_called()
-        self.assertEqual(len(results), 1)
-        self.assertEqual(results[0].source_url, URL_2026)
+    def test_malformed_locus_section_raises(self):
+        def fake(_opener, url: str):
+            if url == URL_SIMMONS:
+                return 200, HTML_MALFORMED_LOCUS
+            return 404, ''
 
-    def test_partial_harvest_is_never_cached(self):
-        def fake_html(opener, url):
-            return HTML_ABOUT
-
-        def fake_posts(opener, slugs):
-            raise locus.LocusSourceError('Locus request failed for posts')
-
-        with (
-            patch.object(locus, '_fetch_html', side_effect=fake_html),
-            patch.object(locus, '_fetch_posts_response', side_effect=fake_posts),
-        ):
+        with patch.object(locus, '_request_html', side_effect=fake):
             with self.assertRaises(locus.LocusSourceError):
-                locus._get_archive_records()
-        self.assertIsNone(locus._archive_records_cache)
+                locus.lookup('Hyperion', 'Dan Simmons')
+
+    def test_unknown_author_404_is_empty(self):
+        def fake(_opener, url: str):
+            return 404, ''
+
+        with patch.object(locus, '_request_html', side_effect=fake):
+            self.assertEqual(locus.lookup('Hyperion', 'Nobody Known'), [])
+
+    def test_wrong_identity_page_is_rejected(self):
+        def fake(_opener, url: str):
+            return 200, HTML_WRONG_PERSON
+
+        with patch.object(locus, '_request_html', side_effect=fake):
+            self.assertEqual(locus.lookup('Hyperion', 'Dan Simmons'), [])
+
+    def test_404_then_next_candidate_is_accepted(self):
+        annual = 'https://www.sfadb.com/Locus_Awards_2005'
+        author_html = _author_page(
+            'China Miéville',
+            _entry(2005, 'Iron Council', 'fantasy novel', '<span class="win">winner</span>'),
+        )
+        annual_html = """
+<div class="categoryblock">
+<div class="category">Fantasy Novel</div>
+<ol>
+<li value="1"> <span class="winner">Winner:</span> <b>Iron Council</b>, <a href="China_Mieville">China Miéville</a> (Del Rey)</li>
+</ol>
+</div>
+"""
+
+        requested: list[str] = []
+
+        def fake(_opener, url: str):
+            requested.append(url)
+            if url.endswith('China_Mieville'):
+                return 404, ''
+            if 'China_Mi' in url and url != annual:
+                return 200, author_html
+            if url == annual:
+                return 200, annual_html
+            return 404, ''
+
+        with patch.object(locus, '_request_html', side_effect=fake):
+            results = locus.lookup('Iron Council', 'China Miéville')
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0].rank, 1)
+        self.assertEqual(results[0].status, 'Winner')
+        self.assertTrue(requested[0].endswith('China_Mieville'))
+        self.assertGreaterEqual(len(requested), 3)
+
+    def test_discovery_rank_disagreement_raises(self):
+        bad_author = _author_page(
+            'Dan Simmons',
+            _entry(1990, 'Hyperion', 'sf novel', '4th place'),
+        )
+
+        def fake(_opener, url: str):
+            if url == URL_SIMMONS:
+                return 200, bad_author
+            if url == URL_1990:
+                return 200, HTML_1990
+            return 404, ''
+
+        with patch.object(locus, '_request_html', side_effect=fake):
+            with self.assertRaises(locus.LocusSourceError) as ctx:
+                locus.lookup('Hyperion', 'Dan Simmons')
+        self.assertIn('disagreed', str(ctx.exception))
+
+    def test_other_source_failure_does_not_suppress_locus(self):
+        def boom(title: str, author: str):
+            raise RuntimeError('pulitzer down')
+
+        with patch.object(locus, '_request_html', side_effect=_fake_request):
+            report = _lookup_awards_from_sources(
+                'Hyperion',
+                'Dan Simmons',
+                (
+                    AwardSource('pulitzer', 'Pulitzer Prizes', boom),
+                    AwardSource('locus', 'Locus Awards', locus.lookup),
+                ),
+            )
+        self.assertEqual(len(report.failures), 1)
+        self.assertEqual(report.failures[0].source_name, 'Pulitzer Prizes')
+        self.assertEqual(len(report.assessments), 1)
+        self.assertEqual(report.assessments[0].result.work_title, 'Hyperion')
+        self.assertEqual(
+            report.assessments[0].qualification.decision,
+            QualificationDecision.QUALIFIES,
+        )
+
+    def test_same_year_two_categories_do_not_cross_match(self):
+        def fake(_opener, url: str):
+            if url == URL_TEST_AUTHOR:
+                return 200, HTML_OVERLAP_AUTHOR
+            if url == URL_OVERLAP:
+                return 200, HTML_OVERLAP_ANNUAL
+            return 404, ''
+
+        with patch.object(locus, '_request_html', side_effect=fake):
+            results = locus.lookup('Same Test Book', 'Test Author')
+        by_category = {result.category: result for result in results}
+        self.assertEqual(set(by_category), {'Sf Novel', 'First Novel'})
+        self.assertEqual(by_category['Sf Novel'].rank, 3)
+        self.assertEqual(by_category['Sf Novel'].status, '3rd place')
+        self.assertEqual(by_category['First Novel'].rank, 1)
+        self.assertEqual(by_category['First Novel'].status, 'Winner')
+
+    def test_sf_novel_discovery_ignores_first_novel_rank_on_same_page(self):
+        def fake(_opener, url: str):
+            if url == URL_TEST_AUTHOR:
+                return 200, HTML_OVERLAP_SF_ONLY
+            if url == URL_OVERLAP:
+                return 200, HTML_OVERLAP_ANNUAL
+            return 404, ''
+
+        with patch.object(locus, '_request_html', side_effect=fake):
+            results = locus.lookup('Same Test Book', 'Test Author')
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0].category, 'Sf Novel')
+        self.assertEqual(results[0].rank, 3)
+
+    def test_first_novel_discovery_ignores_sf_novel_rank_on_same_page(self):
+        def fake(_opener, url: str):
+            if url == URL_TEST_AUTHOR:
+                return 200, HTML_OVERLAP_FIRST_ONLY
+            if url == URL_OVERLAP:
+                return 200, HTML_OVERLAP_ANNUAL
+            return 404, ''
+
+        with patch.object(locus, '_request_html', side_effect=fake):
+            results = locus.lookup('Same Test Book', 'Test Author')
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0].category, 'First Novel')
+        self.assertEqual(results[0].rank, 1)
+
+
+class RedirectHostTests(LocusTestCase):
+    def test_external_redirect_is_an_error(self):
+        class FakeResponse:
+            def __init__(self) -> None:
+                self.status = 200
+                self.headers = {}
+
+            def geturl(self) -> str:
+                return 'https://example.com/not-sfadb'
+
+            def getcode(self) -> int:
+                return 200
+
+            def read(self) -> bytes:
+                return b'<html>offsite</html>'
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args) -> bool:
+                return False
+
+        class FakeOpener:
+            def open(self, request, timeout=None):
+                return FakeResponse()
+
+        with self.assertRaises(locus.LocusSourceError) as ctx:
+            locus._request_html(
+                FakeOpener(),
+                'https://www.sfadb.com/Dan_Simmons',
+            )
+        self.assertIn('redirected off SFADB', str(ctx.exception))
+
+
+class CacheTests(LocusTestCase):
+    def test_second_lookup_reuses_author_and_annual_pages(self):
+        with patch.object(locus, '_request_html', side_effect=_fake_request) as mocked:
+            first = locus.lookup('Hyperion', 'Dan Simmons')
+            second = locus.lookup('Hyperion', 'Dan Simmons')
+        self.assertEqual(first[0].rank, 1)
+        self.assertEqual(second[0].rank, 1)
+        self.assertEqual(
+            [call.args[1] for call in mocked.call_args_list],
+            [URL_SIMMONS, URL_1990],
+        )
+
+    def test_failed_fetch_is_not_cached(self):
+        calls = {'n': 0}
+
+        def fake(_opener, url: str):
+            calls['n'] += 1
+            raise locus.LocusSourceError('network down')
+
+        with patch.object(locus, '_request_html', side_effect=fake):
+            with self.assertRaises(locus.LocusSourceError):
+                locus.lookup('Hyperion', 'Dan Simmons')
+            with self.assertRaises(locus.LocusSourceError):
+                locus.lookup('Hyperion', 'Dan Simmons')
+        self.assertEqual(calls['n'], 2)
+
+    def test_malformed_annual_page_is_not_cached(self):
+        calls = {'n': 0}
+
+        def fake(_opener, url: str):
+            calls['n'] += 1
+            if url == URL_SIMMONS:
+                return 200, HTML_SIMMONS
+            if url == URL_1990:
+                return 200, HTML_MISSING_VALUE
+            return 404, ''
+
+        with patch.object(locus, '_request_html', side_effect=fake):
+            with self.assertRaises(locus.LocusSourceError):
+                locus.lookup('Hyperion', 'Dan Simmons')
+            with self.assertRaises(locus.LocusSourceError):
+                locus.lookup('Hyperion', 'Dan Simmons')
+        self.assertEqual(calls['n'], 3)
+        self.assertNotIn(URL_1990, locus._annual_page_cache)
 
 
 if __name__ == '__main__':
