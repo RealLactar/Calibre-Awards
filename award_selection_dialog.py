@@ -1,4 +1,8 @@
 from calibre_plugins.calibre_awards.awards.formatter import format_award_result
+from calibre_plugins.calibre_awards.awards.presentation import (
+    format_work_identity,
+    source_identity_if_different,
+)
 from calibre_plugins.calibre_awards.awards.qualifier import QualificationDecision
 from qt.core import (
     QCheckBox,
@@ -16,15 +20,40 @@ from qt.core import (
 class AwardSelectionDialog(QDialog):
     """Show matched award records for review; write-back happens only after accept."""
 
-    def __init__(self, parent, report, template, status_text, write_enabled=False):
+    def __init__(
+        self,
+        parent,
+        report,
+        template,
+        status_text,
+        lookup_title,
+        lookup_author,
+        write_enabled=False,
+    ):
         QDialog.__init__(self, parent)
         self.setWindowTitle('Calibre Awards')
+        self._lookup_title = lookup_title
+        self._lookup_author = lookup_author
         self._rows = []
 
         layout = QVBoxLayout()
         self.setLayout(layout)
 
-        status = QLabel(status_text, self)
+        book = QLabel(
+            f'Book: {format_work_identity(lookup_title, lookup_author)}',
+            self,
+        )
+        book.setWordWrap(True)
+        book.setTextFormat(Qt.PlainText)
+        layout.addWidget(book)
+
+        if report.assessments:
+            status_message = status_text
+        else:
+            status_message = (
+                'No matching award records were found. Nothing will be changed.'
+            )
+        status = QLabel(status_message, self)
         status.setWordWrap(True)
         status.setTextFormat(Qt.PlainText)
         layout.addWidget(status)
@@ -44,14 +73,15 @@ class AwardSelectionDialog(QDialog):
             body_layout.addWidget(intro)
             for assessment in report.assessments:
                 row = _AwardMatchRow(
-                    assessment, template, body, selectable=can_write
+                    assessment,
+                    template,
+                    lookup_title,
+                    lookup_author,
+                    body,
+                    selectable=can_write,
                 )
                 self._rows.append(row)
                 body_layout.addWidget(row)
-        else:
-            empty = QLabel('No matching award records were found.', body)
-            empty.setTextFormat(Qt.PlainText)
-            body_layout.addWidget(empty)
 
         if report.failures:
             failure_lines = ['Source problems:']
@@ -95,7 +125,15 @@ class AwardSelectionDialog(QDialog):
 
 
 class _AwardMatchRow(QWidget):
-    def __init__(self, assessment, template, parent=None, selectable=True):
+    def __init__(
+        self,
+        assessment,
+        template,
+        lookup_title,
+        lookup_author,
+        parent=None,
+        selectable=True,
+    ):
         QWidget.__init__(self, parent)
         self.assessment = assessment
         layout = QVBoxLayout()
@@ -114,6 +152,18 @@ class _AwardMatchRow(QWidget):
             tooltip += f'\n{result.source_url}'
         self.checkbox.setToolTip(tooltip)
         layout.addWidget(self.checkbox)
+
+        source_identity = source_identity_if_different(
+            lookup_title,
+            lookup_author,
+            result.work_title,
+            result.work_author,
+        )
+        if source_identity is not None:
+            source = QLabel(f'Source: {source_identity}', self)
+            source.setWordWrap(True)
+            source.setTextFormat(Qt.PlainText)
+            layout.addWidget(source)
 
         decision_name = assessment.qualification.decision.name
         reason = (assessment.qualification.reason or '').strip()

@@ -57,9 +57,11 @@ class _AwardLookupThread(QThread):
 class _LookupUiReceiver(QObject):
     """GUI-thread receiver for lookup results; parented to the Edit Metadata dialog."""
 
-    def __init__(self, button, parent=None):
+    def __init__(self, button, lookup_title, lookup_author, parent=None):
         super().__init__(parent)
         self._button = button
+        self._lookup_title = lookup_title
+        self._lookup_author = lookup_author
 
     def handle_succeeded(self, report):
         dialog = self.parent()
@@ -78,6 +80,8 @@ class _LookupUiReceiver(QObject):
                 report,
                 template,
                 status_text,
+                self._lookup_title,
+                self._lookup_author,
                 write_enabled=write_enabled,
             )
             if selection.exec() != QDialog.DialogCode.Accepted:
@@ -344,12 +348,14 @@ def _start_award_lookup(dialog, button):
 
     title = dialog.title.current_val
     author = authors_to_string(dialog.authors.current_val)
+    lookup_title = ('' if title is None else str(title)).strip()
+    lookup_author = ('' if author is None else str(author)).strip()
 
     setattr(dialog, _RUNNING_ATTR, True)
     button.setEnabled(False)
 
-    thread = _AwardLookupThread(title, author)
-    receiver = _LookupUiReceiver(button, dialog)
+    thread = _AwardLookupThread(lookup_title, lookup_author)
+    receiver = _LookupUiReceiver(button, lookup_title, lookup_author, dialog)
     cleanup = _thread_cleanup_receiver()
 
     thread.succeeded.connect(receiver.handle_succeeded)
