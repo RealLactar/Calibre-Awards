@@ -1,4 +1,4 @@
-"""Official Hugo Awards Best Novel source (thehugoawards.org)."""
+"""Official Hugo Awards Best Novel and Best Novella source (thehugoawards.org)."""
 
 from __future__ import annotations
 
@@ -55,6 +55,18 @@ _BALLOT_COUNT_NOTE_RE = re.compile(
     r'\s*\)$',
     re.IGNORECASE,
 )
+_NOMINATING_ONLY_BALLOT_NOTE_RE = re.compile(
+    r'^\(\s*'
+    r'(?:\d{1,3}(?:,\d{3})+|\d+)'
+    r'\s+nominating\s+ballots?'
+    r'\s*\)$',
+    re.IGNORECASE,
+)
+_UNPAREN_BALLOT_NOTE_RE = re.compile(
+    r'^(?:\d{1,3}(?:,\d{3})+|\d+)\s+'
+    r'(?:final\s+ballots?\s+cast|nominating\s+ballots?)\b.*$',
+    re.IGNORECASE,
+)
 _TRANSLATOR_AUTHOR_SUFFIX_RE = re.compile(
     r',\s*(?:translated by\s+.+|.+\s+translator)\s*$',
     re.IGNORECASE,
@@ -62,6 +74,20 @@ _TRANSLATOR_AUTHOR_SUFFIX_RE = re.compile(
 _WORD_SEPARATOR_HYPHEN_RE = re.compile(
     r'(\w)[\u2010\u2011\u2012\u2013\u2014\u2212-](\w)'
 )
+_LEADING_QUOTED_TITLE_RE = re.compile(
+    r'^(?:'
+    r'\u201c(?P<curly_title>.+?)\u201d'
+    r'|'
+    r'"(?P<straight_title>.+?)"'
+    r')\s*(?P<remainder>.*)$',
+    re.DOTALL,
+)
+
+CATEGORY_BEST_NOVEL = 'Best Novel'
+CATEGORY_BEST_NOVELLA = 'Best Novella'
+_SUPPORTED_CATEGORIES = (CATEGORY_BEST_NOVEL, CATEGORY_BEST_NOVELLA)
+_SUPPORTED_CATEGORY_SET = frozenset(_SUPPORTED_CATEGORIES)
+_NOVELLA_REQUIRED_FROM_YEAR = 1968
 
 
 class HugoSourceError(RuntimeError):
@@ -71,6 +97,7 @@ class HugoSourceError(RuntimeError):
 @dataclass(frozen=True, slots=True)
 class _ParsedRecord:
     award_year: int
+    category: str
     status: str
     work_title: str
     work_author: str
@@ -244,7 +271,13 @@ def _collapse_ws(text: str) -> str:
 
 def _is_ballot_count_note(text: str) -> bool:
     cleaned = _collapse_ws(text)
-    return bool(cleaned) and _BALLOT_COUNT_NOTE_RE.fullmatch(cleaned) is not None
+    if not cleaned:
+        return False
+    return (
+        _BALLOT_COUNT_NOTE_RE.fullmatch(cleaned) is not None
+        or _NOMINATING_ONLY_BALLOT_NOTE_RE.fullmatch(cleaned) is not None
+        or _UNPAREN_BALLOT_NOTE_RE.fullmatch(cleaned) is not None
+    )
 
 
 def _is_non_work(text: str) -> bool:
@@ -289,6 +322,33 @@ def _parse_author_remainder(remainder: str) -> str | None:
     return None
 
 
+def _strip_wrapping_quotes(title: str) -> str:
+    text = _collapse_ws(title)
+    if len(text) >= 2:
+        curly = text[0] == '\u201c' and text[-1] == '\u201d'
+        straight = text[0] == '"' and text[-1] == '"'
+        if curly or straight:
+            inner = text[1:-1].strip()
+            if inner:
+                return inner
+    return text
+
+
+def _parse_leading_quoted_title(text: str) -> tuple[str, str] | None:
+    cleaned = _collapse_ws(text)
+    match = _LEADING_QUOTED_TITLE_RE.match(cleaned)
+    if match is None:
+        return None
+    title = _collapse_ws(
+        match.group('curly_title') or match.group('straight_title') or ''
+    )
+    if not title or not any(character.isalpha() for character in title):
+        return None
+    if _is_non_work(title):
+        return None
+    return title, match.group('remainder') or ''
+
+
 def _primary_and_match_titles(displayed_title: str) -> tuple[str, tuple[str, ...]]:
     displayed = _collapse_ws(displayed_title)
     match = _ALT_TITLE_RE.fullmatch(displayed)
@@ -306,18 +366,21 @@ def _primary_and_match_titles(displayed_title: str) -> tuple[str, tuple[str, ...
     return primary, tuple(titles)
 
 
-class _HugoBestNovelParser(HTMLParser):
-    """Parse one Hugo year page's exact Best Novel list."""
+class _HugoCategoryParser(HTMLParser):
+    """Parse one Hugo year page for one exact supported category heading."""
 
-    def __init__(self, award_year: int, source_url: str) -> None:
+    def __init__(self, award_year: int, source_url: str, category: str) -> None:
         super().__init__(convert_charrefs=True)
+        if category not in _SUPPORTED_CATEGORY_SET:
+            raise ValueError(f'unsupported Hugo category: {category!r}')
         self.award_year = award_year
         self.source_url = source_url
+        self.category = category
         self.records: list[_ParsedRecord] = []
         self._strong_parts: list[str] = []
         self._in_strong = False
-        self._pending_best_novel = False
-        self._in_best_novel_list = False
+        self._pending_category = False
+        self._in_category_list = False
         self._list_depth = 0
         self._li_depth = 0
         self._capturing_li = False
@@ -329,7 +392,7 @@ class _HugoBestNovelParser(HTMLParser):
         self._title_tag: str | None = None
         self._title_depth = 0
         self._title_finished = False
-        self._seen: set[tuple[int, str, str, str, str]] = set()
+        self._seen: set[tuple[int, str, str, str, str, str]] = set()
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         attr = {name: (value or '') for name, value in attrs}
@@ -339,21 +402,21 @@ class _HugoBestNovelParser(HTMLParser):
             self._strong_parts = []
 
         if (
-            self._pending_best_novel
-            and not self._in_best_novel_list
+            self._pending_category
+            and not self._in_category_list
             and tag not in {'ul', 'br'}
         ):
-            self._pending_best_novel = False
+            self._pending_category = False
 
         if tag == 'ul':
-            if self._pending_best_novel and not self._in_best_novel_list:
-                self._in_best_novel_list = True
+            if self._pending_category and not self._in_category_list:
+                self._in_category_list = True
                 self._list_depth = 1
-                self._pending_best_novel = False
-            elif self._in_best_novel_list:
+                self._pending_category = False
+            elif self._in_category_list:
                 self._list_depth += 1
 
-        if tag == 'li' and self._in_best_novel_list:
+        if tag == 'li' and self._in_category_list:
             if self._li_depth == 0:
                 classes = attr.get('class', '').split()
                 self._start_li(winner='winner' in classes)
@@ -372,10 +435,10 @@ class _HugoBestNovelParser(HTMLParser):
             heading = _collapse_ws(''.join(self._strong_parts))
             self._in_strong = False
             self._strong_parts = []
-            if heading == 'Best Novel':
-                self._pending_best_novel = True
+            if heading == self.category:
+                self._pending_category = True
             elif heading:
-                self._pending_best_novel = False
+                self._pending_category = False
             return
 
         if self._capturing_li and self._in_title_tag and tag == self._title_tag:
@@ -386,30 +449,30 @@ class _HugoBestNovelParser(HTMLParser):
                 self._title_finished = True
             return
 
-        if tag == 'li' and self._in_best_novel_list and self._li_depth:
+        if tag == 'li' and self._in_category_list and self._li_depth:
             self._li_depth -= 1
             if self._li_depth == 0:
                 self._finish_li()
             return
 
-        if tag == 'ul' and self._in_best_novel_list:
+        if tag == 'ul' and self._in_category_list:
             self._list_depth -= 1
             if self._list_depth <= 0:
-                self._in_best_novel_list = False
+                self._in_category_list = False
                 self._list_depth = 0
-                self._pending_best_novel = False
+                self._pending_category = False
 
     def handle_data(self, data: str) -> None:
         if self._in_strong and not self._capturing_li:
             self._strong_parts.append(data)
         if (
-            self._pending_best_novel
-            and not self._in_best_novel_list
+            self._pending_category
+            and not self._in_category_list
             and not self._capturing_li
             and _collapse_ws(data)
             and not _is_ballot_count_note(data)
         ):
-            self._pending_best_novel = False
+            self._pending_category = False
         if not self._capturing_li:
             return
         self._all_parts.append(data)
@@ -423,6 +486,8 @@ class _HugoBestNovelParser(HTMLParser):
             self._title_depth += 1
             return
         if self._in_title_tag or self._title_finished:
+            return
+        if _parse_leading_quoted_title(''.join(self._all_parts)) is not None:
             return
         self._in_title_tag = True
         self._title_tag = tag
@@ -443,8 +508,8 @@ class _HugoBestNovelParser(HTMLParser):
     def _finish_li(self) -> None:
         capturing = self._capturing_li
         winner = self._li_is_winner
-        title_text = _collapse_ws(''.join(self._title_parts))
-        remainder = ''.join(self._remainder_parts)
+        tagged_title = _strip_wrapping_quotes(''.join(self._title_parts))
+        tagged_remainder = ''.join(self._remainder_parts)
         full_text = _collapse_ws(''.join(self._all_parts))
         self._capturing_li = False
         self._li_is_winner = False
@@ -457,8 +522,16 @@ class _HugoBestNovelParser(HTMLParser):
         self._title_finished = False
         if not capturing:
             return
-        if _is_non_work(full_text) or _is_non_work(title_text):
+        if _is_non_work(full_text):
             return
+        quoted = _parse_leading_quoted_title(full_text)
+        if quoted is not None:
+            title_text, remainder = quoted
+        else:
+            if _is_non_work(tagged_title):
+                return
+            title_text = tagged_title
+            remainder = tagged_remainder
         if not title_text:
             return
         author = _parse_author_remainder(remainder)
@@ -470,6 +543,7 @@ class _HugoBestNovelParser(HTMLParser):
         status = 'Winner' if winner else 'Finalist'
         key = (
             self.award_year,
+            self.category,
             status,
             work_title.casefold(),
             author.casefold(),
@@ -481,6 +555,7 @@ class _HugoBestNovelParser(HTMLParser):
         self.records.append(
             _ParsedRecord(
                 award_year=self.award_year,
+                category=self.category,
                 status=status,
                 work_title=work_title,
                 work_author=author,
@@ -490,15 +565,94 @@ class _HugoBestNovelParser(HTMLParser):
         )
 
 
+def _parse_category_html(
+    page_html: str,
+    award_year: int,
+    source_url: str,
+    category: str,
+) -> list[_ParsedRecord]:
+    parser = _HugoCategoryParser(award_year, source_url, category)
+    parser.feed(page_html)
+    parser.close()
+    return parser.records
+
+
 def _parse_best_novel_html(
     page_html: str,
     award_year: int,
     source_url: str,
 ) -> list[_ParsedRecord]:
-    parser = _HugoBestNovelParser(award_year, source_url)
-    parser.feed(page_html)
-    parser.close()
-    return parser.records
+    return _parse_category_html(
+        page_html,
+        award_year,
+        source_url,
+        CATEGORY_BEST_NOVEL,
+    )
+
+
+def _parse_supported_categories_html(
+    page_html: str,
+    award_year: int,
+    source_url: str,
+) -> list[_ParsedRecord]:
+    records: list[_ParsedRecord] = []
+    for category in _SUPPORTED_CATEGORIES:
+        records.extend(
+            _parse_category_html(page_html, award_year, source_url, category)
+        )
+    return records
+
+
+def _regular_years_from_items(items: list[dict]) -> set[int]:
+    years: set[int] = set()
+    for item in items:
+        title = _usable_title(item)
+        if title is None:
+            continue
+        year = _regular_year_from_title(title)
+        if year is not None:
+            years.add(year)
+    return years
+
+
+def _validate_supported_category_records(
+    records: tuple[_ParsedRecord, ...],
+    regular_years: set[int],
+) -> None:
+    records_by_category: dict[str, list[_ParsedRecord]] = {
+        category: [] for category in _SUPPORTED_CATEGORIES
+    }
+    for record in records:
+        if record.category not in records_by_category:
+            raise HugoSourceError(
+                f'Hugo archive produced an unsupported category: {record.category!r}'
+            )
+        records_by_category[record.category].append(record)
+
+    if not records_by_category[CATEGORY_BEST_NOVEL]:
+        raise HugoSourceError(
+            'Hugo archive was retrieved but no Best Novel records could be parsed'
+        )
+
+    expected_novella_years = {
+        year for year in regular_years if year >= _NOVELLA_REQUIRED_FROM_YEAR
+    }
+    if not expected_novella_years:
+        return
+
+    novella_records = records_by_category[CATEGORY_BEST_NOVELLA]
+    if not novella_records:
+        raise HugoSourceError(
+            'Hugo archive was retrieved but no Best Novella records could be parsed'
+        )
+    parsed_novella_years = {record.award_year for record in novella_records}
+    missing = sorted(expected_novella_years - parsed_novella_years)
+    if missing:
+        extra = f' (+{len(missing) - 1} more)' if len(missing) > 1 else ''
+        raise HugoSourceError(
+            'Hugo archive was retrieved but Best Novella records were missing '
+            f'for expected year(s): {missing[0]}{extra}'
+        )
 
 
 def _records_from_archive_items(items: list[dict]) -> tuple[_ParsedRecord, ...]:
@@ -512,7 +666,7 @@ def _records_from_archive_items(items: list[dict]) -> tuple[_ParsedRecord, ...]:
         year = _regular_year_from_title(title)
         if year is None:
             continue
-        records.extend(_parse_best_novel_html(content, year, link))
+        records.extend(_parse_supported_categories_html(content, year, link))
     return tuple(records)
 
 
@@ -525,7 +679,7 @@ _cache_lock = threading.Lock()
 
 
 def _get_archive_records() -> tuple[_ParsedRecord, ...]:
-    """Return cached Best Novel records, fetching once per process on success."""
+    """Return cached Hugo work records, fetching once per process on success."""
     global _archive_records_cache
     with _cache_lock:
         if _archive_records_cache is not None:
@@ -533,11 +687,7 @@ def _get_archive_records() -> tuple[_ParsedRecord, ...]:
         status, headers, body = _fetch_archive_response()
         items = _validate_archive_payload(status, headers, body)
         records = _records_from_archive_items(items)
-        if not records:
-            raise HugoSourceError(
-                'Hugo archive was retrieved but no Best Novel records '
-                'could be parsed'
-            )
+        _validate_supported_category_records(records, _regular_years_from_items(items))
         _archive_records_cache = records
         return _archive_records_cache
 
@@ -644,6 +794,8 @@ def _ranking_matches_record(ranking: HugoRanking, record: _ParsedRecord) -> bool
 
 
 def _ranking_for_record(record: _ParsedRecord) -> HugoRanking | None:
+    if record.category != CATEGORY_BEST_NOVEL:
+        return None
     found = [
         ranking
         for ranking in HUGO_BEST_NOVEL_RANKINGS
@@ -668,7 +820,7 @@ def _to_award_result(record: _ParsedRecord) -> AwardResult:
             work_author=record.work_author,
             award_name='Hugo Award',
             award_year=record.award_year,
-            category='Best Novel',
+            category=record.category,
             status=record.status,
             rank=None,
             source_name='Hugo Awards',
@@ -680,7 +832,7 @@ def _to_award_result(record: _ParsedRecord) -> AwardResult:
         work_author=record.work_author,
         award_name='Hugo Award',
         award_year=record.award_year,
-        category='Best Novel',
+        category=record.category,
         status=record.status,
         rank=ranking.rank,
         source_name='Hugo Awards',
@@ -694,7 +846,7 @@ def _to_award_result(record: _ParsedRecord) -> AwardResult:
 # ---------------------------------------------------------------------------
 
 def lookup(title: str, author: str) -> list[AwardResult]:
-    """Look up Hugo Award Best Novel results for a title and author."""
+    """Look up Hugo Award Best Novel and Best Novella results for a title and author."""
     cleaned_title = title.strip()
     cleaned_author = author.strip()
     if not cleaned_title:
@@ -703,12 +855,13 @@ def lookup(title: str, author: str) -> list[AwardResult]:
         raise ValueError('author must be a non-empty string')
 
     matches: list[AwardResult] = []
-    seen: set[tuple[int, str, str, str, str]] = set()
+    seen: set[tuple[int, str, str, str, str, str]] = set()
     for record in _get_archive_records():
         if not _record_matches(record, cleaned_title, cleaned_author):
             continue
         key = (
             record.award_year,
+            record.category,
             record.status,
             record.work_title.casefold(),
             record.work_author.casefold(),

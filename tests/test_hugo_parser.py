@@ -9,8 +9,10 @@ from unittest.mock import patch
 from awards.sources import hugo
 
 URL_1966 = 'https://www.thehugoawards.org/hugo-history/1966-hugo-awards/'
+URL_1968 = 'https://www.thehugoawards.org/hugo-history/1968-hugo-awards/'
 URL_1985 = 'https://www.thehugoawards.org/hugo-history/1995-hugo-awards-2/'
 URL_2015 = 'https://www.thehugoawards.org/hugo-history/2015-hugo-awards/'
+URL_2020 = 'https://www.thehugoawards.org/hugo-history/2020-hugo-awards/'
 URL_2025 = 'https://www.thehugoawards.org/hugo-history/2025-hugo-awards/'
 URL_2026 = 'https://www.thehugoawards.org/hugo-history/2026-hugo-awards/'
 URL_2016 = 'https://www.thehugoawards.org/hugo-history/2016-hugo-awards/'
@@ -65,6 +67,7 @@ HTML_2026 = """
 <p><strong>Best Novella</strong></p>
 <ul>
 <li><em>Automatic Noodle</em> by Annalee Newitz (Tordotcom)</li>
+<li><em>A Mouthful of Dust</em> by Nghi Vo (Tordotcom)</li>
 </ul>
 """
 
@@ -151,7 +154,8 @@ HTML_2015 = """
 <p><strong>Best Novella</strong> (5337 final ballots, 1083 nominating ballots, 201 entries, range 145-338)</p>
 <ul>
 <li class="winner"><strong>No Award</strong></li>
-<li><strong>Flow</strong>, Arlan Andrews, Sr. (Analog, 11-2014)</li>
+<li><strong>&#8220;Flow&#8221;</strong>, Arlan Andrews, Sr. (Analog, 11-2014)</li>
+<li><strong>&#8220;The Plural of Helen of Troy&#8221;</strong>, John C. Wright (The Book of Feasts &amp; Seasons, Castalia House)</li>
 </ul>
 """
 
@@ -174,6 +178,79 @@ HTML_ARBITRARY_PARENTHETICAL = """
 <p><strong>Best Novel</strong> (see Worldcon program notes)</p>
 <ul>
 <li class="winner"><em>Should Not Associate</em> by Intervening Author (Press)</li>
+</ul>
+"""
+
+HTML_1968 = """
+<p><strong>Best Novel</strong></p>
+<ul>
+<li class="winner"><em>Lord of Light</em> by Roger Zelazny [Doubleday, 1967]</li>
+</ul>
+<p><strong>Best Novella</strong></p>
+<ul>
+<li class="winner">&#8220;Riders of the Purple Wage&#8221; by Philip José Farmer [<em>Dangerous Visions</em>, 1967]</li>
+<li class="winner">&#8220;Weyr Search&#8221; by Anne McCaffrey [<em>Analog</em> Oct 1967]</li>
+<li>&#8220;Damnation Alley&#8221; by Roger Zelazny [<em>Galaxy</em> Oct 1967]</li>
+</ul>
+<p><strong>Best Novelette</strong></p>
+<ul>
+<li class="winner">&#8220;Gonna Roll the Bones&#8221; by Fritz Leiber [<em>Dangerous Visions</em>, 1967]</li>
+</ul>
+"""
+
+HTML_2020 = """
+<p><strong>Best Novel</strong></p>
+<ul>
+<li class="winner"><em>A Memory Called Empire</em>, by Arkady Martine (Tor; Tor UK)</li>
+</ul>
+<p><strong>Best Novella</strong></p>
+<ul>
+<li class="winner"><em>This Is How You Lose the Time War</em>, by Amal El-Mohtar and Max Gladstone (Saga Press; Jo Fletcher Books)</li>
+<li><em>Anxiety Is the Dizziness of Freedom</em>, by Ted Chiang (Exhalation)</li>
+</ul>
+"""
+
+HTML_NOVEL_ONLY_2020 = """
+<p><strong>Best Novel</strong></p>
+<ul>
+<li class="winner"><em>A Memory Called Empire</em>, by Arkady Martine (Tor; Tor UK)</li>
+</ul>
+"""
+
+HTML_STRAIGHT_QUOTED_NOVELLA = """
+<p><strong>Best Novella</strong></p>
+<ul>
+<li class="winner">"Riders of the Purple Wage" by Philip José Farmer [<em>Dangerous Visions</em>, 1967]</li>
+</ul>
+"""
+
+HTML_2014_NOMINATING_NOTE = """
+<p><strong>Best Novel</strong> (1595 nominating ballots)</p>
+<ul>
+<li class="winner"><strong>Ancillary Justice</strong>, Ann Leckie (Orbit US/Orbit UK)</li>
+</ul>
+<p><strong>Best Novella</strong> (847 nominating ballots)</p>
+<ul>
+<li class="winner"><strong>&#8220;Equoid&#8221;</strong>, Charles Stross (<em>Tor.com</em>, 09-2013)</li>
+<li><strong>Six-Gun Snow White</strong>, Catherynne M. Valente (Subterranean Press)</li>
+</ul>
+"""
+
+HTML_2021_UNPAREN_BALLOT_NOTES = """
+<p><strong>Best Novella</strong><br />
+1691 final ballots cast (71.6%)<br />
+778 nominating ballots for 157 nominees, finalist range 219-124</p>
+<ul>
+<li class="winner"><em>The Empress of Salt and Fortune</em>, Nghi Vo (Tor.com)</li>
+<li><em>Ring Shout</em>, P. Djèlí Clark (Tor.com)</li>
+</ul>
+"""
+
+HTML_2022_UNPAREN_BALLOT_NOTE = """
+<p><strong>Best Novella</strong><br />
+807 nominating ballots for 138 nominees; finalist range 90-235</p>
+<ul>
+<li class="winner"><em>A Psalm for the Wild-Built</em>, by Becky Chambers (Tordotcom)</li>
 </ul>
 """
 
@@ -362,6 +439,7 @@ class HugoParserTests(unittest.TestCase):
         result = hugo._to_award_result(dune)
         self.assertEqual(result.award_name, 'Hugo Award')
         self.assertEqual(result.category, 'Best Novel')
+        self.assertEqual(dune.category, 'Best Novel')
         self.assertEqual(result.status, 'Winner')
         self.assertIsNone(result.rank)
         self.assertEqual(result.source_name, 'Hugo Awards')
@@ -464,6 +542,240 @@ class HugoParserTests(unittest.TestCase):
         self.assertFalse(any('Warbound' in title for title in titles))
         self.assertFalse(any(author.casefold().startswith('s,') for author in authors))
 
+    def test_1968_quoted_novella_winners_and_magazine_em_is_not_the_title(self):
+        records = hugo._parse_category_html(
+            HTML_1968, 1968, URL_1968, hugo.CATEGORY_BEST_NOVELLA
+        )
+        riders = _find_records(
+            records,
+            title='Riders of the Purple Wage',
+            author='Philip José Farmer',
+        )
+        self.assertEqual(len(riders), 1)
+        self.assertEqual(riders[0].status, 'Winner')
+        self.assertEqual(riders[0].category, 'Best Novella')
+        self.assertEqual(riders[0].award_year, 1968)
+        self.assertEqual(riders[0].source_url, URL_1968)
+        weyr = _find_records(
+            records,
+            title='Weyr Search',
+            author='Anne McCaffrey',
+        )
+        self.assertEqual(len(weyr), 1)
+        self.assertEqual(weyr[0].status, 'Winner')
+        alley = _find_records(
+            records,
+            title='Damnation Alley',
+            author='Roger Zelazny',
+        )
+        self.assertEqual(len(alley), 1)
+        self.assertEqual(alley[0].status, 'Finalist')
+        titles = [record.work_title for record in records]
+        self.assertNotIn('Dangerous Visions', titles)
+        self.assertNotIn('Analog', titles)
+        self.assertNotIn('Galaxy', titles)
+        self.assertNotIn('Lord of Light', titles)
+        self.assertNotIn('Gonna Roll the Bones', titles)
+        self.assertEqual(sum(1 for record in records if record.status == 'Winner'), 2)
+
+    def test_straight_quoted_novella_title_does_not_use_anthology_em(self):
+        records = hugo._parse_category_html(
+            HTML_STRAIGHT_QUOTED_NOVELLA,
+            1968,
+            URL_1968,
+            hugo.CATEGORY_BEST_NOVELLA,
+        )
+        self.assertEqual(len(records), 1)
+        self.assertEqual(records[0].work_title, 'Riders of the Purple Wage')
+        self.assertEqual(records[0].work_author, 'Philip José Farmer')
+        self.assertNotEqual(records[0].work_title, 'Dangerous Visions')
+
+    def test_2020_tagged_novella_title_path(self):
+        records = hugo._parse_category_html(
+            HTML_2020, 2020, URL_2020, hugo.CATEGORY_BEST_NOVELLA
+        )
+        time_war = _find_records(
+            records,
+            title='This Is How You Lose the Time War',
+            author='Amal El-Mohtar and Max Gladstone',
+        )
+        self.assertEqual(len(time_war), 1)
+        self.assertEqual(time_war[0].status, 'Winner')
+        self.assertEqual(time_war[0].category, 'Best Novella')
+        result = hugo._to_award_result(time_war[0])
+        self.assertEqual(result.award_name, 'Hugo Award')
+        self.assertEqual(result.category, 'Best Novella')
+        self.assertEqual(result.status, 'Winner')
+        self.assertIsNone(result.rank)
+        self.assertEqual(result.source_name, 'Hugo Awards')
+        self.assertEqual(result.source_url, URL_2020)
+        self.assertIsNone(result.notes)
+        self.assertNotIn(
+            'A Memory Called Empire',
+            [record.work_title for record in records],
+        )
+
+    def test_2015_novella_skips_no_award_and_does_not_invent_a_winner(self):
+        records = hugo._parse_category_html(
+            HTML_2015, 2015, URL_2015, hugo.CATEGORY_BEST_NOVELLA
+        )
+        titles = [record.work_title for record in records]
+        self.assertNotIn('No Award', titles)
+        self.assertNotIn('The Three Body Problem', titles)
+        self.assertTrue(all(record.status == 'Finalist' for record in records))
+        self.assertNotIn('Winner', [record.status for record in records])
+        flow = _find_records(
+            records,
+            title='Flow',
+            author='Arlan Andrews, Sr.',
+        )
+        self.assertEqual(len(flow), 1)
+        self.assertEqual(flow[0].status, 'Finalist')
+        self.assertEqual(flow[0].category, 'Best Novella')
+        helen = _find_records(
+            records,
+            title='The Plural of Helen of Troy',
+            author='John C. Wright',
+        )
+        self.assertEqual(len(helen), 1)
+        self.assertEqual(helen[0].status, 'Finalist')
+        result = hugo._to_award_result(flow[0])
+        self.assertEqual(result.category, 'Best Novella')
+        self.assertEqual(result.status, 'Finalist')
+        self.assertIsNone(result.rank)
+        self.assertEqual(result.source_url, URL_2015)
+
+    def test_2026_novella_finalists_do_not_invent_a_winner(self):
+        records = hugo._parse_category_html(
+            HTML_2026, 2026, URL_2026, hugo.CATEGORY_BEST_NOVELLA
+        )
+        self.assertTrue(records)
+        self.assertTrue(all(record.status == 'Finalist' for record in records))
+        self.assertNotIn('Winner', [record.status for record in records])
+        noodle = _find_records(
+            records,
+            title='Automatic Noodle',
+            author='Annalee Newitz',
+        )
+        self.assertEqual(len(noodle), 1)
+        self.assertEqual(noodle[0].category, 'Best Novella')
+        result = hugo._to_award_result(noodle[0])
+        self.assertEqual(result.status, 'Finalist')
+        self.assertIsNone(result.rank)
+        self.assertEqual(result.source_url, URL_2026)
+        self.assertNotIn(
+            'A Drop of Corruption',
+            [record.work_title for record in records],
+        )
+
+    def test_supported_categories_on_one_page_stay_isolated(self):
+        records = hugo._parse_supported_categories_html(HTML_1968, 1968, URL_1968)
+        novels = [record for record in records if record.category == 'Best Novel']
+        novellas = [record for record in records if record.category == 'Best Novella']
+        self.assertEqual([record.work_title for record in novels], ['Lord of Light'])
+        self.assertEqual(novels[0].status, 'Winner')
+        self.assertEqual(
+            {record.work_title for record in novellas},
+            {'Riders of the Purple Wage', 'Weyr Search', 'Damnation Alley'},
+        )
+        self.assertNotIn(
+            'Gonna Roll the Bones',
+            [record.work_title for record in records],
+        )
+        mixed = hugo._parse_supported_categories_html(HTML_2025, 2025, URL_2025)
+        mixed_titles = {(record.category, record.work_title) for record in mixed}
+        self.assertIn(('Best Novel', 'The Tainted Cup'), mixed_titles)
+        self.assertIn(('Best Novella', 'The Tusks of Extinction'), mixed_titles)
+        self.assertNotIn(
+            ('Best Novel', 'The Tusks of Extinction'),
+            mixed_titles,
+        )
+        self.assertNotIn(
+            'The Four Sisters Overlooking the Sea',
+            [record.work_title for record in mixed],
+        )
+
+    def test_novella_lookup_from_cached_records(self):
+        hugo._archive_records_cache = tuple(
+            hugo._parse_supported_categories_html(HTML_1968, 1968, URL_1968)
+        )
+        try:
+            results = hugo.lookup('Riders of the Purple Wage', 'Philip José Farmer')
+            self.assertEqual(len(results), 1)
+            self.assertEqual(results[0].category, 'Best Novella')
+            self.assertEqual(results[0].status, 'Winner')
+            self.assertIsNone(results[0].rank)
+            novel = hugo.lookup('Lord of Light', 'Roger Zelazny')
+            self.assertEqual(len(novel), 1)
+            self.assertEqual(novel[0].category, 'Best Novel')
+        finally:
+            hugo._archive_records_cache = None
+
+    def test_novella_ampersand_title_matching_remains_conservative(self):
+        record = hugo._parse_category_html(
+            HTML_2020, 2020, URL_2020, hugo.CATEGORY_BEST_NOVELLA
+        )[0]
+        self.assertTrue(
+            hugo._record_matches(
+                record,
+                'This Is How You Lose the Time War',
+                'Amal El-Mohtar and Max Gladstone',
+            )
+        )
+        self.assertFalse(
+            hugo._record_matches(
+                record,
+                'This Is How You Lose',
+                'Amal El-Mohtar and Max Gladstone',
+            )
+        )
+
+    def test_2014_nominating_only_ballot_note_keeps_novella_list(self):
+        records = hugo._parse_supported_categories_html(
+            HTML_2014_NOMINATING_NOTE,
+            2014,
+            'https://example.test/2014',
+        )
+        novels = [record for record in records if record.category == 'Best Novel']
+        novellas = [record for record in records if record.category == 'Best Novella']
+        self.assertEqual(novels[0].work_title, 'Ancillary Justice')
+        equoid = _find_records(
+            novellas, title='Equoid', author='Charles Stross'
+        )
+        self.assertEqual(len(equoid), 1)
+        self.assertEqual(equoid[0].status, 'Winner')
+        self.assertNotIn('Tor.com', [record.work_title for record in novellas])
+
+    def test_2021_unparenthesized_ballot_notes_keep_novella_list(self):
+        records = hugo._parse_category_html(
+            HTML_2021_UNPAREN_BALLOT_NOTES,
+            2021,
+            'https://example.test/2021',
+            hugo.CATEGORY_BEST_NOVELLA,
+        )
+        empress = _find_records(
+            records,
+            title='The Empress of Salt and Fortune',
+            author='Nghi Vo',
+        )
+        self.assertEqual(len(empress), 1)
+        self.assertEqual(empress[0].status, 'Winner')
+
+    def test_2022_unparenthesized_ballot_note_keeps_novella_list(self):
+        records = hugo._parse_category_html(
+            HTML_2022_UNPAREN_BALLOT_NOTE,
+            2022,
+            'https://example.test/2022',
+            hugo.CATEGORY_BEST_NOVELLA,
+        )
+        psalm = _find_records(
+            records,
+            title='A Psalm for the Wild-Built',
+            author='Becky Chambers',
+        )
+        self.assertEqual(len(psalm), 1)
+        self.assertEqual(psalm[0].status, 'Winner')
+
 
 class HugoArchiveHelperTests(unittest.TestCase):
     def setUp(self):
@@ -564,6 +876,57 @@ class HugoArchiveHelperTests(unittest.TestCase):
             'no Best Novel records could be parsed',
             str(ctx.exception),
         )
+
+    def test_novel_only_post_1968_archive_fails_closed_without_novella(self):
+        body = json.dumps(
+            [
+                _archive_item(
+                    '2020 Hugo Awards',
+                    URL_2020,
+                    HTML_NOVEL_ONLY_2020,
+                    '2020-hugo-awards',
+                )
+            ]
+        )
+        headers = {'X-WP-Total': '1', 'X-WP-TotalPages': '1'}
+        with patch.object(
+            hugo,
+            '_fetch_archive_response',
+            return_value=(200, headers, body),
+        ):
+            with self.assertRaises(hugo.HugoSourceError) as ctx:
+                hugo._get_archive_records()
+        self.assertIsNone(hugo._archive_records_cache)
+        self.assertIn('no Best Novella records could be parsed', str(ctx.exception))
+
+    def test_archive_with_novel_and_novella_is_cached(self):
+        body = json.dumps(
+            [
+                _archive_item(
+                    '2020 Hugo Awards',
+                    URL_2020,
+                    HTML_2020,
+                    '2020-hugo-awards',
+                )
+            ]
+        )
+        headers = {'X-WP-Total': '1', 'X-WP-TotalPages': '1'}
+        with patch.object(
+            hugo,
+            '_fetch_archive_response',
+            return_value=(200, headers, body),
+        ):
+            records = hugo._get_archive_records()
+        categories = {record.category for record in records}
+        self.assertEqual(categories, {'Best Novel', 'Best Novella'})
+        time_war = _find_records(
+            records,
+            title='This Is How You Lose the Time War',
+            author='Amal El-Mohtar and Max Gladstone',
+        )
+        self.assertEqual(len(time_war), 1)
+        self.assertEqual(time_war[0].category, 'Best Novella')
+        self.assertIs(hugo._get_archive_records(), records)
 
     def test_lookup_uses_cached_parsed_records(self):
         records = hugo._parse_best_novel_html(HTML_1966, 1966, URL_1966)

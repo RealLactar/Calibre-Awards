@@ -499,6 +499,7 @@ class HugoRankEnrichmentTests(unittest.TestCase):
     def test_html_finalist_is_not_promoted_to_winner_by_rank_one(self):
         record = hugo._ParsedRecord(
             award_year=2024,
+            category=hugo.CATEGORY_BEST_NOVEL,
             status='Finalist',
             work_title='Some Desperate Glory',
             work_author='Emily Tesh',
@@ -513,6 +514,7 @@ class HugoRankEnrichmentTests(unittest.TestCase):
     def test_html_winner_is_not_given_a_non_first_rank(self):
         record = hugo._ParsedRecord(
             award_year=2024,
+            category=hugo.CATEGORY_BEST_NOVEL,
             status='Winner',
             work_title='Translation State',
             work_author='Ann Leckie',
@@ -527,6 +529,7 @@ class HugoRankEnrichmentTests(unittest.TestCase):
     def test_related_title_does_not_take_another_work_rank(self):
         record = hugo._ParsedRecord(
             award_year=2024,
+            category=hugo.CATEGORY_BEST_NOVEL,
             status='Finalist',
             work_title='Some Other Glory',
             work_author='Emily Tesh',
@@ -536,6 +539,23 @@ class HugoRankEnrichmentTests(unittest.TestCase):
         result = hugo._to_award_result(record)
         self.assertIsNone(result.rank)
         self.assertEqual(result.source_url, URL_2024)
+
+    def test_best_novella_never_receives_best_novel_rank(self):
+        record = hugo._ParsedRecord(
+            award_year=2024,
+            category=hugo.CATEGORY_BEST_NOVELLA,
+            status='Winner',
+            work_title='Some Desperate Glory',
+            work_author='Emily Tesh',
+            source_url=URL_2024,
+            match_titles=('Some Desperate Glory',),
+        )
+        result = hugo._to_award_result(record)
+        self.assertEqual(result.category, 'Best Novella')
+        self.assertEqual(result.status, 'Winner')
+        self.assertIsNone(result.rank)
+        self.assertEqual(result.source_url, URL_2024)
+        self.assertIsNone(result.notes)
 
 
 if __name__ == '__main__':
