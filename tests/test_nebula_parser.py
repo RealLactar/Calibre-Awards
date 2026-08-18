@@ -10,6 +10,7 @@ from awards.sources.nebula import (
     _best_novel_status,
     _parse_best_novel_html,
     _record_matches,
+    _titles_match,
     _to_award_result,
 )
 
@@ -205,6 +206,22 @@ class NebulaParserFixtureTests(unittest.TestCase):
         ]
         self.assertEqual(len(keys), len(set(keys)))
         self.assertEqual(len(self.all_records), 4)
+
+    def test_standalone_ampersand_matches_and(self):
+        self.assertTrue(
+            _titles_match(
+                'Jonathan Strange and Mr Norrell',
+                'Jonathan Strange & Mr Norrell',
+            )
+        )
+        self.assertTrue(
+            _titles_match(
+                'Jonathan Strange & Mr Norrell',
+                'Jonathan Strange and Mr Norrell',
+            )
+        )
+        self.assertTrue(_titles_match('Smith & Jones', 'Smith and Jones'))
+        self.assertFalse(_titles_match('The City', 'The City & The City'))
 
 
 if __name__ == '__main__':

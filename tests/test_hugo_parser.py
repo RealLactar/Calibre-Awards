@@ -317,6 +317,26 @@ class HugoParserTests(unittest.TestCase):
         self.assertFalse(hugo._record_matches(dune, 'Dune World', 'Frank Herbert'))
         self.assertFalse(hugo._record_matches(dune, 'The Three', 'Frank Herbert'))
 
+    def test_standalone_ampersand_matches_and(self):
+        self.assertTrue(
+            hugo._titles_equivalent(
+                'Jonathan Strange and Mr Norrell',
+                'Jonathan Strange & Mr Norrell',
+            )
+        )
+        self.assertTrue(
+            hugo._titles_equivalent(
+                'Jonathan Strange & Mr Norrell',
+                'Jonathan Strange and Mr Norrell',
+            )
+        )
+        self.assertTrue(
+            hugo._titles_equivalent('Smith & Jones', 'Smith and Jones')
+        )
+        self.assertFalse(
+            hugo._titles_equivalent('The City', 'The City & The City')
+        )
+
     def test_word_separator_hyphen_matches_but_prefix_does_not(self):
         three_body = hugo._parse_best_novel_html(HTML_2015, 2015, URL_2015)[0]
         self.assertEqual(three_body.work_title, 'The Three Body Problem')

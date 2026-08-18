@@ -14,6 +14,7 @@ from html.parser import HTMLParser
 from http.cookiejar import CookieJar
 from urllib.parse import urlencode
 
+from ..matching import normalize_title_conjunctions
 from ..model import AwardResult
 from .hugo_rankings import HugoRanking, HUGO_BEST_NOVEL_RANKINGS
 
@@ -564,6 +565,7 @@ def _normalize_text(value: str) -> str:
 
 def _normalize_title_for_match(value: str) -> str:
     text = _normalize_text(value)
+    text = normalize_title_conjunctions(text)
     text = _WORD_SEPARATOR_HYPHEN_RE.sub(r'\1 \2', text)
     return _collapse_ws(text)
 

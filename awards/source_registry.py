@@ -10,6 +10,7 @@ from .sources.hugo import lookup as hugo_lookup
 from .sources.locus import lookup as locus_lookup
 from .sources.nebula import lookup as nebula_lookup
 from .sources.pulitzer import lookup as pulitzer_lookup
+from .sources.world_fantasy import lookup as world_fantasy_lookup
 
 
 @dataclass(frozen=True, slots=True)
@@ -41,5 +42,10 @@ AWARD_SOURCES: tuple[AwardSource, ...] = (
         key='locus',
         display_name='Locus Awards',
         lookup=locus_lookup,
+    ),
+    AwardSource(
+        key='world_fantasy',
+        display_name='World Fantasy Awards',
+        lookup=world_fantasy_lookup,
     ),
 )

@@ -11,13 +11,19 @@ class AwardSourceRegistryTests(unittest.TestCase):
     def test_supported_source_keys_in_order(self):
         self.assertEqual(
             tuple(source.key for source in AWARD_SOURCES),
-            ('pulitzer', 'nebula', 'hugo', 'locus'),
+            ('pulitzer', 'nebula', 'hugo', 'locus', 'world_fantasy'),
         )
 
     def test_display_names(self):
         self.assertEqual(
             tuple(source.display_name for source in AWARD_SOURCES),
-            ('Pulitzer Prizes', 'Nebula Awards', 'Hugo Awards', 'Locus Awards'),
+            (
+                'Pulitzer Prizes',
+                'Nebula Awards',
+                'Hugo Awards',
+                'Locus Awards',
+                'World Fantasy Awards',
+            ),
         )
 
     def test_keys_are_unique(self):

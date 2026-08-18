@@ -12,6 +12,7 @@ from html.parser import HTMLParser
 from http.cookiejar import CookieJar
 from urllib.parse import urljoin
 
+from ..matching import normalize_title_conjunctions
 from ..model import AwardResult
 
 TIMEOUT_SECONDS = 30
@@ -362,8 +363,8 @@ def _normalize_text(value: str) -> str:
 
 
 def _titles_match(query_title: str, record_title: str) -> bool:
-    query_norm = _normalize_text(query_title)
-    record_norm = _normalize_text(record_title)
+    query_norm = normalize_title_conjunctions(_normalize_text(query_title))
+    record_norm = normalize_title_conjunctions(_normalize_text(record_title))
     if query_norm == record_norm:
         return True
 

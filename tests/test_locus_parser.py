@@ -603,6 +603,26 @@ class AuthorPageParseTests(LocusTestCase):
             locus._titles_equivalent('The Collapsing Empire', 'The Collapsing Empire')
         )
 
+    def test_standalone_ampersand_matches_and(self):
+        self.assertTrue(
+            locus._titles_equivalent(
+                'Jonathan Strange and Mr Norrell',
+                'Jonathan Strange & Mr Norrell',
+            )
+        )
+        self.assertTrue(
+            locus._titles_equivalent(
+                'Jonathan Strange & Mr Norrell',
+                'Jonathan Strange and Mr Norrell',
+            )
+        )
+        self.assertTrue(
+            locus._titles_equivalent('Smith & Jones', 'Smith and Jones')
+        )
+        self.assertFalse(
+            locus._titles_equivalent('The City', 'The City & The City')
+        )
+
 
 class LookupAndQualificationTests(LocusTestCase):
     def _lookup(self, title: str, author: str):
