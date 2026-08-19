@@ -1,4 +1,4 @@
-"""Official Hugo Awards Best Novel and Best Novella source (thehugoawards.org)."""
+"""Official Hugo Awards Best Novel, Best Novella, and Best Novelette source."""
 
 from __future__ import annotations
 
@@ -82,12 +82,23 @@ _LEADING_QUOTED_TITLE_RE = re.compile(
     r')\s*(?P<remainder>.*)$',
     re.DOTALL,
 )
+_UNOPENED_QUOTED_TITLE_RE = re.compile(
+    r'^(?P<title>[^\u201c"]+?)[\u201d"]\s*(?P<remainder>.*)$',
+    re.DOTALL,
+)
 
 CATEGORY_BEST_NOVEL = 'Best Novel'
 CATEGORY_BEST_NOVELLA = 'Best Novella'
-_SUPPORTED_CATEGORIES = (CATEGORY_BEST_NOVEL, CATEGORY_BEST_NOVELLA)
+CATEGORY_BEST_NOVELETTE = 'Best Novelette'
+_SUPPORTED_CATEGORIES = (
+    CATEGORY_BEST_NOVEL,
+    CATEGORY_BEST_NOVELLA,
+    CATEGORY_BEST_NOVELETTE,
+)
 _SUPPORTED_CATEGORY_SET = frozenset(_SUPPORTED_CATEGORIES)
 _NOVELLA_REQUIRED_FROM_YEAR = 1968
+_EARLY_NOVELETTE_YEARS = frozenset({1955, 1956, 1959, 1967, 1968, 1969})
+_NOVELETTE_REQUIRED_FROM_YEAR = 1973
 
 
 class HugoSourceError(RuntimeError):
@@ -297,10 +308,16 @@ def _strip_trailing_group(text: str, opener: str, closer: str) -> str:
     stripped = text.rstrip()
     if not stripped.endswith(closer):
         return stripped
-    start = stripped.rfind(opener)
-    if start < 0:
-        return stripped
-    return stripped[:start].rstrip()
+    depth = 0
+    for index in range(len(stripped) - 1, -1, -1):
+        character = stripped[index]
+        if character == closer:
+            depth += 1
+        elif character == opener:
+            depth -= 1
+            if depth == 0:
+                return stripped[:index].rstrip()
+    return stripped
 
 
 def _parse_author_remainder(remainder: str) -> str | None:
@@ -347,6 +364,28 @@ def _parse_leading_quoted_title(text: str) -> tuple[str, str] | None:
     if _is_non_work(title):
         return None
     return title, match.group('remainder') or ''
+
+
+def _parse_unopened_quoted_title(text: str) -> tuple[str, str] | None:
+    """Recover a title that ends with a closer but is missing its opener.
+
+    Used for the official 2010 Best Novelette winner HTML, equivalent to
+    The Island”, Peter Watts (...). The remainder after the closer must
+    already be a recognized author citation.
+    """
+    cleaned = _collapse_ws(text)
+    match = _UNOPENED_QUOTED_TITLE_RE.match(cleaned)
+    if match is None:
+        return None
+    title = _collapse_ws(match.group('title') or '')
+    remainder = match.group('remainder') or ''
+    if not title or not any(character.isalpha() for character in title):
+        return None
+    if _is_non_work(title):
+        return None
+    if _parse_author_remainder(remainder) is None:
+        return None
+    return title, remainder
 
 
 def _primary_and_match_titles(displayed_title: str) -> tuple[str, tuple[str, ...]]:
@@ -505,6 +544,17 @@ class _HugoCategoryParser(HTMLParser):
         self._title_depth = 0
         self._title_finished = False
 
+    def _allows_unopened_quote_recovery(self) -> bool:
+        return (
+            self.award_year == 2010
+            and self.category == CATEGORY_BEST_NOVELETTE
+        )
+
+    def _try_unopened_quoted_title(self, full_text: str) -> tuple[str, str] | None:
+        if not self._allows_unopened_quote_recovery():
+            return None
+        return _parse_unopened_quoted_title(full_text)
+
     def _finish_li(self) -> None:
         capturing = self._capturing_li
         winner = self._li_is_winner
@@ -527,11 +577,21 @@ class _HugoCategoryParser(HTMLParser):
         quoted = _parse_leading_quoted_title(full_text)
         if quoted is not None:
             title_text, remainder = quoted
+        elif tagged_title and not _is_non_work(tagged_title):
+            tagged_author = _parse_author_remainder(tagged_remainder)
+            if tagged_author:
+                title_text = tagged_title
+                remainder = tagged_remainder
+            else:
+                malformed = self._try_unopened_quoted_title(full_text)
+                if malformed is None:
+                    return
+                title_text, remainder = malformed
         else:
-            if _is_non_work(tagged_title):
+            malformed = self._try_unopened_quoted_title(full_text)
+            if malformed is None:
                 return
-            title_text = tagged_title
-            remainder = tagged_remainder
+            title_text, remainder = malformed
         if not title_text:
             return
         author = _parse_author_remainder(remainder)
@@ -615,6 +675,32 @@ def _regular_years_from_items(items: list[dict]) -> set[int]:
     return years
 
 
+def _year_requires_novelette(year: int) -> bool:
+    return year in _EARLY_NOVELETTE_YEARS or year >= _NOVELETTE_REQUIRED_FROM_YEAR
+
+
+def _fail_if_expected_years_missing(
+    category: str,
+    records: list[_ParsedRecord],
+    expected_years: set[int],
+) -> None:
+    if not expected_years:
+        return
+    if not records:
+        raise HugoSourceError(
+            f'Hugo archive was retrieved but no {category} records could be parsed'
+        )
+    parsed_years = {record.award_year for record in records}
+    missing = sorted(expected_years - parsed_years)
+    if missing:
+        extra = f' (+{len(missing) - 1} more)' if len(missing) > 1 else ''
+        raise HugoSourceError(
+            'Hugo archive was retrieved but '
+            f'{category} records were missing for expected year(s): '
+            f'{missing[0]}{extra}'
+        )
+
+
 def _validate_supported_category_records(
     records: tuple[_ParsedRecord, ...],
     regular_years: set[int],
@@ -634,25 +720,16 @@ def _validate_supported_category_records(
             'Hugo archive was retrieved but no Best Novel records could be parsed'
         )
 
-    expected_novella_years = {
-        year for year in regular_years if year >= _NOVELLA_REQUIRED_FROM_YEAR
-    }
-    if not expected_novella_years:
-        return
-
-    novella_records = records_by_category[CATEGORY_BEST_NOVELLA]
-    if not novella_records:
-        raise HugoSourceError(
-            'Hugo archive was retrieved but no Best Novella records could be parsed'
-        )
-    parsed_novella_years = {record.award_year for record in novella_records}
-    missing = sorted(expected_novella_years - parsed_novella_years)
-    if missing:
-        extra = f' (+{len(missing) - 1} more)' if len(missing) > 1 else ''
-        raise HugoSourceError(
-            'Hugo archive was retrieved but Best Novella records were missing '
-            f'for expected year(s): {missing[0]}{extra}'
-        )
+    _fail_if_expected_years_missing(
+        CATEGORY_BEST_NOVELLA,
+        records_by_category[CATEGORY_BEST_NOVELLA],
+        {year for year in regular_years if year >= _NOVELLA_REQUIRED_FROM_YEAR},
+    )
+    _fail_if_expected_years_missing(
+        CATEGORY_BEST_NOVELETTE,
+        records_by_category[CATEGORY_BEST_NOVELETTE],
+        {year for year in regular_years if _year_requires_novelette(year)},
+    )
 
 
 def _records_from_archive_items(items: list[dict]) -> tuple[_ParsedRecord, ...]:
@@ -846,7 +923,7 @@ def _to_award_result(record: _ParsedRecord) -> AwardResult:
 # ---------------------------------------------------------------------------
 
 def lookup(title: str, author: str) -> list[AwardResult]:
-    """Look up Hugo Award Best Novel and Best Novella results for a title and author."""
+    """Look up Hugo Award Novel, Novella, and Novelette results."""
     cleaned_title = title.strip()
     cleaned_author = author.strip()
     if not cleaned_title:
