@@ -93,12 +93,14 @@ CATEGORY_BEST_NOVELLA = 'Best Novella'
 CATEGORY_BEST_NOVELETTE = 'Best Novelette'
 CATEGORY_BEST_SHORT_STORY = 'Best Short Story'
 CATEGORY_SHORT_FICTION = 'Short Fiction'
+CATEGORY_BEST_NOVEL_OR_NOVELETTE = 'Best Novel or Novelette'
 _SUPPORTED_CATEGORIES = (
     CATEGORY_BEST_NOVEL,
     CATEGORY_BEST_NOVELLA,
     CATEGORY_BEST_NOVELETTE,
     CATEGORY_BEST_SHORT_STORY,
     CATEGORY_SHORT_FICTION,
+    CATEGORY_BEST_NOVEL_OR_NOVELETTE,
 )
 _SUPPORTED_CATEGORY_SET = frozenset(_SUPPORTED_CATEGORIES)
 _NOVELLA_REQUIRED_FROM_YEAR = 1968
@@ -108,6 +110,7 @@ _EARLY_SHORT_STORY_YEARS = frozenset({1955, 1956, 1958, 1959})
 _SHORT_STORY_REQUIRED_FROM_YEAR = 1967
 _SHORT_FICTION_FROM_YEAR = 1960
 _SHORT_FICTION_THROUGH_YEAR = 1966
+_BEST_NOVEL_GAP_YEARS = frozenset({1957, 1958})
 
 
 class HugoSourceError(RuntimeError):
@@ -684,6 +687,10 @@ def _regular_years_from_items(items: list[dict]) -> set[int]:
     return years
 
 
+def _year_requires_best_novel(year: int) -> bool:
+    return year not in _BEST_NOVEL_GAP_YEARS
+
+
 def _year_requires_novelette(year: int) -> bool:
     return year in _EARLY_NOVELETTE_YEARS or year >= _NOVELETTE_REQUIRED_FROM_YEAR
 
@@ -694,6 +701,10 @@ def _year_requires_short_story(year: int) -> bool:
 
 def _year_requires_short_fiction(year: int) -> bool:
     return _SHORT_FICTION_FROM_YEAR <= year <= _SHORT_FICTION_THROUGH_YEAR
+
+
+def _year_requires_novel_or_novelette(year: int) -> bool:
+    return year == 1958
 
 
 def _fail_if_expected_years_missing(
@@ -732,11 +743,11 @@ def _validate_supported_category_records(
             )
         records_by_category[record.category].append(record)
 
-    if not records_by_category[CATEGORY_BEST_NOVEL]:
-        raise HugoSourceError(
-            'Hugo archive was retrieved but no Best Novel records could be parsed'
-        )
-
+    _fail_if_expected_years_missing(
+        CATEGORY_BEST_NOVEL,
+        records_by_category[CATEGORY_BEST_NOVEL],
+        {year for year in regular_years if _year_requires_best_novel(year)},
+    )
     _fail_if_expected_years_missing(
         CATEGORY_BEST_NOVELLA,
         records_by_category[CATEGORY_BEST_NOVELLA],
@@ -756,6 +767,11 @@ def _validate_supported_category_records(
         CATEGORY_SHORT_FICTION,
         records_by_category[CATEGORY_SHORT_FICTION],
         {year for year in regular_years if _year_requires_short_fiction(year)},
+    )
+    _fail_if_expected_years_missing(
+        CATEGORY_BEST_NOVEL_OR_NOVELETTE,
+        records_by_category[CATEGORY_BEST_NOVEL_OR_NOVELETTE],
+        {year for year in regular_years if _year_requires_novel_or_novelette(year)},
     )
 
 

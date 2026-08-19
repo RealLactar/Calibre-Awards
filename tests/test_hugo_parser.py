@@ -90,7 +90,49 @@ HTML_1958 = """
 </ul>
 <p><strong>Best Short Story</strong></p>
 <ul>
-<li class="winner">&#8220;Or All the Seas with Oysters&#8221; by Avram Davidson</li>
+<li class="winner">&#8220;Or All the Seas with Oysters&#8221; by Avram Davidson [<em>Galaxy Science Fiction</em> May 1958]</li>
+</ul>
+"""
+
+URL_1958 = 'https://www.thehugoawards.org/hugo-history/1958-hugo-awards/'
+
+HTML_1958_SHORT_STORY_ONLY = """
+<p><strong>Best Short Story</strong></p>
+<ul>
+<li class="winner">&#8220;Or All the Seas with Oysters&#8221; by Avram Davidson [<em>Galaxy Science Fiction</em> May 1958]</li>
+</ul>
+"""
+
+HTML_1957 = """
+<p><strong>Best American Professional Magazine</strong></p>
+<ul>
+<li class="winner"><em>Astounding Science Fiction</em> ed. by John W. Campbell, Jr.</li>
+</ul>
+<p><strong>Best Fanzine</strong></p>
+<ul>
+<li class="winner"><em>Science Fiction Times</em> ed. by James V. Taurasi, Sr., Ray Van Houten and Frank R. Prieto, Jr.</li>
+</ul>
+"""
+
+HTML_1959 = """
+<p><strong>Best Novel</strong></p>
+<ul>
+<li class="winner"><em>A Case of Conscience</em> by James Blish</li>
+</ul>
+<p><strong>Best Novelette</strong></p>
+<ul>
+<li class="winner">&#8220;The Big Front Yard&#8221; by Clifford D. Simak</li>
+</ul>
+<p><strong>Best Short Story</strong></p>
+<ul>
+<li class="winner">&#8220;That Hell-Bound Train&#8221; by Robert Bloch</li>
+</ul>
+"""
+
+HTML_NO_SUPPORTED_WRITTEN_WORKS = """
+<p><strong>Best Dramatic Presentation</strong></p>
+<ul>
+<li class="winner"><em>Should Not Appear</em> by Dramatic Author (Press)</li>
 </ul>
 """
 
@@ -553,7 +595,7 @@ class HugoParserTests(unittest.TestCase):
         self.assertNotIn('Automatic Noodle', [r.work_title for r in records])
 
     def test_best_novel_or_novelette_is_not_best_novel(self):
-        records = hugo._parse_best_novel_html(HTML_1958, 1958, 'https://example.test/1958')
+        records = hugo._parse_best_novel_html(HTML_1958, 1958, URL_1958)
         self.assertEqual(records, [])
 
     def test_citation_dialects_and_non_work_rows(self):
@@ -1474,28 +1516,111 @@ class HugoParserTests(unittest.TestCase):
         self.assertTrue(all(record.status == 'Finalist' for record in records))
         self.assertNotIn('Winner', [record.status for record in records])
 
-    def test_1958_short_story_does_not_enable_best_novel_or_novelette(self):
-        records = hugo._parse_supported_categories_html(
-            HTML_1958, 1958, 'https://example.test/1958'
+    def test_1958_best_novel_or_novelette_parses_the_big_time(self):
+        records = hugo._parse_category_html(
+            HTML_1958,
+            1958,
+            URL_1958,
+            hugo.CATEGORY_BEST_NOVEL_OR_NOVELETTE,
+        )
+        big_time = _find_records(
+            records, title='The Big Time', author='Fritz Leiber'
+        )
+        self.assertEqual(len(records), 1)
+        self.assertEqual(len(big_time), 1)
+        self.assertEqual(big_time[0].award_year, 1958)
+        self.assertEqual(big_time[0].category, 'Best Novel or Novelette')
+        self.assertEqual(big_time[0].status, 'Winner')
+        self.assertEqual(big_time[0].source_url, URL_1958)
+        result = hugo._to_award_result(big_time[0])
+        self.assertEqual(result.work_title, 'The Big Time')
+        self.assertEqual(result.work_author, 'Fritz Leiber')
+        self.assertEqual(result.award_name, 'Hugo Award')
+        self.assertEqual(result.award_year, 1958)
+        self.assertEqual(result.category, 'Best Novel or Novelette')
+        self.assertEqual(result.status, 'Winner')
+        self.assertIsNone(result.rank)
+        self.assertEqual(result.source_name, 'Hugo Awards')
+        self.assertEqual(result.source_url, URL_1958)
+        self.assertIsNone(result.notes)
+        self.assertNotIn('Galaxy', [record.work_title for record in records])
+
+    def test_1958_page_keeps_combined_category_and_short_story_isolated(self):
+        records = hugo._parse_supported_categories_html(HTML_1958, 1958, URL_1958)
+        big_time = _find_records(
+            records, title='The Big Time', author='Fritz Leiber'
         )
         oysters = _find_records(
             records,
             title='Or All the Seas with Oysters',
             author='Avram Davidson',
         )
+        self.assertEqual(len(big_time), 1)
+        self.assertEqual(big_time[0].category, 'Best Novel or Novelette')
+        self.assertEqual(big_time[0].status, 'Winner')
         self.assertEqual(len(oysters), 1)
         self.assertEqual(oysters[0].category, 'Best Short Story')
         self.assertEqual(oysters[0].status, 'Winner')
-        titles = [record.work_title for record in records]
-        self.assertNotIn('The Big Time', titles)
+        self.assertNotIn(
+            'Best Novel',
+            [record.category for record in big_time],
+        )
+        self.assertNotIn(
+            'Best Novelette',
+            [record.category for record in big_time],
+        )
         self.assertNotIn(
             'Best Novel or Novelette',
-            [record.category for record in records],
+            [record.category for record in oysters],
         )
-        novels = hugo._parse_best_novel_html(
-            HTML_1958, 1958, 'https://example.test/1958'
+        self.assertEqual(
+            hugo._parse_category_html(
+                HTML_1958, 1958, URL_1958, hugo.CATEGORY_BEST_NOVEL
+            ),
+            [],
         )
-        self.assertEqual(novels, [])
+        self.assertEqual(
+            hugo._parse_category_html(
+                HTML_1958, 1958, URL_1958, hugo.CATEGORY_BEST_NOVELETTE
+            ),
+            [],
+        )
+        self.assertEqual(hugo._parse_best_novel_html(HTML_1958, 1958, URL_1958), [])
+        titles = [record.work_title for record in records]
+        self.assertNotIn('Galaxy', titles)
+        self.assertNotIn('Galaxy Science Fiction', titles)
+
+    def test_1958_lookup_returns_exactly_one_combined_category_result(self):
+        hugo._archive_records_cache = tuple(
+            hugo._parse_supported_categories_html(HTML_1958, 1958, URL_1958)
+        )
+        try:
+            results = hugo.lookup('The Big Time', 'Fritz Leiber')
+            self.assertEqual(len(results), 1)
+            self.assertEqual(results[0].category, 'Best Novel or Novelette')
+            self.assertEqual(results[0].status, 'Winner')
+            self.assertEqual(results[0].award_year, 1958)
+            self.assertIsNone(results[0].rank)
+            short = hugo.lookup('Or All the Seas with Oysters', 'Avram Davidson')
+            self.assertEqual(len(short), 1)
+            self.assertEqual(short[0].category, 'Best Short Story')
+        finally:
+            hugo._archive_records_cache = None
+
+    def test_year_requires_novel_or_novelette_is_1958_only(self):
+        self.assertTrue(hugo._year_requires_novel_or_novelette(1958))
+        for year in (1957, 1959, 1960, 1966, 1968, 2020, 2026):
+            with self.subTest(year=year):
+                self.assertFalse(hugo._year_requires_novel_or_novelette(year))
+        self.assertTrue(hugo._year_requires_best_novel(1953))
+        self.assertTrue(hugo._year_requires_best_novel(1955))
+        self.assertTrue(hugo._year_requires_best_novel(1956))
+        self.assertFalse(hugo._year_requires_best_novel(1957))
+        self.assertFalse(hugo._year_requires_best_novel(1958))
+        self.assertTrue(hugo._year_requires_best_novel(1959))
+        self.assertTrue(hugo._year_requires_best_novel(1960))
+        self.assertTrue(hugo._year_requires_best_novel(1966))
+        self.assertTrue(hugo._year_requires_best_novel(2026))
 
     def test_unopened_quote_shape_is_not_recovered_as_short_story_or_fiction(self):
         short = hugo._parse_category_html(
@@ -1616,10 +1741,10 @@ class HugoArchiveHelperTests(unittest.TestCase):
         body = json.dumps(
             [
                 _archive_item(
-                    '1958 Hugo Awards',
-                    'https://www.thehugoawards.org/hugo-history/1958-hugo-awards/',
-                    HTML_1958,
-                    '1958-hugo-awards',
+                    '1959 Hugo Awards',
+                    'https://www.thehugoawards.org/hugo-history/1959-hugo-awards/',
+                    HTML_NO_SUPPORTED_WRITTEN_WORKS,
+                    '1959-hugo-awards',
                 )
             ]
         )
@@ -1636,6 +1761,110 @@ class HugoArchiveHelperTests(unittest.TestCase):
             'no Best Novel records could be parsed',
             str(ctx.exception),
         )
+
+    def test_1958_archive_with_combined_category_succeeds(self):
+        body = json.dumps(
+            [
+                _archive_item(
+                    '1958 Hugo Awards',
+                    URL_1958,
+                    HTML_1958,
+                    '1958-hugo-awards',
+                )
+            ]
+        )
+        headers = {'X-WP-Total': '1', 'X-WP-TotalPages': '1'}
+        with patch.object(
+            hugo,
+            '_fetch_archive_response',
+            return_value=(200, headers, body),
+        ):
+            records = hugo._get_archive_records()
+        categories = {record.category for record in records}
+        self.assertEqual(
+            categories,
+            {'Best Novel or Novelette', 'Best Short Story'},
+        )
+        big_time = _find_records(
+            records, title='The Big Time', author='Fritz Leiber'
+        )
+        self.assertEqual(len(big_time), 1)
+        self.assertEqual(big_time[0].category, 'Best Novel or Novelette')
+        self.assertNotIn('Best Novel', categories)
+        self.assertNotIn('Best Novelette', categories)
+
+    def test_1958_archive_missing_combined_category_fails_closed(self):
+        body = json.dumps(
+            [
+                _archive_item(
+                    '1958 Hugo Awards',
+                    URL_1958,
+                    HTML_1958_SHORT_STORY_ONLY,
+                    '1958-hugo-awards',
+                )
+            ]
+        )
+        headers = {'X-WP-Total': '1', 'X-WP-TotalPages': '1'}
+        with patch.object(
+            hugo,
+            '_fetch_archive_response',
+            return_value=(200, headers, body),
+        ):
+            with self.assertRaises(hugo.HugoSourceError) as ctx:
+                hugo._get_archive_records()
+        self.assertIsNone(hugo._archive_records_cache)
+        self.assertIn(
+            'no Best Novel or Novelette records could be parsed',
+            str(ctx.exception),
+        )
+
+    def test_1957_archive_does_not_require_best_novel_or_combined_category(self):
+        body = json.dumps(
+            [
+                _archive_item(
+                    '1957 Hugo Awards',
+                    'https://www.thehugoawards.org/hugo-history/1957-hugo-awards/',
+                    HTML_1957,
+                    '1957-hugo-awards',
+                )
+            ]
+        )
+        headers = {'X-WP-Total': '1', 'X-WP-TotalPages': '1'}
+        with patch.object(
+            hugo,
+            '_fetch_archive_response',
+            return_value=(200, headers, body),
+        ):
+            records = hugo._get_archive_records()
+        categories = {record.category for record in records}
+        self.assertEqual(categories, set())
+        self.assertNotIn('Best Novel', [record.category for record in records])
+        self.assertNotIn('Best Novel or Novelette', categories)
+
+    def test_1959_archive_does_not_require_novel_or_novelette(self):
+        body = json.dumps(
+            [
+                _archive_item(
+                    '1959 Hugo Awards',
+                    'https://www.thehugoawards.org/hugo-history/1959-hugo-awards/',
+                    HTML_1959,
+                    '1959-hugo-awards',
+                )
+            ]
+        )
+        headers = {'X-WP-Total': '1', 'X-WP-TotalPages': '1'}
+        with patch.object(
+            hugo,
+            '_fetch_archive_response',
+            return_value=(200, headers, body),
+        ):
+            records = hugo._get_archive_records()
+        categories = {record.category for record in records}
+        self.assertEqual(
+            categories,
+            {'Best Novel', 'Best Novelette', 'Best Short Story'},
+        )
+        self.assertNotIn('Best Novel or Novelette', categories)
 
     def test_novel_only_post_1968_archive_fails_closed_without_novella(self):
         body = json.dumps(

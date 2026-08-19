@@ -608,6 +608,23 @@ class HugoRankEnrichmentTests(unittest.TestCase):
         self.assertEqual(result.source_url, URL_1966)
         self.assertIsNone(result.notes)
 
+    def test_best_novel_or_novelette_never_receives_best_novel_rank(self):
+        record = hugo._ParsedRecord(
+            award_year=2024,
+            category=hugo.CATEGORY_BEST_NOVEL_OR_NOVELETTE,
+            status='Winner',
+            work_title='Some Desperate Glory',
+            work_author='Emily Tesh',
+            source_url=URL_2024,
+            match_titles=('Some Desperate Glory',),
+        )
+        result = hugo._to_award_result(record)
+        self.assertEqual(result.category, 'Best Novel or Novelette')
+        self.assertEqual(result.status, 'Winner')
+        self.assertIsNone(result.rank)
+        self.assertEqual(result.source_url, URL_2024)
+        self.assertIsNone(result.notes)
+
 
 if __name__ == '__main__':
     unittest.main()
