@@ -1,4 +1,4 @@
-"""Official Hugo Awards Best Novel, Best Novella, and Best Novelette source."""
+"""Official Hugo Awards written-work source (thehugoawards.org)."""
 
 from __future__ import annotations
 
@@ -74,6 +74,7 @@ _TRANSLATOR_AUTHOR_SUFFIX_RE = re.compile(
 _WORD_SEPARATOR_HYPHEN_RE = re.compile(
     r'(\w)[\u2010\u2011\u2012\u2013\u2014\u2212-](\w)'
 )
+_QUOTATION_PUNCTUATION_APOSTROPHE_RE = re.compile(r"(?<!\w)'|'(?!\w)")
 _LEADING_QUOTED_TITLE_RE = re.compile(
     r'^(?:'
     r'\u201c(?P<curly_title>.+?)\u201d'
@@ -90,15 +91,23 @@ _UNOPENED_QUOTED_TITLE_RE = re.compile(
 CATEGORY_BEST_NOVEL = 'Best Novel'
 CATEGORY_BEST_NOVELLA = 'Best Novella'
 CATEGORY_BEST_NOVELETTE = 'Best Novelette'
+CATEGORY_BEST_SHORT_STORY = 'Best Short Story'
+CATEGORY_SHORT_FICTION = 'Short Fiction'
 _SUPPORTED_CATEGORIES = (
     CATEGORY_BEST_NOVEL,
     CATEGORY_BEST_NOVELLA,
     CATEGORY_BEST_NOVELETTE,
+    CATEGORY_BEST_SHORT_STORY,
+    CATEGORY_SHORT_FICTION,
 )
 _SUPPORTED_CATEGORY_SET = frozenset(_SUPPORTED_CATEGORIES)
 _NOVELLA_REQUIRED_FROM_YEAR = 1968
 _EARLY_NOVELETTE_YEARS = frozenset({1955, 1956, 1959, 1967, 1968, 1969})
 _NOVELETTE_REQUIRED_FROM_YEAR = 1973
+_EARLY_SHORT_STORY_YEARS = frozenset({1955, 1956, 1958, 1959})
+_SHORT_STORY_REQUIRED_FROM_YEAR = 1967
+_SHORT_FICTION_FROM_YEAR = 1960
+_SHORT_FICTION_THROUGH_YEAR = 1966
 
 
 class HugoSourceError(RuntimeError):
@@ -679,6 +688,14 @@ def _year_requires_novelette(year: int) -> bool:
     return year in _EARLY_NOVELETTE_YEARS or year >= _NOVELETTE_REQUIRED_FROM_YEAR
 
 
+def _year_requires_short_story(year: int) -> bool:
+    return year in _EARLY_SHORT_STORY_YEARS or year >= _SHORT_STORY_REQUIRED_FROM_YEAR
+
+
+def _year_requires_short_fiction(year: int) -> bool:
+    return _SHORT_FICTION_FROM_YEAR <= year <= _SHORT_FICTION_THROUGH_YEAR
+
+
 def _fail_if_expected_years_missing(
     category: str,
     records: list[_ParsedRecord],
@@ -729,6 +746,16 @@ def _validate_supported_category_records(
         CATEGORY_BEST_NOVELETTE,
         records_by_category[CATEGORY_BEST_NOVELETTE],
         {year for year in regular_years if _year_requires_novelette(year)},
+    )
+    _fail_if_expected_years_missing(
+        CATEGORY_BEST_SHORT_STORY,
+        records_by_category[CATEGORY_BEST_SHORT_STORY],
+        {year for year in regular_years if _year_requires_short_story(year)},
+    )
+    _fail_if_expected_years_missing(
+        CATEGORY_SHORT_FICTION,
+        records_by_category[CATEGORY_SHORT_FICTION],
+        {year for year in regular_years if _year_requires_short_fiction(year)},
     )
 
 
@@ -790,8 +817,14 @@ def _normalize_text(value: str) -> str:
     return text
 
 
+def _normalize_title_quote_punctuation(text: str) -> str:
+    """Treat lone apostrophes as quote marks; keep internal apostrophes."""
+    return _QUOTATION_PUNCTUATION_APOSTROPHE_RE.sub('"', text)
+
+
 def _normalize_title_for_match(value: str) -> str:
     text = _normalize_text(value)
+    text = _normalize_title_quote_punctuation(text)
     text = normalize_title_conjunctions(text)
     text = _WORD_SEPARATOR_HYPHEN_RE.sub(r'\1 \2', text)
     return _collapse_ws(text)
@@ -923,7 +956,7 @@ def _to_award_result(record: _ParsedRecord) -> AwardResult:
 # ---------------------------------------------------------------------------
 
 def lookup(title: str, author: str) -> list[AwardResult]:
-    """Look up Hugo Award Novel, Novella, and Novelette results."""
+    """Look up Hugo Award written-work results."""
     cleaned_title = title.strip()
     cleaned_author = author.strip()
     if not cleaned_title:

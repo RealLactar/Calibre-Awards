@@ -51,6 +51,10 @@ HTML_2025 = """
 <ul>
 <li class="winner">“The Four Sisters Overlooking the Sea” by Naomi Kritzer</li>
 </ul>
+<p><strong>Best Short Story</strong></p>
+<ul>
+<li class="winner">“Stitched to Skin like Family Is” by Nghi Vo</li>
+</ul>
 """
 
 HTML_2026 = """
@@ -72,6 +76,10 @@ HTML_2026 = """
 <p><strong>Best Novelette</strong></p>
 <ul>
 <li>“Kaiju Agonistes” by Scott Lynch (Uncanny Magazine, Issue 62)</li>
+</ul>
+<p><strong>Best Short Story</strong></p>
+<ul>
+<li>“10 Visions of the Future; or, Self-Care for the End of Days” by Samantha Mills (<em>Uncanny Magazine</em>, Issue 63)</li>
 </ul>
 """
 
@@ -161,6 +169,12 @@ HTML_2015 = """
 <li><strong>&#8220;Flow&#8221;</strong>, Arlan Andrews, Sr. (Analog, 11-2014)</li>
 <li><strong>&#8220;The Plural of Helen of Troy&#8221;</strong>, John C. Wright (The Book of Feasts &amp; Seasons, Castalia House)</li>
 </ul>
+<p><strong>Best Short Story</strong> (5267 final ballots, 1174 nominating ballots, 728 entries, range 132-226)</p>
+<ul>
+<li class="winner"><strong>No Award</strong></li>
+<li><strong>“Totaled”</strong>, Kary English (<em>Galaxy&#8217;s Edge Magazine</em>, 07-2014)</li>
+<li><strong>&#8220;A Single Samurai”</strong>, Steven Diamond (<strong>The Baen Big Book of Monsters</strong>, Baen Books)</li>
+</ul>
 """
 
 HTML_2016 = """
@@ -203,6 +217,7 @@ HTML_1968 = """
 <p><strong>Best Short Story</strong></p>
 <ul>
 <li class="winner">&#8220;I Have No Mouth, and I Must Scream&#8221; by Harlan Ellison [<em>If</em> Mar 1967]</li>
+<li>&#8220;The Jigsaw Man&#8221; by Larry Niven [Dangerous Visions, 1967]</li>
 </ul>
 """
 
@@ -219,6 +234,10 @@ HTML_2020 = """
 <p><strong>Best Novelette</strong></p>
 <ul>
 <li class="winner"><em>Emergency Skin</em>, by N.K. Jemisin (<em>Forward Collection</em> (Amazon))</li>
+</ul>
+<p><strong>Best Short Story</strong></p>
+<ul>
+<li class="winner">“As the Last I May Know”, by S.L. Huang (Tor.com, 23 October 2019)</li>
 </ul>
 """
 
@@ -237,6 +256,21 @@ HTML_NOVEL_AND_NOVELLA_ONLY_2020 = """
 <p><strong>Best Novella</strong></p>
 <ul>
 <li class="winner"><em>This Is How You Lose the Time War</em>, by Amal El-Mohtar and Max Gladstone (Saga Press; Jo Fletcher Books)</li>
+</ul>
+"""
+
+HTML_NOVEL_NOVELLA_NOVELETTE_ONLY_2020 = """
+<p><strong>Best Novel</strong></p>
+<ul>
+<li class="winner"><em>A Memory Called Empire</em>, by Arkady Martine (Tor; Tor UK)</li>
+</ul>
+<p><strong>Best Novella</strong></p>
+<ul>
+<li class="winner"><em>This Is How You Lose the Time War</em>, by Amal El-Mohtar and Max Gladstone (Saga Press; Jo Fletcher Books)</li>
+</ul>
+<p><strong>Best Novelette</strong></p>
+<ul>
+<li class="winner"><em>Emergency Skin</em>, by N.K. Jemisin (<em>Forward Collection</em> (Amazon))</li>
 </ul>
 """
 
@@ -295,6 +329,85 @@ HTML_UNOPENED_QUOTE_NOVELETTE_ONLY = """
 <p><strong>Best Novelette</strong></p>
 <ul>
 <li class="winner">The Island&#8221;, Peter Watts (<em>The New Space Opera 2</em>; Eos)</li>
+</ul>
+"""
+
+HTML_UNOPENED_QUOTE_AS_SHORT_STORY = """
+<p><strong>Best Short Story</strong></p>
+<ul>
+<li class="winner">The Island&#8221;, Peter Watts (<em>The New Space Opera 2</em>; Eos)</li>
+</ul>
+"""
+
+HTML_UNOPENED_QUOTE_AS_SHORT_FICTION = """
+<p><strong>Short Fiction</strong></p>
+<ul>
+<li class="winner">The Island&#8221;, Peter Watts (<em>The New Space Opera 2</em>; Eos)</li>
+</ul>
+"""
+
+URL_1960 = 'https://www.thehugoawards.org/hugo-history/1960-hugo-awards/'
+URL_1962 = 'https://www.thehugoawards.org/hugo-history/1962-hugo-awards/'
+URL_1967 = 'https://www.thehugoawards.org/hugo-history/1967-hugo-awards/'
+URL_1973 = 'https://www.thehugoawards.org/hugo-history/1973-hugo-awards/'
+
+HTML_1960_SHORT_FICTION = """
+<p><strong>Best Novel</strong></p>
+<ul>
+<li class="winner"><em>Starship Troopers</em> by Robert A. Heinlein [Putnam, 1959]</li>
+</ul>
+<p><strong>Short Fiction</strong></p>
+<ul>
+<li class="winner">&#8220;Flowers for Algernon&#8221; by Daniel Keyes [<em>F&amp;SF</em> Apr 1959]</li>
+<li>&#8220;The Alley Man&#8221; by Philip José Farmer [<em>F&amp;SF</em> Jun 1959]</li>
+</ul>
+"""
+
+HTML_1962_SHORT_FICTION = """
+<p><strong>Best Novel</strong></p>
+<ul>
+<li class="winner"><em>Stranger in a Strange Land</em> by Robert A. Heinlein [Putnam, 1961]</li>
+</ul>
+<p><strong>Short Fiction</strong></p>
+<ul>
+<li class="winner">the &#8220;Hothouse&#8221; series by Brian W. Aldiss [<em>F&amp;SF</em> Feb,Apr,Jul,Sep,Dec 1961]</li>
+<li>&#8220;Monument&#8221; by Lloyd Biggle, Jr. [<em>Analog</em> Jun 1961]</li>
+<li>&#8220;Scylla&#8217;s Daughter&#8221; by Fritz Leiber [<em>Fantastic</em> May 1961]</li>
+</ul>
+"""
+
+HTML_1966_NOVEL_ONLY = """
+<p><strong>Best Novel</strong></p>
+<ul>
+<li class="winner"><em>Dune</em> by Frank Herbert [Chilton, 1965] (tie)</li>
+</ul>
+"""
+
+HTML_1967 = """
+<p><strong>Best Novel</strong></p>
+<ul>
+<li class="winner"><em>The Moon is a Harsh Mistress</em> by Robert A. Heinlein</li>
+</ul>
+<p><strong>Best Novelette</strong></p>
+<ul>
+<li class="winner">&#8220;The Last Castle&#8221; by Jack Vance [<em>Galaxy</em> Apr 1966]</li>
+</ul>
+<p><strong>Best Short Story</strong></p>
+<ul>
+<li class="winner">&#8220;Neutron Star&#8221; by Larry Niven [<em>If</em> Oct 1966]</li>
+</ul>
+"""
+
+HTML_1973_SHORT_STORY = """
+<p><strong>Best Novel</strong></p>
+<ul>
+<li class="winner"><em>The Gods Themselves</em> by Isaac Asimov</li>
+</ul>
+<p><strong>Best Short Story</strong></p>
+<ul>
+<li class="winner">&#8220;Eurema&#8217;s Dam&#8221; by R. A. Lafferty [<em>New Dimensions #2</em>, 1972]</li>
+<li class="winner">&#8220;The Meeting&#8221; by Frederik Pohl and C. M. Kornbluth [<em>F&amp;SF</em> Nov 1972]</li>
+<li>&#8220;When It Changed&#8221; by Joanna Russ [<em>Again, Dangerous Visions</em>, 1972]</li>
 </ul>
 """
 
@@ -494,6 +607,86 @@ class HugoParserTests(unittest.TestCase):
         self.assertFalse(
             hugo._titles_equivalent('The City', 'The City & The City')
         )
+
+    def test_quotation_punctuation_matches_but_internal_apostrophes_do_not(self):
+        records = hugo._parse_category_html(
+            HTML_1966, 1966, URL_1966, hugo.CATEGORY_SHORT_FICTION
+        )
+        ticktockman = [
+            record
+            for record in records
+            if record.work_author == 'Harlan Ellison'
+        ][0]
+        self.assertEqual(
+            ticktockman.work_title,
+            '‘Repent, Harlequin!’ Said the Ticktockman',
+        )
+        self.assertTrue(
+            hugo._record_matches(
+                ticktockman,
+                '"Repent, Harlequin!" Said the Ticktockman',
+                'Harlan Ellison',
+            )
+        )
+        self.assertTrue(
+            hugo._record_matches(
+                ticktockman,
+                "'Repent, Harlequin!' Said the Ticktockman",
+                'Harlan Ellison',
+            )
+        )
+        self.assertTrue(
+            hugo._titles_equivalent(
+                "'Repent, Harlequin!' Said the Ticktockman",
+                '"Repent, Harlequin!" Said the Ticktockman',
+            )
+        )
+        self.assertTrue(
+            hugo._titles_equivalent(
+                '‘Repent, Harlequin!’ Said the Ticktockman',
+                '"Repent, Harlequin!" Said the Ticktockman',
+            )
+        )
+        self.assertFalse(
+            hugo._titles_equivalent("Don't Look Now", 'Dont Look Now')
+        )
+        self.assertFalse(
+            hugo._titles_equivalent("King's Justice", 'Kings Justice')
+        )
+        self.assertTrue(
+            hugo._titles_equivalent("Don't Look Now", 'Don’t Look Now')
+        )
+        self.assertTrue(
+            hugo._titles_equivalent(
+                'Jonathan Strange and Mr Norrell',
+                'Jonathan Strange & Mr Norrell',
+            )
+        )
+        self.assertTrue(
+            hugo._titles_equivalent('Seveneves: A Novel', 'Seveneves')
+        )
+        self.assertFalse(
+            hugo._titles_equivalent('Seveneves', 'Seveneves Extra Words')
+        )
+
+    def test_ticktockman_lookup_uses_calibre_double_quote_form(self):
+        hugo._archive_records_cache = tuple(
+            hugo._parse_supported_categories_html(HTML_1966, 1966, URL_1966)
+        )
+        try:
+            results = hugo.lookup(
+                '"Repent, Harlequin!" Said the Ticktockman',
+                'Harlan Ellison',
+            )
+            self.assertEqual(len(results), 1)
+            self.assertEqual(results[0].award_name, 'Hugo Award')
+            self.assertEqual(results[0].award_year, 1966)
+            self.assertEqual(results[0].category, 'Short Fiction')
+            self.assertEqual(results[0].status, 'Winner')
+            self.assertIsNone(results[0].rank)
+            self.assertEqual(results[0].work_author, 'Harlan Ellison')
+        finally:
+            hugo._archive_records_cache = None
 
     def test_word_separator_hyphen_matches_but_prefix_does_not(self):
         three_body = hugo._parse_best_novel_html(HTML_2015, 2015, URL_2015)[0]
@@ -768,9 +961,23 @@ class HugoParserTests(unittest.TestCase):
         )
         self.assertEqual(novelettes[0].work_author, 'Fritz Leiber')
         self.assertEqual(novelettes[0].status, 'Winner')
+        shorts = [
+            record for record in records if record.category == 'Best Short Story'
+        ]
+        self.assertEqual(
+            [record.work_title for record in shorts],
+            ['I Have No Mouth, and I Must Scream', 'The Jigsaw Man'],
+        )
+        self.assertEqual(shorts[0].work_author, 'Harlan Ellison')
+        self.assertEqual(shorts[0].status, 'Winner')
+        self.assertEqual(shorts[1].status, 'Finalist')
         self.assertNotIn(
-            'I Have No Mouth, and I Must Scream',
+            'If',
             [record.work_title for record in records],
+        )
+        self.assertNotIn(
+            'Short Fiction',
+            [record.category for record in records],
         )
         mixed = hugo._parse_supported_categories_html(HTML_2025, 2025, URL_2025)
         mixed_titles = {(record.category, record.work_title) for record in mixed}
@@ -778,6 +985,10 @@ class HugoParserTests(unittest.TestCase):
         self.assertIn(('Best Novella', 'The Tusks of Extinction'), mixed_titles)
         self.assertIn(
             ('Best Novelette', 'The Four Sisters Overlooking the Sea'),
+            mixed_titles,
+        )
+        self.assertIn(
+            ('Best Short Story', 'Stitched to Skin like Family Is'),
             mixed_titles,
         )
         self.assertNotIn(
@@ -1042,7 +1253,10 @@ class HugoParserTests(unittest.TestCase):
                 'I Have No Mouth, and I Must Scream',
                 'Harlan Ellison',
             )
-            self.assertEqual(short, [])
+            self.assertEqual(len(short), 1)
+            self.assertEqual(short[0].category, 'Best Short Story')
+            self.assertEqual(short[0].status, 'Winner')
+            self.assertIsNone(short[0].rank)
         finally:
             hugo._archive_records_cache = None
 
@@ -1083,6 +1297,244 @@ class HugoParserTests(unittest.TestCase):
         for year in skipped:
             with self.subTest(year=year):
                 self.assertFalse(hugo._year_requires_novelette(year))
+
+    def test_quoted_historical_short_story_does_not_use_magazine_em(self):
+        records = hugo._parse_category_html(
+            HTML_1968, 1968, URL_1968, hugo.CATEGORY_BEST_SHORT_STORY
+        )
+        scream = _find_records(
+            records,
+            title='I Have No Mouth, and I Must Scream',
+            author='Harlan Ellison',
+        )
+        self.assertEqual(len(scream), 1)
+        self.assertEqual(scream[0].status, 'Winner')
+        self.assertEqual(scream[0].category, 'Best Short Story')
+        self.assertEqual(scream[0].award_year, 1968)
+        self.assertEqual(scream[0].source_url, URL_1968)
+        result = hugo._to_award_result(scream[0])
+        self.assertEqual(result.award_name, 'Hugo Award')
+        self.assertEqual(result.category, 'Best Short Story')
+        self.assertEqual(result.status, 'Winner')
+        self.assertIsNone(result.rank)
+        self.assertEqual(result.source_name, 'Hugo Awards')
+        self.assertEqual(result.source_url, URL_1968)
+        self.assertIsNone(result.notes)
+        titles = [record.work_title for record in records]
+        self.assertNotIn('If', titles)
+        self.assertNotIn('Lord of Light', titles)
+        self.assertNotIn('Gonna Roll the Bones', titles)
+        jigsaw = _find_records(
+            records,
+            title='The Jigsaw Man',
+            author='Larry Niven',
+        )
+        self.assertEqual(len(jigsaw), 1)
+        self.assertEqual(jigsaw[0].status, 'Finalist')
+        self.assertEqual(jigsaw[0].category, 'Best Short Story')
+
+    def test_1973_dual_short_story_winners(self):
+        records = hugo._parse_category_html(
+            HTML_1973_SHORT_STORY,
+            1973,
+            URL_1973,
+            hugo.CATEGORY_BEST_SHORT_STORY,
+        )
+        eurema = _find_records(
+            records, title='Eurema’s Dam', author='R. A. Lafferty'
+        )
+        meeting = _find_records(
+            records,
+            title='The Meeting',
+            author='Frederik Pohl and C. M. Kornbluth',
+        )
+        self.assertEqual(len(eurema), 1)
+        self.assertEqual(eurema[0].status, 'Winner')
+        self.assertEqual(eurema[0].category, 'Best Short Story')
+        self.assertEqual(len(meeting), 1)
+        self.assertEqual(meeting[0].status, 'Winner')
+        self.assertEqual(sum(1 for record in records if record.status == 'Winner'), 2)
+        self.assertNotIn('F&SF', [record.work_title for record in records])
+        changed = _find_records(
+            records, title='When It Changed', author='Joanna Russ'
+        )
+        self.assertEqual(len(changed), 1)
+        self.assertEqual(changed[0].status, 'Finalist')
+
+    def test_2015_short_story_skips_no_award_and_does_not_invent_a_winner(self):
+        records = hugo._parse_category_html(
+            HTML_2015, 2015, URL_2015, hugo.CATEGORY_BEST_SHORT_STORY
+        )
+        titles = [record.work_title for record in records]
+        self.assertNotIn('No Award', titles)
+        self.assertTrue(all(record.status == 'Finalist' for record in records))
+        self.assertNotIn('Winner', [record.status for record in records])
+        totaled = _find_records(
+            records, title='Totaled', author='Kary English'
+        )
+        self.assertEqual(len(totaled), 1)
+        self.assertEqual(totaled[0].status, 'Finalist')
+        self.assertEqual(totaled[0].category, 'Best Short Story')
+        self.assertNotIn('Galaxy’s Edge Magazine', titles)
+        self.assertNotIn("Galaxy's Edge Magazine", titles)
+        result = hugo._to_award_result(totaled[0])
+        self.assertEqual(result.category, 'Best Short Story')
+        self.assertEqual(result.status, 'Finalist')
+        self.assertIsNone(result.rank)
+        self.assertNotIn('The Three Body Problem', titles)
+        self.assertNotIn('Flow', titles)
+
+    def test_2026_short_story_finalists_do_not_invent_a_winner(self):
+        records = hugo._parse_category_html(
+            HTML_2026, 2026, URL_2026, hugo.CATEGORY_BEST_SHORT_STORY
+        )
+        self.assertTrue(records)
+        self.assertTrue(all(record.status == 'Finalist' for record in records))
+        self.assertNotIn('Winner', [record.status for record in records])
+        visions = _find_records(
+            records,
+            title='10 Visions of the Future; or, Self-Care for the End of Days',
+            author='Samantha Mills',
+        )
+        self.assertEqual(len(visions), 1)
+        self.assertEqual(visions[0].category, 'Best Short Story')
+        result = hugo._to_award_result(visions[0])
+        self.assertEqual(result.status, 'Finalist')
+        self.assertIsNone(result.rank)
+        self.assertEqual(result.source_url, URL_2026)
+        titles = [record.work_title for record in records]
+        self.assertNotIn('Uncanny Magazine', titles)
+        self.assertNotIn('A Drop of Corruption', titles)
+        self.assertNotIn('Kaiju Agonistes', titles)
+
+    def test_2015_tagged_short_story_title_path(self):
+        records = hugo._parse_category_html(
+            HTML_2015, 2015, URL_2015, hugo.CATEGORY_BEST_SHORT_STORY
+        )
+        totaled = _find_records(
+            records, title='Totaled', author='Kary English'
+        )
+        self.assertEqual(len(totaled), 1)
+        self.assertEqual(totaled[0].work_title, 'Totaled')
+        samurai = _find_records(
+            records, title='A Single Samurai', author='Steven Diamond'
+        )
+        self.assertEqual(len(samurai), 1)
+        self.assertNotEqual(samurai[0].work_title, 'The Baen Big Book of Monsters')
+
+    def test_1960_short_fiction_quoted_winner_does_not_use_magazine_em(self):
+        records = hugo._parse_category_html(
+            HTML_1960_SHORT_FICTION,
+            1960,
+            URL_1960,
+            hugo.CATEGORY_SHORT_FICTION,
+        )
+        flowers = _find_records(
+            records, title='Flowers for Algernon', author='Daniel Keyes'
+        )
+        self.assertEqual(len(flowers), 1)
+        self.assertEqual(flowers[0].status, 'Winner')
+        self.assertEqual(flowers[0].category, 'Short Fiction')
+        self.assertEqual(flowers[0].award_year, 1960)
+        result = hugo._to_award_result(flowers[0])
+        self.assertEqual(result.award_name, 'Hugo Award')
+        self.assertEqual(result.category, 'Short Fiction')
+        self.assertEqual(result.status, 'Winner')
+        self.assertIsNone(result.rank)
+        self.assertEqual(result.source_name, 'Hugo Awards')
+        self.assertEqual(result.source_url, URL_1960)
+        self.assertIsNone(result.notes)
+        titles = [record.work_title for record in records]
+        self.assertNotIn('F&SF', titles)
+        self.assertNotIn('Starship Troopers', titles)
+        self.assertNotIn('Best Short Story', [record.category for record in records])
+        alley = _find_records(
+            records, title='The Alley Man', author='Philip José Farmer'
+        )
+        self.assertEqual(len(alley), 1)
+        self.assertEqual(alley[0].status, 'Finalist')
+
+    def test_1962_hothouse_series_citation_is_left_unparsed(self):
+        records = hugo._parse_category_html(
+            HTML_1962_SHORT_FICTION,
+            1962,
+            URL_1962,
+            hugo.CATEGORY_SHORT_FICTION,
+        )
+        titles = [record.work_title for record in records]
+        self.assertNotIn('Hothouse', titles)
+        self.assertNotIn('the “Hothouse” series', titles)
+        self.assertNotIn('F&SF', titles)
+        monument = _find_records(
+            records, title='Monument', author='Lloyd Biggle, Jr.'
+        )
+        self.assertEqual(len(monument), 1)
+        self.assertEqual(monument[0].status, 'Finalist')
+        self.assertEqual(monument[0].category, 'Short Fiction')
+        self.assertTrue(all(record.status == 'Finalist' for record in records))
+        self.assertNotIn('Winner', [record.status for record in records])
+
+    def test_1958_short_story_does_not_enable_best_novel_or_novelette(self):
+        records = hugo._parse_supported_categories_html(
+            HTML_1958, 1958, 'https://example.test/1958'
+        )
+        oysters = _find_records(
+            records,
+            title='Or All the Seas with Oysters',
+            author='Avram Davidson',
+        )
+        self.assertEqual(len(oysters), 1)
+        self.assertEqual(oysters[0].category, 'Best Short Story')
+        self.assertEqual(oysters[0].status, 'Winner')
+        titles = [record.work_title for record in records]
+        self.assertNotIn('The Big Time', titles)
+        self.assertNotIn(
+            'Best Novel or Novelette',
+            [record.category for record in records],
+        )
+        novels = hugo._parse_best_novel_html(
+            HTML_1958, 1958, 'https://example.test/1958'
+        )
+        self.assertEqual(novels, [])
+
+    def test_unopened_quote_shape_is_not_recovered_as_short_story_or_fiction(self):
+        short = hugo._parse_category_html(
+            HTML_UNOPENED_QUOTE_AS_SHORT_STORY,
+            2010,
+            URL_2010,
+            hugo.CATEGORY_BEST_SHORT_STORY,
+        )
+        fiction = hugo._parse_category_html(
+            HTML_UNOPENED_QUOTE_AS_SHORT_FICTION,
+            1962,
+            URL_1962,
+            hugo.CATEGORY_SHORT_FICTION,
+        )
+        for records in (short, fiction):
+            titles = [record.work_title for record in records]
+            self.assertNotIn('The Island', titles)
+            self.assertNotIn('The New Space Opera 2', titles)
+            self.assertEqual(records, [])
+
+    def test_year_requires_short_story_matches_official_coverage(self):
+        required = {1955, 1956, 1958, 1959, 1967, 1968, 1973, 2015, 2026}
+        skipped = {1957, 1960, 1966}
+        for year in required:
+            with self.subTest(year=year):
+                self.assertTrue(hugo._year_requires_short_story(year))
+        for year in skipped:
+            with self.subTest(year=year):
+                self.assertFalse(hugo._year_requires_short_story(year))
+
+    def test_year_requires_short_fiction_matches_official_coverage(self):
+        required = {1960, 1962, 1966}
+        skipped = {1959, 1967, 1968, 2020}
+        for year in required:
+            with self.subTest(year=year):
+                self.assertTrue(hugo._year_requires_short_fiction(year))
+        for year in skipped:
+            with self.subTest(year=year):
+                self.assertFalse(hugo._year_requires_short_fiction(year))
 
 
 class HugoArchiveHelperTests(unittest.TestCase):
@@ -1251,8 +1703,13 @@ class HugoArchiveHelperTests(unittest.TestCase):
         ):
             records = hugo._get_archive_records()
         categories = {record.category for record in records}
-        self.assertEqual(categories, {'Best Novel', 'Best Novella'})
-        self.assertNotIn('Slow Sculpture', [record.work_title for record in records])
+        self.assertEqual(categories, {'Best Novel', 'Best Novella', 'Best Short Story'})
+        slow = _find_records(
+            records, title='Slow Sculpture', author='Theodore Sturgeon'
+        )
+        self.assertEqual(len(slow), 1)
+        self.assertEqual(slow[0].category, 'Best Short Story')
+        self.assertNotIn('Best Novelette', [record.category for record in records])
 
     def test_1966_short_fiction_year_does_not_require_novelette(self):
         body = json.dumps(
@@ -1273,15 +1730,131 @@ class HugoArchiveHelperTests(unittest.TestCase):
         ):
             records = hugo._get_archive_records()
         categories = {record.category for record in records}
-        self.assertEqual(categories, {'Best Novel'})
-        self.assertNotIn(
-            "'Repent, Harlequin!' Said the Ticktockman",
-            [record.work_title for record in records],
+        self.assertEqual(categories, {'Best Novel', 'Short Fiction'})
+        repent = _find_records(
+            records,
+            title='‘Repent, Harlequin!’ Said the Ticktockman',
+            author='Harlan Ellison',
         )
+        self.assertEqual(len(repent), 1)
+        self.assertEqual(repent[0].category, 'Short Fiction')
+        self.assertEqual(repent[0].status, 'Winner')
         self.assertNotIn(
-            'Short Fiction',
+            'Best Short Story',
             [record.category for record in records],
         )
+        self.assertNotIn(
+            'Best Novelette',
+            [record.category for record in records],
+        )
+        self.assertNotIn('Galaxy', [record.work_title for record in records])
+
+    def test_expected_short_story_year_fails_closed_without_short_story(self):
+        body = json.dumps(
+            [
+                _archive_item(
+                    '2020 Hugo Awards',
+                    URL_2020,
+                    HTML_NOVEL_NOVELLA_NOVELETTE_ONLY_2020,
+                    '2020-hugo-awards',
+                )
+            ]
+        )
+        headers = {'X-WP-Total': '1', 'X-WP-TotalPages': '1'}
+        with patch.object(
+            hugo,
+            '_fetch_archive_response',
+            return_value=(200, headers, body),
+        ):
+            with self.assertRaises(hugo.HugoSourceError) as ctx:
+                hugo._get_archive_records()
+        self.assertIsNone(hugo._archive_records_cache)
+        self.assertIn(
+            'no Best Short Story records could be parsed',
+            str(ctx.exception),
+        )
+
+    def test_expected_short_fiction_year_fails_closed_without_short_fiction(self):
+        body = json.dumps(
+            [
+                _archive_item(
+                    '1966 Hugo Awards',
+                    URL_1966,
+                    HTML_1966_NOVEL_ONLY,
+                    '1966-hugo-awards',
+                )
+            ]
+        )
+        headers = {'X-WP-Total': '1', 'X-WP-TotalPages': '1'}
+        with patch.object(
+            hugo,
+            '_fetch_archive_response',
+            return_value=(200, headers, body),
+        ):
+            with self.assertRaises(hugo.HugoSourceError) as ctx:
+                hugo._get_archive_records()
+        self.assertIsNone(hugo._archive_records_cache)
+        self.assertIn(
+            'no Short Fiction records could be parsed',
+            str(ctx.exception),
+        )
+
+    def test_1967_requires_short_story_but_not_short_fiction(self):
+        body = json.dumps(
+            [
+                _archive_item(
+                    '1967 Hugo Awards',
+                    URL_1967,
+                    HTML_1967,
+                    '1967-hugo-awards',
+                )
+            ]
+        )
+        headers = {'X-WP-Total': '1', 'X-WP-TotalPages': '1'}
+        with patch.object(
+            hugo,
+            '_fetch_archive_response',
+            return_value=(200, headers, body),
+        ):
+            records = hugo._get_archive_records()
+        categories = {record.category for record in records}
+        self.assertEqual(
+            categories,
+            {'Best Novel', 'Best Novelette', 'Best Short Story'},
+        )
+        neutron = _find_records(
+            records, title='Neutron Star', author='Larry Niven'
+        )
+        self.assertEqual(len(neutron), 1)
+        self.assertEqual(neutron[0].category, 'Best Short Story')
+        self.assertNotIn('Short Fiction', categories)
+
+    def test_1962_short_fiction_archive_succeeds_without_hothouse_row(self):
+        body = json.dumps(
+            [
+                _archive_item(
+                    '1962 Hugo Awards',
+                    URL_1962,
+                    HTML_1962_SHORT_FICTION,
+                    '1962-hugo-awards',
+                )
+            ]
+        )
+        headers = {'X-WP-Total': '1', 'X-WP-TotalPages': '1'}
+        with patch.object(
+            hugo,
+            '_fetch_archive_response',
+            return_value=(200, headers, body),
+        ):
+            records = hugo._get_archive_records()
+        categories = {record.category for record in records}
+        self.assertIn('Short Fiction', categories)
+        self.assertNotIn('Best Short Story', categories)
+        self.assertNotIn('Hothouse', [record.work_title for record in records])
+        monument = _find_records(
+            records, title='Monument', author='Lloyd Biggle, Jr.'
+        )
+        self.assertEqual(len(monument), 1)
 
     def test_archive_with_novel_novella_and_novelette_is_cached(self):
         body = json.dumps(
@@ -1304,7 +1877,7 @@ class HugoArchiveHelperTests(unittest.TestCase):
         categories = {record.category for record in records}
         self.assertEqual(
             categories,
-            {'Best Novel', 'Best Novella', 'Best Novelette'},
+            {'Best Novel', 'Best Novella', 'Best Novelette', 'Best Short Story'},
         )
         time_war = _find_records(
             records,
@@ -1320,6 +1893,13 @@ class HugoArchiveHelperTests(unittest.TestCase):
         )
         self.assertEqual(len(skin), 1)
         self.assertEqual(skin[0].category, 'Best Novelette')
+        last_i_may_know = _find_records(
+            records,
+            title='As the Last I May Know',
+            author='S.L. Huang',
+        )
+        self.assertEqual(len(last_i_may_know), 1)
+        self.assertEqual(last_i_may_know[0].category, 'Best Short Story')
         self.assertIs(hugo._get_archive_records(), records)
 
     def test_lookup_uses_cached_parsed_records(self):
