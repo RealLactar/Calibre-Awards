@@ -98,6 +98,7 @@ CATEGORY_BEST_SHORT_STORY = 'Best Short Story'
 CATEGORY_SHORT_FICTION = 'Short Fiction'
 CATEGORY_BEST_NOVEL_OR_NOVELETTE = 'Best Novel or Novelette'
 CATEGORY_BEST_SERIES = 'Best Series'
+CATEGORY_BEST_POEM = 'Best Poem'
 _SUPPORTED_CATEGORIES = (
     CATEGORY_BEST_NOVEL,
     CATEGORY_BEST_NOVELLA,
@@ -105,6 +106,7 @@ _SUPPORTED_CATEGORIES = (
     CATEGORY_BEST_SHORT_STORY,
     CATEGORY_SHORT_FICTION,
     CATEGORY_BEST_NOVEL_OR_NOVELETTE,
+    CATEGORY_BEST_POEM,
 )
 _SUPPORTED_CATEGORY_SET = frozenset(_SUPPORTED_CATEGORIES)
 _PARSED_CATEGORIES = _SUPPORTED_CATEGORIES + (CATEGORY_BEST_SERIES,)
@@ -117,6 +119,7 @@ _SHORT_FICTION_FROM_YEAR = 1960
 _SHORT_FICTION_THROUGH_YEAR = 1966
 _BEST_NOVEL_GAP_YEARS = frozenset({1957, 1958})
 _BEST_SERIES_REQUIRED_FROM_YEAR = 2017
+_BEST_POEM_YEARS = frozenset({2025, 2026})
 
 
 class HugoSourceError(RuntimeError):
@@ -883,6 +886,10 @@ def _year_requires_best_series(year: int) -> bool:
     return year >= _BEST_SERIES_REQUIRED_FROM_YEAR
 
 
+def _year_requires_best_poem(year: int) -> bool:
+    return year in _BEST_POEM_YEARS
+
+
 def _fail_if_expected_years_missing(
     category: str,
     records: list[_ParsedRecord],
@@ -953,6 +960,11 @@ def _validate_supported_category_records(
         CATEGORY_BEST_SERIES,
         records_by_category[CATEGORY_BEST_SERIES],
         {year for year in regular_years if _year_requires_best_series(year)},
+    )
+    _fail_if_expected_years_missing(
+        CATEGORY_BEST_POEM,
+        records_by_category[CATEGORY_BEST_POEM],
+        {year for year in regular_years if _year_requires_best_poem(year)},
     )
 
 

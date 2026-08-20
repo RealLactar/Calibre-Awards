@@ -643,6 +643,24 @@ class HugoRankEnrichmentTests(unittest.TestCase):
         self.assertEqual(result.source_url, URL_2024)
         self.assertIsNone(result.notes)
 
+    def test_best_poem_never_receives_best_novel_rank(self):
+        record = hugo._ParsedRecord(
+            award_year=2025,
+            category=hugo.CATEGORY_BEST_POEM,
+            status='Winner',
+            work_title='The Tainted Cup',
+            work_author='Robert Jackson Bennett',
+            source_url=URL_2025,
+            match_titles=('The Tainted Cup',),
+        )
+        result = hugo._to_award_result(record)
+        self.assertEqual(result.category, 'Best Poem')
+        self.assertEqual(result.identity_kind, 'work')
+        self.assertEqual(result.status, 'Winner')
+        self.assertIsNone(result.rank)
+        self.assertEqual(result.source_url, URL_2025)
+        self.assertIsNone(result.notes)
+
 
 if __name__ == '__main__':
     unittest.main()
