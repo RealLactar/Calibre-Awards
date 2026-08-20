@@ -809,7 +809,7 @@ class LookupAndQualificationTests(LocusTestCase):
         self.assertIn('disagreed', str(ctx.exception))
 
     def test_other_source_failure_does_not_suppress_locus(self):
-        def boom(title: str, author: str):
+        def boom(title: str, author: str, series=None):
             raise RuntimeError('pulitzer down')
 
         with patch.object(locus, '_request_html', side_effect=_fake_request):

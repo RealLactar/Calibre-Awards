@@ -37,7 +37,11 @@ def assess_award_result(result: AwardResult) -> AwardAssessment:
     return AwardAssessment(result=result, qualification=qualification)
 
 
-def lookup_awards(title: str, author: str) -> AwardLookupReport:
+def lookup_awards(
+    title: str,
+    author: str,
+    series: str | None = None,
+) -> AwardLookupReport:
     """Search configured award sources and return assessments plus failures."""
     cleaned_title = title.strip()
     cleaned_author = author.strip()
@@ -45,20 +49,27 @@ def lookup_awards(title: str, author: str) -> AwardLookupReport:
         raise ValueError('title must be a non-empty string')
     if not cleaned_author:
         raise ValueError('author must be a non-empty string')
-    return _lookup_awards_from_sources(cleaned_title, cleaned_author, AWARD_SOURCES)
+    cleaned_series = None if series is None else str(series).strip() or None
+    return _lookup_awards_from_sources(
+        cleaned_title,
+        cleaned_author,
+        AWARD_SOURCES,
+        series=cleaned_series,
+    )
 
 
 def _lookup_awards_from_sources(
     title: str,
     author: str,
     sources: Iterable[AwardSource],
+    series: str | None = None,
 ) -> AwardLookupReport:
     """Run lookups against an explicit source iterable; used by tests."""
     assessments: list[AwardAssessment] = []
     failures: list[SourceFailure] = []
     for source in sources:
         try:
-            results = source.lookup(title, author)
+            results = source.lookup(title, author, series=series)
         except Exception as exc:
             failures.append(
                 SourceFailure(

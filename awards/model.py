@@ -1,9 +1,20 @@
 from dataclasses import dataclass
 
+_IDENTITY_KINDS = frozenset({'work', 'series'})
+
 
 @dataclass(frozen=True, slots=True)
 class AwardResult:
-    """One award-related result for one work. Source-neutral; no qualification logic."""
+    """One award-related result for a looked-up Calibre book.
+
+    Source-neutral; no qualification logic.
+
+    identity_kind distinguishes a direct-work award from a series award
+    that the current book may inherit because it belongs to the awarded
+    series. work_title holds the official source work title for
+    identity_kind='work', or the official source series name for
+    identity_kind='series'.
+    """
 
     work_title: str
     work_author: str
@@ -15,6 +26,7 @@ class AwardResult:
     source_name: str
     source_url: str | None
     notes: str | None = None
+    identity_kind: str = 'work'
 
     def __post_init__(self) -> None:
         if not self.work_title or not self.work_title.strip():
@@ -31,3 +43,12 @@ class AwardResult:
             raise ValueError('rank must be greater than zero when set')
         if self.award_year is not None and self.award_year <= 0:
             raise ValueError('award_year must be greater than zero when set')
+        kind = self.identity_kind.strip() if self.identity_kind else ''
+        if kind not in _IDENTITY_KINDS:
+            raise ValueError(
+                "identity_kind must be 'work' or 'series'"
+            )
+        if kind != self.identity_kind:
+            raise ValueError(
+                "identity_kind must be 'work' or 'series'"
+            )

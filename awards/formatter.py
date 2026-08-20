@@ -60,6 +60,14 @@ def _format_award(result) -> str:
 
 def _format_category(result) -> str:
     category = _nonempty_text(getattr(result, 'category', None))
+    identity_kind = getattr(result, 'identity_kind', 'work')
+    if identity_kind == 'series':
+        series_name = _nonempty_text(getattr(result, 'work_title', None))
+        if category is None:
+            return _MISSING_CATEGORY
+        if series_name is None:
+            return category
+        return f'{category} [{series_name}]'
     if category is not None:
         return category
     return _MISSING_CATEGORY

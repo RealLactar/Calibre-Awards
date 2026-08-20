@@ -39,15 +39,18 @@ class _AwardLookupThread(QThread):
     succeeded = pyqtSignal(object)
     failed = pyqtSignal(str)
 
-    def __init__(self, title, author):
+    def __init__(self, title, author, series=''):
         # Intentionally unparented: must outlive the Edit Metadata dialog.
         super().__init__(None)
         self._title = title
         self._author = author
+        self._series = series
 
     def run(self):
         try:
-            report = lookup_awards(self._title, self._author)
+            report = lookup_awards(
+                self._title, self._author, series=self._series
+            )
         except Exception as exc:
             self.failed.emit(f'{type(exc).__name__}: {exc}')
             return
@@ -57,11 +60,14 @@ class _AwardLookupThread(QThread):
 class _LookupUiReceiver(QObject):
     """GUI-thread receiver for lookup results; parented to the Edit Metadata dialog."""
 
-    def __init__(self, button, lookup_title, lookup_author, parent=None):
+    def __init__(
+        self, button, lookup_title, lookup_author, lookup_series='', parent=None
+    ):
         super().__init__(parent)
         self._button = button
         self._lookup_title = lookup_title
         self._lookup_author = lookup_author
+        self._lookup_series = lookup_series
 
     def handle_succeeded(self, report):
         dialog = self.parent()
@@ -83,6 +89,7 @@ class _LookupUiReceiver(QObject):
                 self._lookup_title,
                 self._lookup_author,
                 write_enabled=write_enabled,
+                lookup_series=self._lookup_series,
             )
             if selection.exec() != QDialog.DialogCode.Accepted:
                 return
@@ -348,14 +355,18 @@ def _start_award_lookup(dialog, button):
 
     title = dialog.title.current_val
     author = authors_to_string(dialog.authors.current_val)
+    series = dialog.series.current_val
     lookup_title = ('' if title is None else str(title)).strip()
     lookup_author = ('' if author is None else str(author)).strip()
+    lookup_series = ('' if series is None else str(series)).strip()
 
     setattr(dialog, _RUNNING_ATTR, True)
     button.setEnabled(False)
 
-    thread = _AwardLookupThread(lookup_title, lookup_author)
-    receiver = _LookupUiReceiver(button, lookup_title, lookup_author, dialog)
+    thread = _AwardLookupThread(lookup_title, lookup_author, lookup_series)
+    receiver = _LookupUiReceiver(
+        button, lookup_title, lookup_author, lookup_series, dialog
+    )
     cleanup = _thread_cleanup_receiver()
 
     thread.succeeded.connect(receiver.handle_succeeded)

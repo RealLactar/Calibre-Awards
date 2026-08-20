@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from dataclasses import dataclass
+from typing import Protocol
 
 from .model import AwardResult
 from .sources.hugo import lookup as hugo_lookup
@@ -13,13 +13,24 @@ from .sources.pulitzer import lookup as pulitzer_lookup
 from .sources.world_fantasy import lookup as world_fantasy_lookup
 
 
+class AwardSourceLookup(Protocol):
+    """Lookup callable: title and author required; series optional."""
+
+    def __call__(
+        self,
+        title: str,
+        author: str,
+        series: str | None = None,
+    ) -> list[AwardResult]: ...
+
+
 @dataclass(frozen=True, slots=True)
 class AwardSource:
     """One award lookup source. Source-neutral; no qualification or GUI logic."""
 
     key: str
     display_name: str
-    lookup: Callable[[str, str], list[AwardResult]]
+    lookup: AwardSourceLookup
 
 
 AWARD_SOURCES: tuple[AwardSource, ...] = (

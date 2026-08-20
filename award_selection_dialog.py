@@ -1,6 +1,8 @@
 from calibre_plugins.calibre_awards.awards.formatter import format_award_result
 from calibre_plugins.calibre_awards.awards.presentation import (
-    format_work_identity,
+    format_book_line,
+    format_series_line,
+    lookup_has_series_award,
     source_identity_if_different,
 )
 from calibre_plugins.calibre_awards.awards.qualifier import QualificationDecision
@@ -29,23 +31,34 @@ class AwardSelectionDialog(QDialog):
         lookup_title,
         lookup_author,
         write_enabled=False,
+        lookup_series='',
     ):
         QDialog.__init__(self, parent)
         self.setWindowTitle('Calibre Awards')
         self._lookup_title = lookup_title
         self._lookup_author = lookup_author
+        self._lookup_series = lookup_series or ''
         self._rows = []
 
         layout = QVBoxLayout()
         self.setLayout(layout)
 
         book = QLabel(
-            f'Book: {format_work_identity(lookup_title, lookup_author)}',
+            format_book_line(lookup_title, lookup_author),
             self,
         )
         book.setWordWrap(True)
         book.setTextFormat(Qt.PlainText)
         layout.addWidget(book)
+
+        series_text = format_series_line(self._lookup_series)
+        if series_text is not None and lookup_has_series_award(
+            self._lookup_series, report.assessments
+        ):
+            series = QLabel(series_text, self)
+            series.setWordWrap(True)
+            series.setTextFormat(Qt.PlainText)
+            layout.addWidget(series)
 
         if report.assessments:
             status_message = status_text
@@ -79,6 +92,7 @@ class AwardSelectionDialog(QDialog):
                     lookup_author,
                     body,
                     selectable=can_write,
+                    lookup_series=self._lookup_series,
                 )
                 self._rows.append(row)
                 body_layout.addWidget(row)
@@ -133,6 +147,7 @@ class _AwardMatchRow(QWidget):
         lookup_author,
         parent=None,
         selectable=True,
+        lookup_series='',
     ):
         QWidget.__init__(self, parent)
         self.assessment = assessment
@@ -153,14 +168,24 @@ class _AwardMatchRow(QWidget):
         self.checkbox.setToolTip(tooltip)
         layout.addWidget(self.checkbox)
 
-        source_identity = source_identity_if_different(
-            lookup_title,
-            lookup_author,
-            result.work_title,
-            result.work_author,
-        )
+        if getattr(result, 'identity_kind', 'work') == 'series':
+            source_identity = source_identity_if_different(
+                lookup_series,
+                lookup_author,
+                result.work_title,
+                result.work_author,
+            )
+            source_label = 'Source series'
+        else:
+            source_identity = source_identity_if_different(
+                lookup_title,
+                lookup_author,
+                result.work_title,
+                result.work_author,
+            )
+            source_label = 'Source'
         if source_identity is not None:
-            source = QLabel(f'Source: {source_identity}', self)
+            source = QLabel(f'{source_label}: {source_identity}', self)
             source.setWordWrap(True)
             source.setTextFormat(Qt.PlainText)
             layout.addWidget(source)

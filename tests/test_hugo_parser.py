@@ -281,6 +281,10 @@ HTML_2020 = """
 <ul>
 <li class="winner">“As the Last I May Know”, by S.L. Huang (Tor.com, 23 October 2019)</li>
 </ul>
+<p><strong>Best Series</strong></p>
+<ul>
+<li class="winner"><em>The Expanse</em>, by James S. A. Corey (Orbit US; Orbit UK)</li>
+</ul>
 """
 
 HTML_NOVEL_ONLY_2020 = """
@@ -2106,7 +2110,13 @@ class HugoArchiveHelperTests(unittest.TestCase):
         categories = {record.category for record in records}
         self.assertEqual(
             categories,
-            {'Best Novel', 'Best Novella', 'Best Novelette', 'Best Short Story'},
+            {
+                'Best Novel',
+                'Best Novella',
+                'Best Novelette',
+                'Best Short Story',
+                'Best Series',
+            },
         )
         time_war = _find_records(
             records,

@@ -883,7 +883,7 @@ def _to_award_result(record: _ParsedRecord) -> AwardResult:
 # Public lookup
 # ---------------------------------------------------------------------------
 
-def lookup(title: str, author: str) -> list[AwardResult]:
+def lookup(title: str, author: str, series: str | None = None) -> list[AwardResult]:
     """Look up World Fantasy Award Novel results for a title and author."""
     cleaned_title = title.strip()
     cleaned_author = author.strip()

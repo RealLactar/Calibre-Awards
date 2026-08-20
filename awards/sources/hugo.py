@@ -1,4 +1,4 @@
-"""Official Hugo Awards written-work source (thehugoawards.org)."""
+"""Official Hugo Awards written-work and series source (thehugoawards.org)."""
 
 from __future__ import annotations
 
@@ -75,6 +75,9 @@ _WORD_SEPARATOR_HYPHEN_RE = re.compile(
     r'(\w)[\u2010\u2011\u2012\u2013\u2014\u2212-](\w)'
 )
 _QUOTATION_PUNCTUATION_APOSTROPHE_RE = re.compile(r"(?<!\w)'|'(?!\w)")
+_SERIES_LEADING_THE_RE = re.compile(r'^the\s+')
+_SERIES_TRAILING_WRAPPER_RE = re.compile(r'\s+(?:series|books)$')
+_SERIES_BY_SPLIT_RE = re.compile(r',?\s+by\s+', re.IGNORECASE)
 _LEADING_QUOTED_TITLE_RE = re.compile(
     r'^(?:'
     r'\u201c(?P<curly_title>.+?)\u201d'
@@ -94,6 +97,7 @@ CATEGORY_BEST_NOVELETTE = 'Best Novelette'
 CATEGORY_BEST_SHORT_STORY = 'Best Short Story'
 CATEGORY_SHORT_FICTION = 'Short Fiction'
 CATEGORY_BEST_NOVEL_OR_NOVELETTE = 'Best Novel or Novelette'
+CATEGORY_BEST_SERIES = 'Best Series'
 _SUPPORTED_CATEGORIES = (
     CATEGORY_BEST_NOVEL,
     CATEGORY_BEST_NOVELLA,
@@ -103,6 +107,7 @@ _SUPPORTED_CATEGORIES = (
     CATEGORY_BEST_NOVEL_OR_NOVELETTE,
 )
 _SUPPORTED_CATEGORY_SET = frozenset(_SUPPORTED_CATEGORIES)
+_PARSED_CATEGORIES = _SUPPORTED_CATEGORIES + (CATEGORY_BEST_SERIES,)
 _NOVELLA_REQUIRED_FROM_YEAR = 1968
 _EARLY_NOVELETTE_YEARS = frozenset({1955, 1956, 1959, 1967, 1968, 1969})
 _NOVELETTE_REQUIRED_FROM_YEAR = 1973
@@ -111,6 +116,7 @@ _SHORT_STORY_REQUIRED_FROM_YEAR = 1967
 _SHORT_FICTION_FROM_YEAR = 1960
 _SHORT_FICTION_THROUGH_YEAR = 1966
 _BEST_NOVEL_GAP_YEARS = frozenset({1957, 1958})
+_BEST_SERIES_REQUIRED_FROM_YEAR = 2017
 
 
 class HugoSourceError(RuntimeError):
@@ -662,6 +668,171 @@ def _parse_best_novel_html(
     )
 
 
+def _split_series_name_and_author(full_text: str) -> tuple[str, str] | None:
+    """Split a Best Series ballot row into official series name and author."""
+    text = _collapse_ws(full_text)
+    if _is_non_work(text):
+        return None
+    text = _TIE_SUFFIX_RE.sub('', text).rstrip()
+    text = _strip_trailing_group(text, '[', ']')
+    text = _strip_trailing_group(text, '(', ')')
+    text = _collapse_ws(text).rstrip(' ,')
+    if not text:
+        return None
+    by_match = _SERIES_BY_SPLIT_RE.search(text)
+    if by_match is not None:
+        series_name = _collapse_ws(text[: by_match.start()])
+        author = _collapse_ws(text[by_match.end() :])
+    else:
+        comma_at = text.find(', ')
+        if comma_at <= 0:
+            return None
+        series_name = _collapse_ws(text[:comma_at])
+        author = _collapse_ws(text[comma_at + 1 :])
+    if not series_name or not author:
+        return None
+    if _is_non_work(series_name) or _is_non_work(author):
+        return None
+    return series_name, author
+
+
+class _HugoBestSeriesParser(HTMLParser):
+    """Parse the first Best Series ballot list on one Hugo year page.
+
+    Book-title parsing is intentionally not used. Series identity is the
+    visible list-item text, not the first <em>. Later Best Series
+    eligibility/declined note blocks are ignored after the first ballot
+    list. Definition text (including 2017 <small>) does not cancel the
+    wait for that list.
+    """
+
+    def __init__(self, award_year: int, source_url: str) -> None:
+        super().__init__(convert_charrefs=True)
+        self.award_year = award_year
+        self.source_url = source_url
+        self.records: list[_ParsedRecord] = []
+        self._strong_parts: list[str] = []
+        self._in_strong = False
+        self._pending_ballot = False
+        self._have_ballot_list = False
+        self._in_ballot_list = False
+        self._list_depth = 0
+        self._li_depth = 0
+        self._capturing_li = False
+        self._li_is_winner = False
+        self._all_parts: list[str] = []
+        self._seen: set[tuple[int, str, str, str, str, str]] = set()
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        attr = {name: (value or '') for name, value in attrs}
+
+        if tag == 'strong' and not self._capturing_li:
+            self._in_strong = True
+            self._strong_parts = []
+
+        if tag == 'ul':
+            if (
+                self._pending_ballot
+                and not self._have_ballot_list
+                and not self._in_ballot_list
+            ):
+                self._in_ballot_list = True
+                self._list_depth = 1
+                self._pending_ballot = False
+            elif self._in_ballot_list:
+                self._list_depth += 1
+
+        if tag == 'li' and self._in_ballot_list:
+            if self._li_depth == 0:
+                classes = attr.get('class', '').split()
+                self._start_li(winner='winner' in classes)
+            self._li_depth += 1
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag == 'strong' and self._in_strong and not self._capturing_li:
+            heading = _collapse_ws(''.join(self._strong_parts))
+            self._in_strong = False
+            self._strong_parts = []
+            if heading == CATEGORY_BEST_SERIES and not self._have_ballot_list:
+                self._pending_ballot = True
+            elif heading:
+                self._pending_ballot = False
+            return
+
+        if tag == 'li' and self._in_ballot_list and self._li_depth:
+            self._li_depth -= 1
+            if self._li_depth == 0:
+                self._finish_li()
+            return
+
+        if tag == 'ul' and self._in_ballot_list:
+            self._list_depth -= 1
+            if self._list_depth <= 0:
+                self._in_ballot_list = False
+                self._list_depth = 0
+                self._have_ballot_list = True
+                self._pending_ballot = False
+
+    def handle_data(self, data: str) -> None:
+        if self._in_strong and not self._capturing_li:
+            self._strong_parts.append(data)
+        if self._capturing_li:
+            self._all_parts.append(data)
+
+    def _start_li(self, *, winner: bool) -> None:
+        self._capturing_li = True
+        self._li_is_winner = winner
+        self._all_parts = []
+
+    def _finish_li(self) -> None:
+        capturing = self._capturing_li
+        winner = self._li_is_winner
+        full_text = _collapse_ws(''.join(self._all_parts))
+        self._capturing_li = False
+        self._li_is_winner = False
+        self._all_parts = []
+        if not capturing:
+            return
+        parsed = _split_series_name_and_author(full_text)
+        if parsed is None:
+            return
+        series_name, author = parsed
+        status = 'Winner' if winner else 'Finalist'
+        key = (
+            self.award_year,
+            CATEGORY_BEST_SERIES,
+            status,
+            series_name.casefold(),
+            author.casefold(),
+            self.source_url,
+        )
+        if key in self._seen:
+            return
+        self._seen.add(key)
+        self.records.append(
+            _ParsedRecord(
+                award_year=self.award_year,
+                category=CATEGORY_BEST_SERIES,
+                status=status,
+                work_title=series_name,
+                work_author=author,
+                source_url=self.source_url,
+                match_titles=(series_name,),
+            )
+        )
+
+
+def _parse_best_series_html(
+    page_html: str,
+    award_year: int,
+    source_url: str,
+) -> list[_ParsedRecord]:
+    parser = _HugoBestSeriesParser(award_year, source_url)
+    parser.feed(page_html)
+    parser.close()
+    return parser.records
+
+
 def _parse_supported_categories_html(
     page_html: str,
     award_year: int,
@@ -672,6 +843,7 @@ def _parse_supported_categories_html(
         records.extend(
             _parse_category_html(page_html, award_year, source_url, category)
         )
+    records.extend(_parse_best_series_html(page_html, award_year, source_url))
     return records
 
 
@@ -707,6 +879,10 @@ def _year_requires_novel_or_novelette(year: int) -> bool:
     return year == 1958
 
 
+def _year_requires_best_series(year: int) -> bool:
+    return year >= _BEST_SERIES_REQUIRED_FROM_YEAR
+
+
 def _fail_if_expected_years_missing(
     category: str,
     records: list[_ParsedRecord],
@@ -734,7 +910,7 @@ def _validate_supported_category_records(
     regular_years: set[int],
 ) -> None:
     records_by_category: dict[str, list[_ParsedRecord]] = {
-        category: [] for category in _SUPPORTED_CATEGORIES
+        category: [] for category in _PARSED_CATEGORIES
     }
     for record in records:
         if record.category not in records_by_category:
@@ -772,6 +948,11 @@ def _validate_supported_category_records(
         CATEGORY_BEST_NOVEL_OR_NOVELETTE,
         records_by_category[CATEGORY_BEST_NOVEL_OR_NOVELETTE],
         {year for year in regular_years if _year_requires_novel_or_novelette(year)},
+    )
+    _fail_if_expected_years_missing(
+        CATEGORY_BEST_SERIES,
+        records_by_category[CATEGORY_BEST_SERIES],
+        {year for year in regular_years if _year_requires_best_series(year)},
     )
 
 
@@ -866,6 +1047,36 @@ def _titles_equivalent(query_title: str, record_title: str) -> bool:
     return bool(query_base) and query_base == record_base
 
 
+def _normalize_series_for_match(value: str) -> str:
+    """Normalize a series name for conservative series-only matching."""
+    text = _normalize_title_for_match(value)
+    stripped_the = _SERIES_LEADING_THE_RE.sub('', text, count=1)
+    if stripped_the:
+        text = stripped_the
+    while True:
+        stripped_wrapper = _SERIES_TRAILING_WRAPPER_RE.sub('', text)
+        if stripped_wrapper == text or not stripped_wrapper.strip():
+            break
+        text = stripped_wrapper.strip()
+    return _collapse_ws(text)
+
+
+def _series_names_match(query_series: str, record_series: str) -> bool:
+    query_norm = _normalize_series_for_match(query_series)
+    record_norm = _normalize_series_for_match(record_series)
+    return bool(query_norm) and query_norm == record_norm
+
+
+def _series_record_matches(
+    record: _ParsedRecord, series: str, author: str
+) -> bool:
+    if record.category != CATEGORY_BEST_SERIES:
+        return False
+    return _series_names_match(series, record.work_title) and _authors_match(
+        author, record.work_author
+    )
+
+
 def _titles_match(query_title: str, record: _ParsedRecord) -> bool:
     return any(
         _titles_equivalent(query_title, candidate)
@@ -904,6 +1115,8 @@ def _authors_match(query_author: str, record_author: str) -> bool:
 
 
 def _record_matches(record: _ParsedRecord, title: str, author: str) -> bool:
+    if record.category == CATEGORY_BEST_SERIES:
+        return False
     return _titles_match(title, record) and _authors_match(author, record.work_author)
 
 
@@ -939,6 +1152,20 @@ def _enrichment_is_consistent(record: _ParsedRecord, ranking: HugoRanking) -> bo
 
 
 def _to_award_result(record: _ParsedRecord) -> AwardResult:
+    if record.category == CATEGORY_BEST_SERIES:
+        return AwardResult(
+            work_title=record.work_title,
+            work_author=record.work_author,
+            award_name='Hugo Award',
+            award_year=record.award_year,
+            category=record.category,
+            status=record.status,
+            rank=None,
+            source_name='Hugo Awards',
+            source_url=record.source_url,
+            notes=None,
+            identity_kind='series',
+        )
     ranking = _ranking_for_record(record)
     if ranking is None or not _enrichment_is_consistent(record, ranking):
         return AwardResult(
@@ -971,19 +1198,29 @@ def _to_award_result(record: _ParsedRecord) -> AwardResult:
 # Public lookup
 # ---------------------------------------------------------------------------
 
-def lookup(title: str, author: str) -> list[AwardResult]:
-    """Look up Hugo Award written-work results."""
+def lookup(
+    title: str,
+    author: str,
+    series: str | None = None,
+) -> list[AwardResult]:
+    """Look up Hugo Award written-work and Best Series results."""
     cleaned_title = title.strip()
     cleaned_author = author.strip()
     if not cleaned_title:
         raise ValueError('title must be a non-empty string')
     if not cleaned_author:
         raise ValueError('author must be a non-empty string')
+    cleaned_series = None if series is None else str(series).strip() or None
 
     matches: list[AwardResult] = []
     seen: set[tuple[int, str, str, str, str, str]] = set()
     for record in _get_archive_records():
-        if not _record_matches(record, cleaned_title, cleaned_author):
+        if record.category == CATEGORY_BEST_SERIES:
+            if cleaned_series is None:
+                continue
+            if not _series_record_matches(record, cleaned_series, cleaned_author):
+                continue
+        elif not _record_matches(record, cleaned_title, cleaned_author):
             continue
         key = (
             record.award_year,

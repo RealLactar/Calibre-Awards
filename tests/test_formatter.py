@@ -286,5 +286,49 @@ class LookupReportFormattingTests(unittest.TestCase):
         )
 
 
+class SeriesAwardFormattingTests(unittest.TestCase):
+    def test_best_series_appends_official_name_inside_category(self):
+        result = _result(
+            work_title='The Vorkosigan Saga',
+            work_author='Lois McMaster Bujold',
+            award_name='Hugo Award',
+            award_year=2017,
+            category='Best Series',
+            status='Winner',
+            rank=None,
+            source_name='Hugo Awards',
+            source_url='https://www.thehugoawards.org/hugo-history/2017-hugo-awards/',
+            identity_kind='series',
+        )
+        formatted = format_award_result(result)
+        self.assertEqual(
+            formatted,
+            'Winner - 2017 Hugo Award - Best Series [The Vorkosigan Saga]',
+        )
+        self.assertEqual(formatted.split(' - '), [
+            'Winner',
+            '2017 Hugo Award',
+            'Best Series [The Vorkosigan Saga]',
+        ])
+
+    def test_work_hugo_novel_output_is_unchanged(self):
+        result = _result(
+            work_title='Dune',
+            work_author='Frank Herbert',
+            award_name='Hugo Award',
+            award_year=1966,
+            category='Best Novel',
+            status='Winner',
+            rank=None,
+            source_name='Hugo Awards',
+            source_url='https://www.thehugoawards.org/hugo-history/1966-hugo-awards/',
+        )
+        self.assertEqual(
+            format_award_result(result),
+            'Winner - 1966 Hugo Award - Best Novel',
+        )
+        self.assertEqual(result.identity_kind, 'work')
+
+
 if __name__ == '__main__':
     unittest.main()

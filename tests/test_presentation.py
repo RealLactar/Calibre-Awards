@@ -5,7 +5,10 @@ from __future__ import annotations
 import unittest
 
 from awards.presentation import (
+    format_book_line,
+    format_series_line,
     format_work_identity,
+    lookup_has_series_award,
     source_identity_if_different,
 )
 
@@ -91,6 +94,64 @@ class SourceIdentityDisplayTests(unittest.TestCase):
             'Cixin Liu',
         )
         self.assertEqual(identity, 'The Three-Body Problem | Cixin Liu')
+
+
+class SeriesDisplayLineTests(unittest.TestCase):
+    def test_book_line_uses_title_pipe_author(self):
+        self.assertEqual(
+            format_book_line('Shards of Honor', 'Lois McMaster Bujold'),
+            'Book: Shards of Honor | Lois McMaster Bujold',
+        )
+
+    def test_series_line_is_series_name_only(self):
+        self.assertEqual(
+            format_series_line('Vorkosigan Saga'),
+            'Series: Vorkosigan Saga',
+        )
+
+    def test_blank_series_line_is_omitted(self):
+        self.assertIsNone(format_series_line(''))
+        self.assertIsNone(format_series_line('   '))
+
+    def test_source_series_omitted_when_visibly_identical(self):
+        self.assertIsNone(
+            source_identity_if_different(
+                'The Vorkosigan Saga',
+                'Lois McMaster Bujold',
+                'The Vorkosigan Saga',
+                'Lois McMaster Bujold',
+            )
+        )
+
+    def test_source_series_shown_when_calibre_spelling_differs(self):
+        identity = source_identity_if_different(
+            'Vorkosigan Saga',
+            'Lois McMaster Bujold',
+            'The Vorkosigan Saga',
+            'Lois McMaster Bujold',
+        )
+        self.assertEqual(
+            identity,
+            'The Vorkosigan Saga | Lois McMaster Bujold',
+        )
+
+    def test_series_header_only_when_lookup_has_series_award(self):
+        from types import SimpleNamespace
+
+        series_item = SimpleNamespace(
+            result=SimpleNamespace(identity_kind='series')
+        )
+        work_item = SimpleNamespace(
+            result=SimpleNamespace(identity_kind='work')
+        )
+        self.assertTrue(
+            lookup_has_series_award('Vorkosigan Saga', (series_item,))
+        )
+        self.assertFalse(lookup_has_series_award('', (series_item,)))
+        self.assertFalse(lookup_has_series_award('Vorkosigan Saga', ()))
+        self.assertFalse(
+            lookup_has_series_award('Vorkosigan Saga', (work_item,))
+        )
 
 
 if __name__ == '__main__':
