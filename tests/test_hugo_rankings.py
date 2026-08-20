@@ -661,6 +661,48 @@ class HugoRankEnrichmentTests(unittest.TestCase):
         self.assertEqual(result.source_url, URL_2025)
         self.assertIsNone(result.notes)
 
+    def test_best_related_non_fiction_book_never_receives_best_novel_rank(self):
+        record = hugo._ParsedRecord(
+            award_year=1980,
+            category=hugo.CATEGORY_BEST_RELATED_NON_FICTION_BOOK,
+            status='Winner',
+            work_title='The Fountains of Paradise',
+            work_author='Arthur C. Clarke',
+            source_url='https://www.thehugoawards.org/hugo-history/1980-hugo-awards/',
+            match_titles=('The Fountains of Paradise',),
+        )
+        result = hugo._to_award_result(record)
+        self.assertEqual(result.category, 'Best Related Non-Fiction Book')
+        self.assertEqual(result.identity_kind, 'work')
+        self.assertEqual(result.status, 'Winner')
+        self.assertIsNone(result.rank)
+        self.assertEqual(
+            result.source_url,
+            'https://www.thehugoawards.org/hugo-history/1980-hugo-awards/',
+        )
+        self.assertIsNone(result.notes)
+
+    def test_best_related_book_never_receives_best_novel_rank(self):
+        record = hugo._ParsedRecord(
+            award_year=2000,
+            category=hugo.CATEGORY_BEST_RELATED_BOOK,
+            status='Winner',
+            work_title='A Deepness in the Sky',
+            work_author='Vernor Vinge',
+            source_url='https://www.thehugoawards.org/hugo-history/2000-hugo-awards/',
+            match_titles=('A Deepness in the Sky',),
+        )
+        result = hugo._to_award_result(record)
+        self.assertEqual(result.category, 'Best Related Book')
+        self.assertEqual(result.identity_kind, 'work')
+        self.assertEqual(result.status, 'Winner')
+        self.assertIsNone(result.rank)
+        self.assertEqual(
+            result.source_url,
+            'https://www.thehugoawards.org/hugo-history/2000-hugo-awards/',
+        )
+        self.assertIsNone(result.notes)
+
 
 if __name__ == '__main__':
     unittest.main()

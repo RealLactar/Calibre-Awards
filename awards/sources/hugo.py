@@ -90,6 +90,24 @@ _UNOPENED_QUOTED_TITLE_RE = re.compile(
     r'^(?P<title>[^\u201c"]+?)[\u201d"]\s*(?P<remainder>.*)$',
     re.DOTALL,
 )
+_RELATED_CALIBRE_ROLE_RE = re.compile(
+    r'\(\s*(?:eds?\.?|editors?)\s*\)\s*$',
+    re.IGNORECASE,
+)
+_RELATED_SOURCE_ROLE_RE = re.compile(
+    r',\s*(?:eds?\.|editors?)\s*$',
+    re.IGNORECASE,
+)
+_RELATED_AND_SPLIT_RE = re.compile(r'\s+(?:and|&)\s+', re.IGNORECASE)
+_RELATED_COMPLEX_CREDIT_RE = re.compile(
+    r';|\bwith\b|\bintro\.|\bfwd\.|\bappendix\b|\btranslated\s+by\b',
+    re.IGNORECASE,
+)
+_RELATED_GENERATIONAL_SUFFIX_RE = re.compile(
+    r'^(?:Jr\.?|Sr\.?|II|III|IV)$',
+    re.IGNORECASE,
+)
+_CALIBRE_AMP_PLACEHOLDER = '\uffff'
 
 CATEGORY_BEST_NOVEL = 'Best Novel'
 CATEGORY_BEST_NOVELLA = 'Best Novella'
@@ -99,6 +117,8 @@ CATEGORY_SHORT_FICTION = 'Short Fiction'
 CATEGORY_BEST_NOVEL_OR_NOVELETTE = 'Best Novel or Novelette'
 CATEGORY_BEST_SERIES = 'Best Series'
 CATEGORY_BEST_POEM = 'Best Poem'
+CATEGORY_BEST_RELATED_NON_FICTION_BOOK = 'Best Related Non-Fiction Book'
+CATEGORY_BEST_RELATED_BOOK = 'Best Related Book'
 _SUPPORTED_CATEGORIES = (
     CATEGORY_BEST_NOVEL,
     CATEGORY_BEST_NOVELLA,
@@ -107,6 +127,14 @@ _SUPPORTED_CATEGORIES = (
     CATEGORY_SHORT_FICTION,
     CATEGORY_BEST_NOVEL_OR_NOVELETTE,
     CATEGORY_BEST_POEM,
+    CATEGORY_BEST_RELATED_NON_FICTION_BOOK,
+    CATEGORY_BEST_RELATED_BOOK,
+)
+_RELATED_BOOK_CATEGORIES = frozenset(
+    {
+        CATEGORY_BEST_RELATED_NON_FICTION_BOOK,
+        CATEGORY_BEST_RELATED_BOOK,
+    }
 )
 _SUPPORTED_CATEGORY_SET = frozenset(_SUPPORTED_CATEGORIES)
 _PARSED_CATEGORIES = _SUPPORTED_CATEGORIES + (CATEGORY_BEST_SERIES,)
@@ -120,6 +148,12 @@ _SHORT_FICTION_THROUGH_YEAR = 1966
 _BEST_NOVEL_GAP_YEARS = frozenset({1957, 1958})
 _BEST_SERIES_REQUIRED_FROM_YEAR = 2017
 _BEST_POEM_YEARS = frozenset({2025, 2026})
+_BEST_RELATED_NON_FICTION_BOOK_YEARS = frozenset(range(1980, 1999)) | frozenset(
+    {2003, 2004, 2005, 2006}
+)
+_BEST_RELATED_BOOK_YEARS = frozenset(
+    {1999, 2000, 2001, 2002, 2007, 2008, 2009}
+)
 
 
 class HugoSourceError(RuntimeError):
@@ -890,6 +924,14 @@ def _year_requires_best_poem(year: int) -> bool:
     return year in _BEST_POEM_YEARS
 
 
+def _year_requires_best_related_non_fiction_book(year: int) -> bool:
+    return year in _BEST_RELATED_NON_FICTION_BOOK_YEARS
+
+
+def _year_requires_best_related_book(year: int) -> bool:
+    return year in _BEST_RELATED_BOOK_YEARS
+
+
 def _fail_if_expected_years_missing(
     category: str,
     records: list[_ParsedRecord],
@@ -965,6 +1007,24 @@ def _validate_supported_category_records(
         CATEGORY_BEST_POEM,
         records_by_category[CATEGORY_BEST_POEM],
         {year for year in regular_years if _year_requires_best_poem(year)},
+    )
+    _fail_if_expected_years_missing(
+        CATEGORY_BEST_RELATED_NON_FICTION_BOOK,
+        records_by_category[CATEGORY_BEST_RELATED_NON_FICTION_BOOK],
+        {
+            year
+            for year in regular_years
+            if _year_requires_best_related_non_fiction_book(year)
+        },
+    )
+    _fail_if_expected_years_missing(
+        CATEGORY_BEST_RELATED_BOOK,
+        records_by_category[CATEGORY_BEST_RELATED_BOOK],
+        {
+            year
+            for year in regular_years
+            if _year_requires_best_related_book(year)
+        },
     )
 
 
@@ -1126,10 +1186,102 @@ def _authors_match(query_author: str, record_author: str) -> bool:
     return bool(_author_match_forms(query_author) & _author_match_forms(record_author))
 
 
+def _split_calibre_author_query(query_author: str) -> tuple[str, ...]:
+    """Invert Calibre authors_to_string: split on ' & ', restore '&&' to '&'."""
+    protected = query_author.replace('&&', _CALIBRE_AMP_PLACEHOLDER)
+    people: list[str] = []
+    for piece in protected.split(' & '):
+        restored = piece.replace(_CALIBRE_AMP_PLACEHOLDER, '&').strip()
+        if restored:
+            people.append(restored)
+    return tuple(people)
+
+
+def _strip_related_calibre_role(author: str) -> str:
+    stripped = _RELATED_CALIBRE_ROLE_RE.sub('', author).strip()
+    return stripped or author
+
+
+def _strip_related_source_role(author: str) -> str:
+    stripped = _RELATED_SOURCE_ROLE_RE.sub('', author).strip().rstrip(',')
+    return stripped or author
+
+
+def _glue_related_generational_suffixes(parts: list[str]) -> list[str]:
+    glued: list[str] = []
+    for part in parts:
+        piece = part.strip()
+        if not piece:
+            continue
+        if glued and _RELATED_GENERATIONAL_SUFFIX_RE.fullmatch(piece):
+            glued[-1] = f'{glued[-1]}, {piece}'
+        else:
+            glued.append(piece)
+    return glued
+
+
+def _related_person_token_count(person: str) -> int:
+    return len([token for token in person.split() if token])
+
+
+def _parse_related_book_people(record_author: str) -> tuple[str, ...] | None:
+    """Parse a simple official Related Book credit into people, or None."""
+    text = _collapse_ws(record_author)
+    if not text:
+        return None
+    stripped = _strip_related_source_role(text)
+    if not stripped or _RELATED_COMPLEX_CREDIT_RE.search(stripped):
+        return None
+    has_and = _RELATED_AND_SPLIT_RE.search(stripped) is not None
+    if not has_and and ',' not in stripped:
+        return (stripped,)
+    people: list[str] = []
+    and_bits = _RELATED_AND_SPLIT_RE.split(stripped) if has_and else [stripped]
+    for bit in and_bits:
+        comma_parts = [part.strip() for part in bit.split(',')]
+        people.extend(_glue_related_generational_suffixes(comma_parts))
+    if not people:
+        return None
+    if len(people) == 1:
+        return (people[0],)
+    for person in people:
+        if _related_person_token_count(person) < 2:
+            return None
+    return tuple(people)
+
+
+def _related_person_matches(query_person: str, source_person: str) -> bool:
+    query_norm = _normalize_text(_strip_related_calibre_role(query_person))
+    source_norm = _normalize_text(source_person)
+    return bool(query_norm) and query_norm == source_norm
+
+
+def _related_book_authors_match(query_author: str, record_author: str) -> bool:
+    if _authors_match(query_author, record_author):
+        return True
+    source_people = _parse_related_book_people(record_author)
+    if source_people is None:
+        return False
+    query_people = _split_calibre_author_query(query_author)
+    if not query_people:
+        return False
+    return all(
+        any(
+            _related_person_matches(query_person, source_person)
+            for query_person in query_people
+        )
+        for source_person in source_people
+    )
+
+
 def _record_matches(record: _ParsedRecord, title: str, author: str) -> bool:
     if record.category == CATEGORY_BEST_SERIES:
         return False
-    return _titles_match(title, record) and _authors_match(author, record.work_author)
+    if not _titles_match(title, record):
+        return False
+    if record.category in _RELATED_BOOK_CATEGORIES:
+        return _related_book_authors_match(author, record.work_author)
+    return _authors_match(author, record.work_author)
 
 
 def _ranking_matches_record(ranking: HugoRanking, record: _ParsedRecord) -> bool:
