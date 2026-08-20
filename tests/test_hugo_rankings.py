@@ -682,6 +682,24 @@ class HugoRankEnrichmentTests(unittest.TestCase):
         )
         self.assertIsNone(result.notes)
 
+    def test_best_all_time_series_never_receives_best_novel_rank(self):
+        record = hugo._ParsedRecord(
+            award_year=1966,
+            category=hugo.CATEGORY_BEST_ALL_TIME_SERIES,
+            status='Winner',
+            work_title='Dune',
+            work_author='Frank Herbert',
+            source_url=URL_1966,
+            match_titles=('Dune',),
+        )
+        result = hugo._to_award_result(record)
+        self.assertEqual(result.category, 'Best All-Time Series')
+        self.assertEqual(result.identity_kind, 'series')
+        self.assertEqual(result.status, 'Winner')
+        self.assertIsNone(result.rank)
+        self.assertEqual(result.source_url, URL_1966)
+        self.assertIsNone(result.notes)
+
     def test_best_related_book_never_receives_best_novel_rank(self):
         record = hugo._ParsedRecord(
             award_year=2000,

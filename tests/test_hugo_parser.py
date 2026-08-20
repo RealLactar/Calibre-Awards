@@ -30,6 +30,10 @@ HTML_1966 = """
 <ul>
 <li class="winner">&#8220;&#8216;Repent, Harlequin!&#8217; Said the Ticktockman&#8221; by Harlan Ellison [<em>Galaxy</em> Dec 1965]</li>
 </ul>
+<p><strong>Best All-Time Series</strong></p>
+<ul>
+<li class="winner"><strong>Foundation</strong> series by Isaac Asimov</li>
+</ul>
 """
 
 HTML_2025 = """
@@ -1963,7 +1967,9 @@ class HugoArchiveHelperTests(unittest.TestCase):
         ):
             records = hugo._get_archive_records()
         categories = {record.category for record in records}
-        self.assertEqual(categories, {'Best Novel', 'Short Fiction'})
+        self.assertEqual(
+            categories, {'Best Novel', 'Short Fiction', 'Best All-Time Series'}
+        )
         repent = _find_records(
             records,
             title='‘Repent, Harlequin!’ Said the Ticktockman',

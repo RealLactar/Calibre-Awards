@@ -342,9 +342,13 @@ class HugoBestSeriesParserTests(unittest.TestCase):
             HTML_1966_ALL_TIME, 1966, URL_1966
         )
         self.assertNotIn('Best Series', [record.category for record in mixed])
-        self.assertNotIn(
-            'Best All-Time Series', [record.category for record in mixed]
-        )
+        all_time = [
+            record
+            for record in mixed
+            if record.category == 'Best All-Time Series'
+        ]
+        self.assertTrue(all_time)
+        self.assertEqual(all_time[0].work_title, 'Foundation series')
         self.assertNotIn(
             'Foundation', [record.work_title for record in mixed]
         )
@@ -666,7 +670,7 @@ class HugoSeriesCoverageTests(unittest.TestCase):
             self.assertNotIn(
                 'Best Series', [record.category for record in records]
             )
-            self.assertNotIn(
+            self.assertIn(
                 'Best All-Time Series',
                 [record.category for record in records],
             )
