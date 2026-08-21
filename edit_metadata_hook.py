@@ -4,6 +4,7 @@
 # the award-selection dialog.
 
 from functools import wraps
+import time
 
 from calibre.ebooks.metadata import authors_to_string
 from calibre.gui2 import error_dialog, info_dialog
@@ -21,16 +22,30 @@ from calibre_plugins.calibre_awards.awards.writeback import (
     prepare_replace_award_values,
 )
 from calibre_plugins.calibre_awards.config import prefs
-from qt.core import QDialog, QObject, QPushButton, QThread, pyqtSignal
+from qt.core import (
+    QDialog,
+    QFont,
+    QLabel,
+    QObject,
+    QProgressBar,
+    QPushButton,
+    Qt,
+    QThread,
+    QTimer,
+    QVBoxLayout,
+    pyqtSignal,
+)
 
 BUTTON_OBJECT_NAME = 'calibre_awards_check_awards_button'
 _PATCH_ATTR = '_calibre_awards_setupui_patch'
 _RUNNING_ATTR = '_calibre_awards_lookup_running'
+_LATER_SEARCH_PROGRESS_DELAY_MS = 500
 
 # Keep strong references to active workers so closing Edit Metadata cannot
 # garbage-collect a still-running QThread.
 _ACTIVE_THREADS = set()
 _THREAD_CLEANUP_RECEIVER = None
+_FIRST_SEARCH_STARTED = False
 
 
 class _AwardLookupThread(QThread):
@@ -38,6 +53,7 @@ class _AwardLookupThread(QThread):
 
     succeeded = pyqtSignal(object)
     failed = pyqtSignal(str)
+    progress = pyqtSignal(int, int, str)
 
     def __init__(self, title, author, series=''):
         # Intentionally unparented: must outlive the Edit Metadata dialog.
@@ -49,27 +65,177 @@ class _AwardLookupThread(QThread):
     def run(self):
         try:
             report = lookup_awards(
-                self._title, self._author, series=self._series
+                self._title,
+                self._author,
+                series=self._series,
+                on_progress=self._emit_progress,
             )
         except Exception as exc:
             self.failed.emit(f'{type(exc).__name__}: {exc}')
             return
         self.succeeded.emit(report)
 
+    def _emit_progress(self, update):
+        name = update.source_name or ''
+        self.progress.emit(
+            update.completed_sources,
+            update.total_sources,
+            name,
+        )
+
+
+class _LookupProgressDialog(QDialog):
+    """Determinate lookup progress owned by the open Edit Metadata dialog."""
+
+    def __init__(self, parent, show_first_search_warning):
+        super().__init__(parent)
+        self.setWindowTitle('Calibre Awards')
+        self.setModal(True)
+        self.setWindowFlag(Qt.WindowType.WindowCloseButtonHint, False)
+        self._lookup_running = True
+        self._started = time.monotonic()
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(8)
+
+        if show_first_search_warning:
+            heading = QLabel('FIRST AWARD SEARCH THIS SESSION', self)
+            heading_font = QFont(heading.font())
+            heading_font.setBold(True)
+            heading.setFont(heading_font)
+            heading.setStyleSheet('color: #cc0000; font-weight: bold;')
+            heading.setWordWrap(True)
+            layout.addWidget(heading)
+
+            intro = QLabel(
+                'Award data must be loaded from several websites.', self
+            )
+            intro.setWordWrap(True)
+            layout.addWidget(intro)
+
+            warning = QLabel(
+                'This first search may take 10-20 seconds, and longer if an '
+                'award website is responding slowly.',
+                self,
+            )
+            warning_font = QFont(warning.font())
+            warning_font.setBold(True)
+            warning.setFont(warning_font)
+            warning.setStyleSheet('color: #cc0000; font-weight: bold;')
+            warning.setWordWrap(True)
+            layout.addWidget(warning)
+
+            later = QLabel(
+                'Progress is shown below. Later searches this session '
+                'should be much faster.',
+                self,
+            )
+            later.setWordWrap(True)
+            layout.addWidget(later)
+
+        self._status = QLabel('0 of 0 award sources complete', self)
+        self._status.setWordWrap(True)
+        layout.addWidget(self._status)
+
+        self._last_completed = QLabel('', self)
+        self._last_completed.setWordWrap(True)
+        layout.addWidget(self._last_completed)
+
+        self._bar = QProgressBar(self)
+        self._bar.setMinimum(0)
+        self._bar.setMaximum(1)
+        self._bar.setValue(0)
+        self._bar.setTextVisible(False)
+        layout.addWidget(self._bar)
+
+        self._elapsed = QLabel('Elapsed: 0.0 seconds', self)
+        layout.addWidget(self._elapsed)
+
+        self._timer = QTimer(self)
+        self._timer.setInterval(250)
+        self._timer.timeout.connect(self._tick_elapsed)
+        self._timer.start()
+
+        self._show_timer = QTimer(self)
+        self._show_timer.setSingleShot(True)
+        self._show_timer.timeout.connect(self._show_if_running)
+
+    def schedule_show(self, delay_ms):
+        if delay_ms <= 0:
+            self.show()
+            return
+        self._show_timer.start(delay_ms)
+
+    def _show_if_running(self):
+        if self._lookup_running:
+            self.show()
+
+    def _tick_elapsed(self):
+        elapsed = time.monotonic() - self._started
+        self._elapsed.setText(f'Elapsed: {elapsed:.1f} seconds')
+
+    def handle_progress(self, completed, total, source_name):
+        if not self._lookup_running:
+            return
+        try:
+            maximum = total if total > 0 else 1
+            self._bar.setMaximum(maximum)
+            self._bar.setValue(completed)
+            self._status.setText(
+                f'{completed} of {total} award sources complete'
+            )
+            if source_name:
+                self._last_completed.setText(
+                    f'Last completed: {source_name}'
+                )
+        except RuntimeError:
+            pass
+
+    def mark_finished(self):
+        self._lookup_running = False
+        self._timer.stop()
+        self._show_timer.stop()
+        self.hide()
+        self.close()
+
+    def closeEvent(self, event):
+        if self._lookup_running:
+            event.ignore()
+            return
+        event.accept()
+
 
 class _LookupUiReceiver(QObject):
     """GUI-thread receiver for lookup results; parented to the Edit Metadata dialog."""
 
     def __init__(
-        self, button, lookup_title, lookup_author, lookup_series='', parent=None
+        self,
+        button,
+        lookup_title,
+        lookup_author,
+        lookup_series='',
+        parent=None,
+        progress_dialog=None,
     ):
         super().__init__(parent)
         self._button = button
         self._lookup_title = lookup_title
         self._lookup_author = lookup_author
         self._lookup_series = lookup_series
+        self._progress = progress_dialog
+
+    def _close_progress(self):
+        progress = self._progress
+        if progress is None:
+            return
+        try:
+            progress.mark_finished()
+        except RuntimeError:
+            pass
 
     def handle_succeeded(self, report):
+        self._close_progress()
         dialog = self.parent()
         if dialog is None:
             return
@@ -117,6 +283,7 @@ class _LookupUiReceiver(QObject):
             pass
 
     def handle_failed(self, message):
+        self._close_progress()
         dialog = self.parent()
         if dialog is None:
             return
@@ -350,6 +517,7 @@ def _apply_selected_award_writeback(dialog, selected_assessments, template):
 
 
 def _start_award_lookup(dialog, button):
+    global _FIRST_SEARCH_STARTED
     if getattr(dialog, _RUNNING_ATTR, False):
         return
 
@@ -360,15 +528,30 @@ def _start_award_lookup(dialog, button):
     lookup_author = ('' if author is None else str(author)).strip()
     lookup_series = ('' if series is None else str(series)).strip()
 
+    is_first_search = not _FIRST_SEARCH_STARTED
+    _FIRST_SEARCH_STARTED = True
+
     setattr(dialog, _RUNNING_ATTR, True)
     button.setEnabled(False)
 
+    progress = _LookupProgressDialog(dialog, is_first_search)
+    if is_first_search:
+        progress.schedule_show(0)
+    else:
+        progress.schedule_show(_LATER_SEARCH_PROGRESS_DELAY_MS)
+
     thread = _AwardLookupThread(lookup_title, lookup_author, lookup_series)
     receiver = _LookupUiReceiver(
-        button, lookup_title, lookup_author, lookup_series, dialog
+        button,
+        lookup_title,
+        lookup_author,
+        lookup_series,
+        dialog,
+        progress_dialog=progress,
     )
     cleanup = _thread_cleanup_receiver()
 
+    thread.progress.connect(progress.handle_progress)
     thread.succeeded.connect(receiver.handle_succeeded)
     thread.failed.connect(receiver.handle_failed)
     thread.finished.connect(receiver.handle_finished)

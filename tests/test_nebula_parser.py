@@ -167,6 +167,7 @@ class NebulaParserFixtureTests(unittest.TestCase):
         self.assertEqual(dune_result.award_name, 'Nebula Award')
         self.assertEqual(dune_result.category, 'Best Novel')
         self.assertEqual(dune_result.status, 'Winner')
+        self.assertEqual(dune_result.identity_kind, 'work')
         self.assertIsNone(dune_result.rank)
         self.assertEqual(dune_result.source_name, 'Nebula Awards')
         self.assertTrue(
