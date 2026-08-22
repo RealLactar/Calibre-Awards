@@ -97,6 +97,17 @@ def _full_history_winner_works(*, skip_short_fiction=None):
                 status='Winner',
             )
         )
+    for year in sorted(world_fantasy.COLLECTION_MASTER_WINNER_YEARS):
+        works.append(
+            world_fantasy._TableWork(
+                award_year=year,
+                category=world_fantasy.CATEGORY_COLLECTION,
+                official_category='Collection',
+                work_title=f'Collection {year}',
+                authors=('Archive Author',),
+                status='Winner',
+            )
+        )
     return works
 
 

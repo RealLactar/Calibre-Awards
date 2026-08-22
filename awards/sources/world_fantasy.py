@@ -1,4 +1,4 @@
-"""Official World Fantasy Award Novel, Novella, and Short Fiction source."""
+"""Official World Fantasy Award Novel, Novella, Short Fiction, and Collection source."""
 
 from __future__ import annotations
 
@@ -46,6 +46,7 @@ SOURCE_PAGE_URLS = (
 CATEGORY_NOVEL = 'Novel'
 CATEGORY_NOVELLA = 'Novella'
 CATEGORY_SHORT_FICTION = 'Short Fiction'
+CATEGORY_COLLECTION = 'Collection'
 LONG_FICTION_YEARS = frozenset({2016, 2017, 2018})
 MASTER_WINNERS_THROUGH_YEAR = 2023
 NOVEL_MASTER_WINNER_YEARS = frozenset(
@@ -56,6 +57,9 @@ NOVELLA_MASTER_WINNER_YEARS = frozenset(
 )
 SHORT_FICTION_MASTER_WINNER_YEARS = frozenset(
     range(1975, MASTER_WINNERS_THROUGH_YEAR + 1)
+)
+COLLECTION_MASTER_WINNER_YEARS = frozenset(
+    range(1988, MASTER_WINNERS_THROUGH_YEAR + 1)
 )
 NOVELLA_OFFICIAL_LABELS = {
     2015: 'novella',
@@ -185,9 +189,21 @@ _CATEGORY_CONFIGS: tuple[_CategoryConfig, ...] = (
         }),
         first_year=1975,
     ),
+    _CategoryConfig(
+        canonical=CATEGORY_COLLECTION,
+        table_aliases=frozenset({'Collection'}),
+        annual_heading_aliases=frozenset({
+            'Collection',
+            'Best Collection',
+        }),
+        first_year=1988,
+    ),
 )
 
 _CANONICAL_CATEGORIES = tuple(config.canonical for config in _CATEGORY_CONFIGS)
+_CATEGORY_FIRST_YEAR = {
+    config.canonical: config.first_year for config in _CATEGORY_CONFIGS
+}
 
 
 # ---------------------------------------------------------------------------
@@ -395,6 +411,8 @@ def _resolve_table_category(raw_category: str, year: int) -> str | None:
                 f'{year}, outside the official 2016–2018 interval'
             )
         return CATEGORY_NOVELLA
+    if folded == 'collection/anthology':
+        return None
     for config in _CATEGORY_CONFIGS:
         aliases = {alias.casefold() for alias in config.table_aliases}
         if folded in aliases:
@@ -757,7 +775,10 @@ class _CategoryListParser(HTMLParser):
 
 
 class _Annual2024Parser(HTMLParser):
-    """Parse 2024 h4 category headings plus following paragraphs."""
+    """Parse 2024 h4 category headings plus following paragraphs.
+
+    Collection is a heading-only paragraph (not h4) on the official 2024 page.
+    """
 
     def __init__(self, heading_to_category: dict[str, str]) -> None:
         super().__init__(convert_charrefs=True)
@@ -776,7 +797,7 @@ class _Annual2024Parser(HTMLParser):
             self._in_h4 = True
             self._h4_parts = []
             return
-        if self._current_category and tag == 'p' and not self._in_p:
+        if tag == 'p' and not self._in_p and not self._in_h4:
             self._in_p = True
             self._p_parts = []
 
@@ -797,9 +818,22 @@ class _Annual2024Parser(HTMLParser):
         if self._in_p:
             self._p_parts.append(data)
 
+    def _paragraph_heading_category(self, text: str) -> str | None:
+        """Recognize a heading-only paragraph whose entire text is Collection."""
+        category = self._targets.get(text.casefold())
+        if category == CATEGORY_COLLECTION:
+            return category
+        return None
+
     def _finish_p(self) -> None:
         text = _collapse_ws(''.join(self._p_parts))
-        if not text or not self._current_category:
+        if not text:
+            return
+        heading_category = self._paragraph_heading_category(text)
+        if heading_category is not None:
+            self._current_category = heading_category
+            return
+        if not self._current_category:
             return
         is_winner = bool(_WINNER_PREFIX_RE.match(text))
         parsed = _parse_annual_citation(text, self._current_category)
@@ -1010,8 +1044,21 @@ def _validate_source_components(
             )
 
     convention_required = (
-        ('1982 convention page', convention_1982, _CANONICAL_CATEGORIES),
-        ('1993 convention page', convention_1993, _CANONICAL_CATEGORIES),
+        (
+            '1982 convention page',
+            convention_1982,
+            (CATEGORY_NOVEL, CATEGORY_NOVELLA, CATEGORY_SHORT_FICTION),
+        ),
+        (
+            '1993 convention page',
+            convention_1993,
+            (
+                CATEGORY_NOVEL,
+                CATEGORY_NOVELLA,
+                CATEGORY_SHORT_FICTION,
+                CATEGORY_COLLECTION,
+            ),
+        ),
         (
             '2005 convention page',
             convention_2005,
@@ -1067,7 +1114,10 @@ def _validate_merged_records(
             )
 
     for category in _CANONICAL_CATEGORIES:
+        first_year = _CATEGORY_FIRST_YEAR[category]
         for year in (1982, 1993, 2005):
+            if year < first_year:
+                continue
             has_nominee = any(
                 record.category == category
                 and record.award_year == year
@@ -1141,6 +1191,21 @@ def _validate_full_archive_history(winner_works: list[_TableWork]) -> None:
             'World Fantasy Short Fiction winners are missing required '
             'master-table years: '
             + ', '.join(str(year) for year in missing_short_fiction)
+        )
+
+    collection_winner_years = {
+        work.award_year
+        for work in winner_works
+        if work.category == CATEGORY_COLLECTION and work.status == 'Winner'
+    }
+    missing_collection = sorted(
+        COLLECTION_MASTER_WINNER_YEARS - collection_winner_years
+    )
+    if missing_collection:
+        raise WorldFantasySourceError(
+            'World Fantasy Collection winners are missing required '
+            'master-table years: '
+            + ', '.join(str(year) for year in missing_collection)
         )
 
 
@@ -1359,7 +1424,7 @@ def _to_award_result(record: _ParsedRecord) -> AwardResult:
 # ---------------------------------------------------------------------------
 
 def lookup(title: str, author: str, series: str | None = None) -> list[AwardResult]:
-    """Look up World Fantasy Award Novel, Novella, and Short Fiction results."""
+    """Look up World Fantasy Award Novel, Novella, Short Fiction, and Collection results."""
     cleaned_title = title.strip()
     cleaned_author = author.strip()
     if not cleaned_title:
