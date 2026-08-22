@@ -417,6 +417,7 @@ def _full_history_winner_works(
     *,
     skip_novel=None,
     skip_novella=None,
+    skip_short_fiction=None,
     official_overrides=None,
 ):
     official_overrides = official_overrides or {}
@@ -449,6 +450,19 @@ def _full_history_winner_works(
                 category=world_fantasy.CATEGORY_NOVELLA,
                 official_category=official,
                 work_title=f'Novella {year}',
+                authors=('Archive Author',),
+                status='Winner',
+            )
+        )
+    for year in sorted(world_fantasy.SHORT_FICTION_MASTER_WINNER_YEARS):
+        if year == skip_short_fiction:
+            continue
+        works.append(
+            world_fantasy._TableWork(
+                award_year=year,
+                category=world_fantasy.CATEGORY_SHORT_FICTION,
+                official_category='Short Fiction',
+                work_title=f'Short Fiction {year}',
                 authors=('Archive Author',),
                 status='Winner',
             )

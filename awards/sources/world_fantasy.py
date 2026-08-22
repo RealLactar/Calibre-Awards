@@ -1,4 +1,4 @@
-"""Official World Fantasy Award Novel and Novella source (worldfantasy.org)."""
+"""Official World Fantasy Award Novel, Novella, and Short Fiction source."""
 
 from __future__ import annotations
 
@@ -45,6 +45,7 @@ SOURCE_PAGE_URLS = (
 
 CATEGORY_NOVEL = 'Novel'
 CATEGORY_NOVELLA = 'Novella'
+CATEGORY_SHORT_FICTION = 'Short Fiction'
 LONG_FICTION_YEARS = frozenset({2016, 2017, 2018})
 MASTER_WINNERS_THROUGH_YEAR = 2023
 NOVEL_MASTER_WINNER_YEARS = frozenset(
@@ -52,6 +53,9 @@ NOVEL_MASTER_WINNER_YEARS = frozenset(
 )
 NOVELLA_MASTER_WINNER_YEARS = frozenset(
     range(1982, MASTER_WINNERS_THROUGH_YEAR + 1)
+)
+SHORT_FICTION_MASTER_WINNER_YEARS = frozenset(
+    range(1975, MASTER_WINNERS_THROUGH_YEAR + 1)
 )
 NOVELLA_OFFICIAL_LABELS = {
     2015: 'novella',
@@ -84,6 +88,12 @@ _TRANSLATOR_AUTHOR_SUFFIX_RE = re.compile(
 )
 _AUTHOR_SPLIT_RE = re.compile(r'\s+(?:and|&)\s+', re.IGNORECASE)
 _WRAPPING_QUOTES = frozenset({'"', "'", '\u201c', '\u201d', '\u2018', '\u2019'})
+_QUOTE_PAIRS = {
+    '"': '"',
+    "'": "'",
+    '\u201c': '\u201d',
+    '\u2018': '\u2019',
+}
 _EM_ARTIFACT_RE = re.compile(r',?\s*(?:</?em>|/em>)\s*$', re.IGNORECASE)
 _TRAILING_STATUS_RE = re.compile(
     r'^(?P<title>.+?)(?:\t+|\s+)(?P<status>Winner|Nominee)\s*$',
@@ -164,6 +174,16 @@ _CATEGORY_CONFIGS: tuple[_CategoryConfig, ...] = (
             'Best Novella',
         }),
         first_year=1982,
+    ),
+    _CategoryConfig(
+        canonical=CATEGORY_SHORT_FICTION,
+        table_aliases=frozenset({'Short Fiction'}),
+        annual_heading_aliases=frozenset({
+            'Short Fiction',
+            'Short Story',
+            'Best Short Fiction',
+        }),
+        first_year=1975,
     ),
 )
 
@@ -527,11 +547,80 @@ def _parse_by_or_comma_citation(text: str) -> tuple[str, str] | None:
     return title, author
 
 
+def _quoted_span_indexes(text: str) -> tuple[int, int] | None:
+    opener_index = None
+    closer = None
+    for index, char in enumerate(text):
+        pair = _QUOTE_PAIRS.get(char)
+        if pair is None:
+            continue
+        opener_index = index
+        closer = pair
+        break
+    if opener_index is None or closer is None:
+        return None
+    closer_index = text.find(closer, opener_index + 1)
+    if closer_index < 0:
+        return None
+    return opener_index, closer_index
+
+
+def _has_another_quoted_title(text: str) -> bool:
+    """True when remainder still contains a double-quoted title span."""
+    for opener, closer in (('"', '"'), ('\u201c', '\u201d')):
+        start = text.find(opener)
+        if start < 0:
+            continue
+        if text.find(closer, start + 1) >= 0:
+            return True
+    return False
+
+
+def _parse_quoted_story_citation(text: str) -> tuple[str, str] | None:
+    """Parse a Short Fiction annual citation from matching quotation marks.
+
+    Title punctuation inside the quotes is preserved. The venue parenthetical
+    is not treated as an author. Ambiguous unquoted or multi-title lines fail
+    closed instead of falling back to the Novel/Novella comma parser.
+    """
+    cleaned = _WINNER_PREFIX_RE.sub('', _collapse_ws(text))
+    span = _quoted_span_indexes(cleaned)
+    if span is None:
+        return None
+    opener_index, closer_index = span
+    raw_title = cleaned[opener_index + 1 : closer_index]
+    remainder = cleaned[closer_index + 1 :]
+    if _has_another_quoted_title(remainder):
+        return None
+    title = _collapse_ws(_EM_ARTIFACT_RE.sub('', raw_title))
+    remainder = remainder.strip()
+    if not remainder or (
+        remainder.startswith('(') and remainder.endswith(')')
+    ):
+        return None
+    remainder = _strip_trailing_parenthetical(remainder).strip()
+    remainder = remainder.lstrip(' ,;:')
+    remainder = re.sub(r'^by\s+', '', remainder, flags=re.IGNORECASE)
+    author = _clean_author(remainder)
+    if not title or not author or author.startswith('('):
+        return None
+    return title, author
+
+
+def _parse_annual_citation(text: str, category: str) -> tuple[str, str] | None:
+    if category == CATEGORY_SHORT_FICTION:
+        return _parse_quoted_story_citation(text)
+    return _parse_by_or_comma_citation(text)
+
+
 def _citation_from_fragments(
     em_title: str,
     strong_title: str,
     li_text: str,
+    category: str,
 ) -> tuple[str, str] | None:
+    if category == CATEGORY_SHORT_FICTION:
+        return _parse_quoted_story_citation(li_text)
     title = _clean_title(em_title or strong_title)
     cleaned_li = _collapse_ws(li_text)
     if title:
@@ -658,7 +747,9 @@ class _CategoryListParser(HTMLParser):
             status = 'Winner' if self._li_has_strong else 'Nominee'
             strong_title = _collapse_ws(''.join(self._strong_parts))
         em_title = _collapse_ws(''.join(self._em_parts))
-        parsed = _citation_from_fragments(em_title, strong_title, li_text)
+        parsed = _citation_from_fragments(
+            em_title, strong_title, li_text, self._current_category
+        )
         if parsed is None:
             return
         title, author = parsed
@@ -711,7 +802,7 @@ class _Annual2024Parser(HTMLParser):
         if not text or not self._current_category:
             return
         is_winner = bool(_WINNER_PREFIX_RE.match(text))
-        parsed = _parse_by_or_comma_citation(text)
+        parsed = _parse_annual_citation(text, self._current_category)
         if parsed is None:
             return
         title, author = parsed
@@ -918,12 +1009,17 @@ def _validate_source_components(
                 f'World Fantasy winners table produced no {category} works'
             )
 
-    for label, works in (
-        ('1982 convention page', convention_1982),
-        ('1993 convention page', convention_1993),
-        ('2005 convention page', convention_2005),
-    ):
-        for category in _CANONICAL_CATEGORIES:
+    convention_required = (
+        ('1982 convention page', convention_1982, _CANONICAL_CATEGORIES),
+        ('1993 convention page', convention_1993, _CANONICAL_CATEGORIES),
+        (
+            '2005 convention page',
+            convention_2005,
+            (CATEGORY_NOVEL, CATEGORY_NOVELLA),
+        ),
+    )
+    for label, works, required_categories in convention_required:
+        for category in required_categories:
             category_works = _works_for_category(works, category)
             nominees = [work for work in category_works if work.status == 'Nominee']
             if not category_works or not nominees:
@@ -1031,6 +1127,21 @@ def _validate_full_archive_history(winner_works: list[_TableWork]) -> None:
                 'World Fantasy winners table did not establish '
                 f'{expected} for Novella-slot {year}'
             )
+
+    short_fiction_winner_years = {
+        work.award_year
+        for work in winner_works
+        if work.category == CATEGORY_SHORT_FICTION and work.status == 'Winner'
+    }
+    missing_short_fiction = sorted(
+        SHORT_FICTION_MASTER_WINNER_YEARS - short_fiction_winner_years
+    )
+    if missing_short_fiction:
+        raise WorldFantasySourceError(
+            'World Fantasy Short Fiction winners are missing required '
+            'master-table years: '
+            + ', '.join(str(year) for year in missing_short_fiction)
+        )
 
 
 def _build_records_from_pages(
@@ -1248,7 +1359,7 @@ def _to_award_result(record: _ParsedRecord) -> AwardResult:
 # ---------------------------------------------------------------------------
 
 def lookup(title: str, author: str, series: str | None = None) -> list[AwardResult]:
-    """Look up World Fantasy Award Novel and Novella results."""
+    """Look up World Fantasy Award Novel, Novella, and Short Fiction results."""
     cleaned_title = title.strip()
     cleaned_author = author.strip()
     if not cleaned_title:
