@@ -1,4 +1,4 @@
-"""Official World Fantasy Award Novel source (worldfantasy.org)."""
+"""Official World Fantasy Award Novel and Novella source (worldfantasy.org)."""
 
 from __future__ import annotations
 
@@ -17,6 +17,15 @@ from ..model import AwardResult
 TIMEOUT_SECONDS = 30
 NOMINEES_URL = 'https://worldfantasy.org/awards/nominees/'
 WINNERS_URL = 'https://worldfantasy.org/awards/winners/'
+CONVENTION_1982_URL = (
+    'https://worldfantasy.org/1982-the-8th-world-fantasy-convention/'
+)
+CONVENTION_1993_URL = (
+    'https://worldfantasy.org/1993-the-19th-world-fantasy-convention/'
+)
+CONVENTION_2005_URL = (
+    'https://worldfantasy.org/2005-world-fantasy-convention-2005/'
+)
 ANNUAL_2013_URL = 'https://worldfantasy.org/2013-world-fantasy-awards/'
 ANNUAL_2024_URL = (
     'https://worldfantasy.org/2024-world-fantasy-nominations-and-winners/'
@@ -26,10 +35,31 @@ ANNUAL_2025_URL = 'https://worldfantasy.org/2025-wfc-nominations-and-winners/'
 SOURCE_PAGE_URLS = (
     NOMINEES_URL,
     WINNERS_URL,
+    CONVENTION_1982_URL,
+    CONVENTION_1993_URL,
+    CONVENTION_2005_URL,
     ANNUAL_2013_URL,
     ANNUAL_2024_URL,
     ANNUAL_2025_URL,
 )
+
+CATEGORY_NOVEL = 'Novel'
+CATEGORY_NOVELLA = 'Novella'
+LONG_FICTION_YEARS = frozenset({2016, 2017, 2018})
+MASTER_WINNERS_THROUGH_YEAR = 2023
+NOVEL_MASTER_WINNER_YEARS = frozenset(
+    range(1975, MASTER_WINNERS_THROUGH_YEAR + 1)
+)
+NOVELLA_MASTER_WINNER_YEARS = frozenset(
+    range(1982, MASTER_WINNERS_THROUGH_YEAR + 1)
+)
+NOVELLA_OFFICIAL_LABELS = {
+    2015: 'novella',
+    2016: 'long fiction',
+    2017: 'long fiction',
+    2018: 'long fiction',
+    2019: 'novella',
+}
 
 _BROWSER_HEADERS = {
     'User-Agent': (
@@ -76,8 +106,17 @@ class WorldFantasySourceError(RuntimeError):
 
 
 @dataclass(frozen=True, slots=True)
+class _CategoryConfig:
+    canonical: str
+    table_aliases: frozenset[str]
+    annual_heading_aliases: frozenset[str]
+    first_year: int
+
+
+@dataclass(frozen=True, slots=True)
 class _ParsedRecord:
     award_year: int
+    category: str
     status: str
     work_title: str
     work_author: str
@@ -89,6 +128,9 @@ class _ParsedRecord:
 class _FetchedPages:
     nominees_html: str
     winners_html: str
+    convention_1982_html: str
+    convention_1993_html: str
+    convention_2005_html: str
     annual_2013_html: str
     annual_2024_html: str
     annual_2025_html: str
@@ -97,8 +139,35 @@ class _FetchedPages:
 @dataclass(frozen=True, slots=True)
 class _TableWork:
     award_year: int
+    category: str
+    official_category: str
     work_title: str
     authors: tuple[str, ...]
+    status: str
+
+
+_CATEGORY_CONFIGS: tuple[_CategoryConfig, ...] = (
+    _CategoryConfig(
+        canonical=CATEGORY_NOVEL,
+        table_aliases=frozenset({'Novel'}),
+        annual_heading_aliases=frozenset({
+            'Novel',
+            'Best Novel',
+        }),
+        first_year=1975,
+    ),
+    _CategoryConfig(
+        canonical=CATEGORY_NOVELLA,
+        table_aliases=frozenset({'Novella'}),
+        annual_heading_aliases=frozenset({
+            'Novella',
+            'Best Novella',
+        }),
+        first_year=1982,
+    ),
+)
+
+_CANONICAL_CATEGORIES = tuple(config.canonical for config in _CATEGORY_CONFIGS)
 
 
 # ---------------------------------------------------------------------------
@@ -151,6 +220,9 @@ def _fetch_source_pages(opener: urllib.request.OpenerDirector) -> _FetchedPages:
     return _FetchedPages(
         nominees_html=_fetch_html(opener, NOMINEES_URL),
         winners_html=_fetch_html(opener, WINNERS_URL),
+        convention_1982_html=_fetch_html(opener, CONVENTION_1982_URL),
+        convention_1993_html=_fetch_html(opener, CONVENTION_1993_URL),
+        convention_2005_html=_fetch_html(opener, CONVENTION_2005_URL),
         annual_2013_html=_fetch_html(opener, ANNUAL_2013_URL),
         annual_2024_html=_fetch_html(opener, ANNUAL_2024_URL),
         annual_2025_html=_fetch_html(opener, ANNUAL_2025_URL),
@@ -169,17 +241,17 @@ def _reset_runtime_state() -> None:
 
 
 def _get_records() -> tuple[_ParsedRecord, ...]:
-    """Return cached Novel records, fetching once per process on success."""
+    """Return cached records, fetching once per process on success."""
     global _records_cache
     with _cache_lock:
         if _records_cache is not None:
             return _records_cache
         opener = _build_opener()
         pages = _fetch_source_pages(opener)
-        records = _build_records_from_pages(pages)
+        records = _build_records_from_pages(pages, validate_full_archive=True)
         if not records:
             raise WorldFantasySourceError(
-                'World Fantasy pages were retrieved but no Novel records '
+                'World Fantasy pages were retrieved but no records '
                 'could be parsed'
             )
         _records_cache = records
@@ -271,6 +343,45 @@ def _parse_year(text: str) -> int | None:
     return year
 
 
+def _canonical_status(text: str) -> str | None:
+    cleaned = _collapse_ws(text)
+    if cleaned.casefold() == 'winner':
+        return 'Winner'
+    if cleaned.casefold() == 'nominee':
+        return 'Nominee'
+    return None
+
+
+def _annual_heading_map() -> dict[str, str]:
+    mapping: dict[str, str] = {}
+    for config in _CATEGORY_CONFIGS:
+        for alias in config.annual_heading_aliases:
+            mapping[alias.casefold()] = config.canonical
+    return mapping
+
+
+def _resolve_table_category(raw_category: str, year: int) -> str | None:
+    """Map an official table category to a canonical plugin category.
+
+    Long Fiction is Novella only for 2016–2018. Any other year fails closed.
+    """
+    folded = _collapse_ws(raw_category).casefold()
+    if not folded:
+        return None
+    if folded == 'long fiction':
+        if year not in LONG_FICTION_YEARS:
+            raise WorldFantasySourceError(
+                'World Fantasy table used Long Fiction in '
+                f'{year}, outside the official 2016–2018 interval'
+            )
+        return CATEGORY_NOVELLA
+    for config in _CATEGORY_CONFIGS:
+        aliases = {alias.casefold() for alias in config.table_aliases}
+        if folded in aliases:
+            return config.canonical
+    return None
+
+
 # ---------------------------------------------------------------------------
 # Table parsing
 # ---------------------------------------------------------------------------
@@ -328,49 +439,70 @@ def _parse_table_rows(html: str) -> list[list[str]]:
     return parser.rows
 
 
-def _recover_novel_title(cells: list[str]) -> str | None:
-    if len(cells) >= 6 and cells[3].casefold() == 'novel':
-        return _clean_title(cells[4])
-    if len(cells) == 5 and cells[3].casefold() == 'novel':
+def _recover_title_and_status(cells: list[str]) -> tuple[str | None, str | None]:
+    """Recover title and Winner/Nominee from a six- or five-cell official row."""
+    if len(cells) >= 6:
+        title = _clean_title(cells[4])
+        status = _canonical_status(cells[5])
+        if not title or status is None:
+            return None, None
+        return title, status
+    if len(cells) == 5:
         jammed = cells[4]
         match = _TRAILING_STATUS_RE.match(jammed)
         if match is None:
-            title = _clean_title(jammed)
-            return title or None
-        return _clean_title(match.group('title')) or None
-    return None
+            return None, None
+        title = _clean_title(match.group('title'))
+        status = _canonical_status(match.group('status'))
+        if not title or status is None:
+            return None, None
+        return title, status
+    return None, None
 
 
-def _novel_table_works(html: str) -> list[_TableWork]:
-    grouped: dict[tuple[int, str], list[str]] = {}
-    titles_by_group: dict[tuple[int, str], str] = {}
-    order: list[tuple[int, str]] = []
+def _table_works(html: str) -> list[_TableWork]:
+    grouped: dict[tuple[int, str, str], list[str]] = {}
+    titles_by_group: dict[tuple[int, str, str], str] = {}
+    official_by_group: dict[tuple[int, str, str], str] = {}
+    status_by_group: dict[tuple[int, str, str], str] = {}
+    order: list[tuple[int, str, str]] = []
     for cells in _parse_table_rows(html):
         if len(cells) < 5:
             continue
         if cells[0].casefold() == 'first name':
             continue
-        if cells[3].casefold() != 'novel':
-            continue
         year = _parse_year(cells[2])
-        title = _recover_novel_title(cells)
+        official_category = _collapse_ws(cells[3])
+        if year is None or not official_category:
+            continue
+        category = _resolve_table_category(official_category, year)
+        if category is None:
+            continue
+        title, status = _recover_title_and_status(cells)
         first = _collapse_ws(cells[0])
         last = _collapse_ws(cells[1])
         author = _collapse_ws(f'{first} {last}')
-        if year is None or not title or not author:
+        if not title or status is None or not author:
             continue
-        group_key = (year, _title_key(title))
+        group_key = (year, category, _title_key(title))
         if group_key not in grouped:
             grouped[group_key] = []
             titles_by_group[group_key] = title
+            official_by_group[group_key] = official_category
+            status_by_group[group_key] = status
             order.append(group_key)
+        elif status == 'Winner':
+            status_by_group[group_key] = 'Winner'
         if author not in grouped[group_key]:
             grouped[group_key].append(author)
     return [
         _TableWork(
             award_year=group_key[0],
+            category=group_key[1],
+            official_category=official_by_group[group_key],
             work_title=titles_by_group[group_key],
             authors=tuple(grouped[group_key]),
+            status=status_by_group[group_key],
         )
         for group_key in order
     ]
@@ -415,20 +547,21 @@ def _citation_from_fragments(
 
 
 class _CategoryListParser(HTMLParser):
-    """Capture one category <ul> that follows a target heading."""
+    """Capture configured category <ul> lists that follow matching headings."""
 
-    def __init__(self, target_heading: str, winner_mode: str) -> None:
+    def __init__(self, heading_to_category: dict[str, str], winner_mode: str) -> None:
         super().__init__(convert_charrefs=True)
-        self._target = target_heading.casefold()
+        self._targets = heading_to_category
         self._winner_mode = winner_mode
-        self.records: list[tuple[str, str, str]] = []
+        self.records: list[tuple[str, str, str, str]] = []
         self._in_p = False
         self._in_h4 = False
         self._heading_parts: list[str] = []
         self._want_ul = False
+        self._pending_category = ''
         self._in_target_ul = False
+        self._current_category = ''
         self._ul_depth = 0
-        self._done = False
         self._in_li = False
         self._li_depth = 0
         self._li_parts: list[str] = []
@@ -442,8 +575,6 @@ class _CategoryListParser(HTMLParser):
         return _collapse_ws(''.join(self._heading_parts))
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
-        if self._done:
-            return
         if tag in {'p', 'h3', 'h4'} and not self._in_li:
             self._in_p = tag == 'p'
             self._in_h4 = tag in {'h3', 'h4'}
@@ -451,6 +582,7 @@ class _CategoryListParser(HTMLParser):
             return
         if tag == 'ul' and self._want_ul and not self._in_target_ul:
             self._in_target_ul = True
+            self._current_category = self._pending_category
             self._want_ul = False
             self._ul_depth = 1
             return
@@ -480,8 +612,10 @@ class _CategoryListParser(HTMLParser):
             self._in_p = False
             self._in_h4 = False
             self._heading_parts = []
-            if heading.casefold() == self._target:
+            category = self._targets.get(heading.casefold())
+            if category is not None:
                 self._want_ul = True
+                self._pending_category = category
             return
         if self._in_li and tag == 'em' and self._in_em:
             self._in_em = False
@@ -499,11 +633,9 @@ class _CategoryListParser(HTMLParser):
             self._ul_depth -= 1
             if self._ul_depth <= 0:
                 self._in_target_ul = False
-                self._done = True
+                self._current_category = ''
 
     def handle_data(self, data: str) -> None:
-        if self._done:
-            return
         if self._in_p or self._in_h4:
             self._heading_parts.append(data)
         if self._in_li:
@@ -515,7 +647,7 @@ class _CategoryListParser(HTMLParser):
 
     def _finish_li(self) -> None:
         li_text = _collapse_ws(''.join(self._li_parts))
-        if not li_text:
+        if not li_text or not self._current_category:
             return
         if self._winner_mode == 'prefix':
             status = 'Winner' if _WINNER_PREFIX_RE.match(li_text) else 'Nominee'
@@ -530,30 +662,30 @@ class _CategoryListParser(HTMLParser):
         if parsed is None:
             return
         title, author = parsed
-        self.records.append((status, title, author))
+        self.records.append((self._current_category, status, title, author))
 
 
 class _Annual2024Parser(HTMLParser):
-    """Parse the 2024 NOVEL heading plus following paragraphs."""
+    """Parse 2024 h4 category headings plus following paragraphs."""
 
-    def __init__(self) -> None:
+    def __init__(self, heading_to_category: dict[str, str]) -> None:
         super().__init__(convert_charrefs=True)
-        self.records: list[tuple[str, str, str]] = []
+        self._targets = heading_to_category
+        self.records: list[tuple[str, str, str, str]] = []
         self._in_h4 = False
         self._h4_parts: list[str] = []
-        self._in_novel = False
+        self._current_category = ''
         self._in_p = False
         self._p_parts: list[str] = []
-        self._seen: set[str] = set()
+        self._seen: set[tuple[str, str]] = set()
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         if tag == 'h4':
-            if self._in_novel:
-                self._in_novel = False
+            self._current_category = ''
             self._in_h4 = True
             self._h4_parts = []
             return
-        if self._in_novel and tag == 'p' and not self._in_p:
+        if self._current_category and tag == 'p' and not self._in_p:
             self._in_p = True
             self._p_parts = []
 
@@ -562,7 +694,7 @@ class _Annual2024Parser(HTMLParser):
             heading = _collapse_ws(''.join(self._h4_parts))
             self._in_h4 = False
             self._h4_parts = []
-            self._in_novel = heading.casefold() == 'novel'
+            self._current_category = self._targets.get(heading.casefold(), '')
             return
         if tag == 'p' and self._in_p:
             self._finish_p()
@@ -576,55 +708,57 @@ class _Annual2024Parser(HTMLParser):
 
     def _finish_p(self) -> None:
         text = _collapse_ws(''.join(self._p_parts))
-        if not text:
+        if not text or not self._current_category:
             return
         is_winner = bool(_WINNER_PREFIX_RE.match(text))
         parsed = _parse_by_or_comma_citation(text)
         if parsed is None:
             return
         title, author = parsed
-        title_key = _title_key(title)
-        if title_key in self._seen:
+        seen_key = (self._current_category, _title_key(title))
+        if seen_key in self._seen:
             return
-        self._seen.add(title_key)
+        self._seen.add(seen_key)
         status = 'Winner' if is_winner else 'Nominee'
-        self.records.append((status, title, author))
+        self.records.append((self._current_category, status, title, author))
 
 
 def _records_from_list(
-    items: list[tuple[str, str, str]],
+    items: list[tuple[str, str, str, str]],
     award_year: int,
     source_url: str,
 ) -> list[_ParsedRecord]:
     records: list[_ParsedRecord] = []
-    seen: set[tuple[str, str, str]] = set()
-    for status, title, author in items:
-        key = (status, _title_key(title), _author_key(author))
+    seen: set[tuple[str, str, str, str]] = set()
+    for category, status, title, author in items:
+        key = (category, status, _title_key(title), _author_key(author))
         if key in seen:
             continue
         seen.add(key)
         records.append(
-            _make_record(award_year, status, title, (author,), source_url)
+            _make_record(
+                award_year, category, status, title, (author,), source_url
+            )
         )
     return records
 
 
-def _parse_2013_novel_html(html: str) -> list[_ParsedRecord]:
-    parser = _CategoryListParser('novel', winner_mode='strong')
+def _parse_2013_html(html: str) -> list[_ParsedRecord]:
+    parser = _CategoryListParser(_annual_heading_map(), winner_mode='strong')
     parser.feed(html)
     parser.close()
     return _records_from_list(parser.records, 2013, ANNUAL_2013_URL)
 
 
-def _parse_2024_novel_html(html: str) -> list[_ParsedRecord]:
-    parser = _Annual2024Parser()
+def _parse_2024_html(html: str) -> list[_ParsedRecord]:
+    parser = _Annual2024Parser(_annual_heading_map())
     parser.feed(html)
     parser.close()
     return _records_from_list(parser.records, 2024, ANNUAL_2024_URL)
 
 
-def _parse_2025_novel_html(html: str) -> list[_ParsedRecord]:
-    parser = _CategoryListParser('best novel', winner_mode='prefix')
+def _parse_2025_html(html: str) -> list[_ParsedRecord]:
+    parser = _CategoryListParser(_annual_heading_map(), winner_mode='prefix')
     parser.feed(html)
     parser.close()
     return _records_from_list(parser.records, 2025, ANNUAL_2025_URL)
@@ -636,6 +770,7 @@ def _parse_2025_novel_html(html: str) -> list[_ParsedRecord]:
 
 def _make_record(
     award_year: int,
+    category: str,
     status: str,
     title: str,
     authors: tuple[str, ...],
@@ -644,6 +779,7 @@ def _make_record(
     author = _join_authors(authors)
     return _ParsedRecord(
         award_year=award_year,
+        category=category,
         status=status,
         work_title=title,
         work_author=author,
@@ -660,36 +796,74 @@ def _author_key(author: str) -> str:
     return _normalize_text(_ascii_fold(author))
 
 
-def _work_identities(title: str, authors: tuple[str, ...] | str) -> set[tuple[str, str]]:
-    title_key = _title_key(title)
+def _author_identity_keys(authors: tuple[str, ...] | str) -> tuple[str, ...]:
     if isinstance(authors, str):
         name_list = _split_author_names(authors)
     else:
         name_list = authors
-    identities = {(title_key, _author_key(name)) for name in name_list}
-    identities.add((title_key, _author_key(_join_authors(tuple(name_list)))))
-    return identities
+    keys = [_author_key(name) for name in name_list]
+    keys.append(_author_key(_join_authors(tuple(name_list))))
+    return tuple(dict.fromkeys(key for key in keys if key))
 
 
-def _identities_for_record(record: _ParsedRecord) -> set[tuple[str, str]]:
-    return _work_identities(record.work_title, record.match_authors)
+def _record_identities(
+    award_year: int,
+    category: str,
+    title: str,
+    authors: tuple[str, ...] | str,
+) -> set[tuple[int, str, str, str]]:
+    """Normal year-scoped identity for merge/dedupe."""
+    title_key = _title_key(title)
+    return {
+        (award_year, category, title_key, author_key)
+        for author_key in _author_identity_keys(authors)
+    }
 
 
-def _build_records_from_html(
-    nominees_html: str,
-    winners_html: str,
-    annual_2013_html: str,
-    annual_2024_html: str,
-    annual_2025_html: str,
-) -> tuple[_ParsedRecord, ...]:
-    pages = _FetchedPages(
-        nominees_html=nominees_html,
-        winners_html=winners_html,
-        annual_2013_html=annual_2013_html,
-        annual_2024_html=annual_2024_html,
-        annual_2025_html=annual_2025_html,
+def _correction_identities(
+    category: str,
+    title: str,
+    authors: tuple[str, ...] | str,
+) -> set[tuple[str, str, str]]:
+    """Yearless 2013-correction identity. Do not use for ordinary dedupe."""
+    title_key = _title_key(title)
+    return {
+        (category, title_key, author_key)
+        for author_key in _author_identity_keys(authors)
+    }
+
+
+def _identities_for_record(
+    record: _ParsedRecord,
+) -> set[tuple[int, str, str, str]]:
+    return _record_identities(
+        record.award_year,
+        record.category,
+        record.work_title,
+        record.match_authors,
     )
-    return _build_records_from_pages(pages)
+
+
+def _correction_identities_for_record(
+    record: _ParsedRecord,
+) -> set[tuple[str, str, str]]:
+    return _correction_identities(
+        record.category, record.work_title, record.match_authors
+    )
+
+
+def _works_for_category(
+    works: list[_TableWork],
+    category: str,
+) -> list[_TableWork]:
+    return [work for work in works if work.category == category]
+
+
+def _records_for_category(
+    records: list[_ParsedRecord],
+    category: str,
+) -> list[_ParsedRecord]:
+    return [record for record in records if record.category == category]
 
 
 def _annual_status_counts(records: list[_ParsedRecord]) -> tuple[int, int]:
@@ -698,52 +872,193 @@ def _annual_status_counts(records: list[_ParsedRecord]) -> tuple[int, int]:
     return winners, nominees
 
 
+def _validate_novella_official_names(table_works: list[_TableWork]) -> None:
+    by_year: dict[int, set[str]] = {}
+    for work in table_works:
+        if work.category != CATEGORY_NOVELLA:
+            continue
+        by_year.setdefault(work.award_year, set()).add(
+            work.official_category.casefold()
+        )
+    expected = {
+        2015: frozenset({'novella'}),
+        2016: frozenset({'long fiction'}),
+        2017: frozenset({'long fiction'}),
+        2018: frozenset({'long fiction'}),
+        2019: frozenset({'novella'}),
+    }
+    for year, names in expected.items():
+        if year not in by_year:
+            continue
+        if by_year[year] != set(names):
+            raise WorldFantasySourceError(
+                'World Fantasy official Novella category name for '
+                f'{year} was {sorted(by_year[year])}, expected {sorted(names)}'
+            )
+
+
 def _validate_source_components(
     nominee_works: list[_TableWork],
     winner_works: list[_TableWork],
+    convention_1982: list[_TableWork],
+    convention_1993: list[_TableWork],
+    convention_2005: list[_TableWork],
     annual_2013: list[_ParsedRecord],
     annual_2024: list[_ParsedRecord],
     annual_2025: list[_ParsedRecord],
 ) -> None:
-    """Fail closed if any required official page did not parse a usable Novel slate."""
-    if not nominee_works:
-        raise WorldFantasySourceError(
-            'World Fantasy nominees table produced no Novel works'
-        )
-    if not winner_works:
-        raise WorldFantasySourceError(
-            'World Fantasy winners table produced no Novel works'
-        )
+    """Fail closed if a required official page did not parse a usable slate."""
+    for category in _CANONICAL_CATEGORIES:
+        if not _works_for_category(nominee_works, category):
+            raise WorldFantasySourceError(
+                f'World Fantasy nominees table produced no {category} works'
+            )
+        if not _works_for_category(winner_works, category):
+            raise WorldFantasySourceError(
+                f'World Fantasy winners table produced no {category} works'
+            )
+
+    for label, works in (
+        ('1982 convention page', convention_1982),
+        ('1993 convention page', convention_1993),
+        ('2005 convention page', convention_2005),
+    ):
+        for category in _CANONICAL_CATEGORIES:
+            category_works = _works_for_category(works, category)
+            nominees = [work for work in category_works if work.status == 'Nominee']
+            if not category_works or not nominees:
+                raise WorldFantasySourceError(
+                    f'World Fantasy {label} did not produce a usable '
+                    f'{category} nominee slate'
+                )
+
     for label, records in (
         ('2013 annual page', annual_2013),
         ('2024 annual page', annual_2024),
         ('2025 annual page', annual_2025),
     ):
-        winners, nominees = _annual_status_counts(records)
-        if winners != 1 or nominees < 1:
+        for category in _CANONICAL_CATEGORIES:
+            winners, nominees = _annual_status_counts(
+                _records_for_category(records, category)
+            )
+            if winners < 1 or nominees < 1:
+                raise WorldFantasySourceError(
+                    f'World Fantasy {label} did not produce at least one '
+                    f'{category} Winner and at least one Nominee '
+                    f'(winners={winners}, nominees={nominees})'
+                )
+
+    _validate_novella_official_names(
+        nominee_works + winner_works + convention_1982
+        + convention_1993 + convention_2005
+    )
+
+
+def _validate_merged_records(
+    records: tuple[_ParsedRecord, ...],
+    annual_2013: list[_ParsedRecord],
+) -> None:
+    correction_identities: set[tuple[str, str, str]] = set()
+    for record in annual_2013:
+        correction_identities.update(_correction_identities_for_record(record))
+    for record in records:
+        if record.award_year != 2012:
+            continue
+        if _correction_identities_for_record(record) & correction_identities:
             raise WorldFantasySourceError(
-                f'World Fantasy {label} did not produce exactly one '
-                f'Winner and at least one Nominee '
-                f'(winners={winners}, nominees={nominees})'
+                'World Fantasy 2013 correction left a 2012 record for '
+                f'{record.category} {record.work_title!r}'
+            )
+
+    for category in _CANONICAL_CATEGORIES:
+        for year in (1982, 1993, 2005):
+            has_nominee = any(
+                record.category == category
+                and record.award_year == year
+                and record.status == 'Nominee'
+                for record in records
+            )
+            if not has_nominee:
+                raise WorldFantasySourceError(
+                    f'World Fantasy {category} {year} has no nominee slate'
+                )
+
+
+def _novella_official_labels_by_year(
+    winner_works: list[_TableWork],
+) -> dict[int, set[str]]:
+    official_by_year: dict[int, set[str]] = {}
+    for work in winner_works:
+        if work.category != CATEGORY_NOVELLA:
+            continue
+        official_by_year.setdefault(work.award_year, set()).add(
+            work.official_category.casefold()
+        )
+    return official_by_year
+
+
+def _validate_full_archive_history(winner_works: list[_TableWork]) -> None:
+    """Require the stable official master winners-table baseline."""
+    novel_winner_years = {
+        work.award_year
+        for work in winner_works
+        if work.category == CATEGORY_NOVEL and work.status == 'Winner'
+    }
+    missing_novel = sorted(NOVEL_MASTER_WINNER_YEARS - novel_winner_years)
+    if missing_novel:
+        raise WorldFantasySourceError(
+            'World Fantasy Novel winners are missing required master-table '
+            'years: ' + ', '.join(str(year) for year in missing_novel)
+        )
+
+    novella_winner_years = {
+        work.award_year
+        for work in winner_works
+        if work.category == CATEGORY_NOVELLA and work.status == 'Winner'
+    }
+    missing_novella = sorted(NOVELLA_MASTER_WINNER_YEARS - novella_winner_years)
+    if missing_novella:
+        raise WorldFantasySourceError(
+            'World Fantasy Novella winners are missing required master-table '
+            'years: ' + ', '.join(str(year) for year in missing_novella)
+        )
+
+    official_by_year = _novella_official_labels_by_year(winner_works)
+    for year, expected in NOVELLA_OFFICIAL_LABELS.items():
+        names = official_by_year.get(year)
+        if not names or names != {expected}:
+            raise WorldFantasySourceError(
+                'World Fantasy winners table did not establish '
+                f'{expected} for Novella-slot {year}'
             )
 
 
-def _build_records_from_pages(pages: _FetchedPages) -> tuple[_ParsedRecord, ...]:
-    winner_works = _novel_table_works(pages.winners_html)
-    nominee_works = _novel_table_works(pages.nominees_html)
-    annual_2013 = _parse_2013_novel_html(pages.annual_2013_html)
-    annual_2024 = _parse_2024_novel_html(pages.annual_2024_html)
-    annual_2025 = _parse_2025_novel_html(pages.annual_2025_html)
+def _build_records_from_pages(
+    pages: _FetchedPages,
+    *,
+    validate_full_archive: bool = False,
+) -> tuple[_ParsedRecord, ...]:
+    winner_works = _table_works(pages.winners_html)
+    nominee_works = _table_works(pages.nominees_html)
+    convention_1982 = _table_works(pages.convention_1982_html)
+    convention_1993 = _table_works(pages.convention_1993_html)
+    convention_2005 = _table_works(pages.convention_2005_html)
+    annual_2013 = _parse_2013_html(pages.annual_2013_html)
+    annual_2024 = _parse_2024_html(pages.annual_2024_html)
+    annual_2025 = _parse_2025_html(pages.annual_2025_html)
     _validate_source_components(
         nominee_works,
         winner_works,
+        convention_1982,
+        convention_1993,
+        convention_2005,
         annual_2013,
         annual_2024,
         annual_2025,
     )
 
     records: list[_ParsedRecord] = []
-    seen_identities: set[tuple[str, str]] = set()
+    seen_identities: set[tuple[int, str, str, str]] = set()
 
     def _add(record: _ParsedRecord) -> None:
         identities = _identities_for_record(record)
@@ -756,6 +1071,7 @@ def _build_records_from_pages(pages: _FetchedPages) -> tuple[_ParsedRecord, ...]
         _add(
             _make_record(
                 work.award_year,
+                work.category,
                 'Winner',
                 work.work_title,
                 work.authors,
@@ -763,20 +1079,38 @@ def _build_records_from_pages(pages: _FetchedPages) -> tuple[_ParsedRecord, ...]
             )
         )
 
-    correction_identities: set[tuple[str, str]] = set()
+    correction_identities: set[tuple[str, str, str]] = set()
     for record in annual_2013:
-        correction_identities.update(_identities_for_record(record))
+        correction_identities.update(_correction_identities_for_record(record))
         _add(record)
 
+    def _is_misfiled_2013_copy(
+        award_year: int,
+        category: str,
+        title: str,
+        authors: tuple[str, ...],
+    ) -> bool:
+        if award_year != 2012:
+            return False
+        return bool(
+            _correction_identities(category, title, authors)
+            & correction_identities
+        )
+
     for work in nominee_works:
-        identities = _work_identities(work.work_title, work.authors)
+        identities = _record_identities(
+            work.award_year, work.category, work.work_title, work.authors
+        )
         if identities & seen_identities:
             continue
-        if identities & correction_identities:
+        if _is_misfiled_2013_copy(
+            work.award_year, work.category, work.work_title, work.authors
+        ):
             continue
         _add(
             _make_record(
                 work.award_year,
+                work.category,
                 'Nominee',
                 work.work_title,
                 work.authors,
@@ -784,12 +1118,42 @@ def _build_records_from_pages(pages: _FetchedPages) -> tuple[_ParsedRecord, ...]
             )
         )
 
+    for works, source_url in (
+        (convention_1982, CONVENTION_1982_URL),
+        (convention_1993, CONVENTION_1993_URL),
+        (convention_2005, CONVENTION_2005_URL),
+    ):
+        for work in works:
+            identities = _record_identities(
+                work.award_year, work.category, work.work_title, work.authors
+            )
+            if identities & seen_identities:
+                continue
+            if _is_misfiled_2013_copy(
+                work.award_year, work.category, work.work_title, work.authors
+            ):
+                continue
+            _add(
+                _make_record(
+                    work.award_year,
+                    work.category,
+                    work.status,
+                    work.work_title,
+                    work.authors,
+                    source_url,
+                )
+            )
+
     for record in annual_2024:
         _add(record)
     for record in annual_2025:
         _add(record)
 
-    return tuple(records)
+    merged = tuple(records)
+    _validate_merged_records(merged, annual_2013)
+    if validate_full_archive:
+        _validate_full_archive_history(winner_works)
+    return merged
 
 
 # ---------------------------------------------------------------------------
@@ -870,7 +1234,7 @@ def _to_award_result(record: _ParsedRecord) -> AwardResult:
         work_author=record.work_author,
         award_name='World Fantasy Award',
         award_year=record.award_year,
-        category='Novel',
+        category=record.category,
         status=record.status,
         rank=None,
         source_name='World Fantasy Awards',
@@ -884,7 +1248,7 @@ def _to_award_result(record: _ParsedRecord) -> AwardResult:
 # ---------------------------------------------------------------------------
 
 def lookup(title: str, author: str, series: str | None = None) -> list[AwardResult]:
-    """Look up World Fantasy Award Novel results for a title and author."""
+    """Look up World Fantasy Award Novel and Novella results."""
     cleaned_title = title.strip()
     cleaned_author = author.strip()
     if not cleaned_title:
@@ -893,12 +1257,13 @@ def lookup(title: str, author: str, series: str | None = None) -> list[AwardResu
         raise ValueError('author must be a non-empty string')
 
     matches: list[AwardResult] = []
-    seen: set[tuple[int, str, str, str, str]] = set()
+    seen: set[tuple[int, str, str, str, str, str]] = set()
     for record in _get_records():
         if not _record_matches(record, cleaned_title, cleaned_author):
             continue
         key = (
             record.award_year,
+            record.category,
             record.status,
             record.work_title.casefold(),
             record.work_author.casefold(),

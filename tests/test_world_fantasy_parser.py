@@ -21,6 +21,9 @@ def _sample_pages(**overrides):
     pages = {
         'nominees_html': _load_fixture('nominees_sample.html'),
         'winners_html': _load_fixture('winners_sample.html'),
+        'convention_1982_html': _load_fixture('convention_1982.html'),
+        'convention_1993_html': _load_fixture('convention_1993.html'),
+        'convention_2005_html': _load_fixture('convention_2005.html'),
         'annual_2013_html': _load_fixture('annual_2013.html'),
         'annual_2024_html': _load_fixture('annual_2024.html'),
         'annual_2025_html': _load_fixture('annual_2025.html'),
@@ -129,24 +132,69 @@ class WorldFantasyParserTests(unittest.TestCase):
             )
         )
 
-    def test_last_call_winner_without_nominees_slate(self):
-        matches = _find(
+    def test_1982_novel_nominee_hole_is_repaired(self):
+        winner = _find(
+            self.records, title='Little, Big', author='John Crowley'
+        )
+        nominee = _find(
+            self.records,
+            title='The Claw of the Conciliator',
+            author='Gene Wolfe',
+        )
+        self.assertEqual(len(winner), 1)
+        self.assertEqual(winner[0].award_year, 1982)
+        self.assertEqual(winner[0].status, 'Winner')
+        self.assertEqual(len(nominee), 1)
+        self.assertEqual(nominee[0].award_year, 1982)
+        self.assertEqual(nominee[0].status, 'Nominee')
+        self.assertEqual(nominee[0].category, 'Novel')
+        self.assertEqual(
+            nominee[0].source_url, world_fantasy.CONVENTION_1982_URL
+        )
+
+    def test_last_call_winner_and_1993_nominee_slate(self):
+        winner = _find(
             self.records, title='Last Call', author='Tim Powers'
         )
-        self.assertEqual(len(matches), 1)
-        self.assertEqual(matches[0].award_year, 1993)
-        self.assertEqual(matches[0].status, 'Winner')
-        self.assertEqual(matches[0].source_url, world_fantasy.WINNERS_URL)
+        nominee = _find(
+            self.records, title='Anno Dracula', author='Kim Newman'
+        )
+        self.assertEqual(len(winner), 1)
+        self.assertEqual(winner[0].award_year, 1993)
+        self.assertEqual(winner[0].status, 'Winner')
+        self.assertEqual(winner[0].source_url, world_fantasy.WINNERS_URL)
+        self.assertEqual(len(nominee), 1)
+        self.assertEqual(nominee[0].award_year, 1993)
+        self.assertEqual(nominee[0].status, 'Nominee')
+        self.assertEqual(nominee[0].category, 'Novel')
+        self.assertEqual(
+            nominee[0].source_url, world_fantasy.CONVENTION_1993_URL
+        )
 
-    def test_jonathan_strange_winner_without_nominees_slate(self):
-        matches = _find(
+    def test_jonathan_strange_winner_and_2005_nominee_slate(self):
+        winner = _find(
             self.records,
             title='Jonathan Strange & Mr Norrell',
             author='Susanna Clarke',
         )
-        self.assertEqual(len(matches), 1)
-        self.assertEqual(matches[0].award_year, 2005)
-        self.assertEqual(matches[0].status, 'Winner')
+        nominee = _find(
+            self.records, title='Iron Council', author='China Miéville'
+        )
+        self.assertEqual(len(winner), 1)
+        self.assertEqual(winner[0].award_year, 2005)
+        self.assertEqual(winner[0].status, 'Winner')
+        self.assertEqual(winner[0].source_url, world_fantasy.WINNERS_URL)
+        self.assertEqual(len(nominee), 1)
+        self.assertEqual(nominee[0].award_year, 2005)
+        self.assertEqual(nominee[0].status, 'Nominee')
+        self.assertEqual(nominee[0].category, 'Novel')
+        self.assertEqual(
+            nominee[0].source_url, world_fantasy.CONVENTION_2005_URL
+        )
+        self.assertEqual(
+            len(_find(self.records, title='The Wizard Knight', author='Gene Wolfe')),
+            1,
+        )
 
     def test_jonathan_strange_and_query_matches_ampersand_winner(self):
         matches = _find(
@@ -337,39 +385,23 @@ class WorldFantasyParserTests(unittest.TestCase):
             [],
         )
 
-    def test_category_isolation_excludes_novella_and_long_fiction(self):
-        self.assertEqual(
-            _find(
-                self.records,
-                title='The Unlicensed Magician',
-                author='Kelly Barnhill',
-            ),
-            [],
-        )
-        self.assertEqual(
-            _find(
-                self.records,
-                title='Beyond Any Measure',
-                author='Karl Edward Wagner',
-            ),
-            [],
-        )
-        self.assertEqual(
-            _find(
-                self.records,
-                title='The Emperor’s Soul',
-                author='Brandon Sanderson',
-            ),
-            [],
-        )
-        self.assertEqual(
-            _find(
-                self.records,
-                title='Yoke of Stars',
-                author='R.B. Lemberg',
-            ),
-            [],
-        )
+    def test_category_isolation_keeps_novella_out_of_novel(self):
+        for title, author in (
+            ('The Unlicensed Magician', 'Kelly Barnhill'),
+            ('Beyond Any Measure', 'Karl Edward Wagner'),
+            ('The Emperor’s Soul', 'Brandon Sanderson'),
+            ('Yoke of Stars', 'R.B. Lemberg'),
+        ):
+            matches = _find(self.records, title=title, author=author)
+            self.assertTrue(matches, msg=title)
+            self.assertTrue(
+                all(record.category == 'Novella' for record in matches),
+                msg=title,
+            )
+            self.assertFalse(
+                any(record.category == 'Novel' for record in matches),
+                msg=title,
+            )
 
     def test_standalone_ampersand_matches_and(self):
         self.assertTrue(
@@ -404,10 +436,17 @@ class WorldFantasyParserTests(unittest.TestCase):
             (
                 world_fantasy.NOMINEES_URL,
                 world_fantasy.WINNERS_URL,
+                world_fantasy.CONVENTION_1982_URL,
+                world_fantasy.CONVENTION_1993_URL,
+                world_fantasy.CONVENTION_2005_URL,
                 world_fantasy.ANNUAL_2013_URL,
                 world_fantasy.ANNUAL_2024_URL,
                 world_fantasy.ANNUAL_2025_URL,
             ),
+        )
+        self.assertNotIn(
+            'https://worldfantasy.org/2013-world-fantasy-convention/',
+            world_fantasy.SOURCE_PAGE_URLS,
         )
         self.assertFalse(
             any(record.award_year == 2026 for record in self.records)
@@ -517,6 +556,9 @@ class WorldFantasyHttpAndCacheTests(unittest.TestCase):
         empty = world_fantasy._FetchedPages(
             nominees_html='<html></html>',
             winners_html='<html></html>',
+            convention_1982_html='<html></html>',
+            convention_1993_html='<html></html>',
+            convention_2005_html='<html></html>',
             annual_2013_html='<html></html>',
             annual_2024_html='<html></html>',
             annual_2025_html='<html></html>',
@@ -579,13 +621,46 @@ class WorldFantasyHttpAndCacheTests(unittest.TestCase):
         self.assertIsNone(world_fantasy._records_cache)
         self.assertIn('2025 annual page', str(ctx.exception))
 
+    def test_broken_1982_convention_page_raises_and_does_not_cache(self):
+        pages = _sample_pages(convention_1982_html='<html><p>no table</p></html>')
+        with patch.object(
+            world_fantasy, '_fetch_source_pages', return_value=pages
+        ):
+            with self.assertRaises(world_fantasy.WorldFantasySourceError) as ctx:
+                world_fantasy._get_records()
+        self.assertIsNone(world_fantasy._records_cache)
+        self.assertIn('1982 convention page', str(ctx.exception))
+
+    def test_broken_1993_convention_page_raises_and_does_not_cache(self):
+        pages = _sample_pages(convention_1993_html='<html><p>no table</p></html>')
+        with patch.object(
+            world_fantasy, '_fetch_source_pages', return_value=pages
+        ):
+            with self.assertRaises(world_fantasy.WorldFantasySourceError) as ctx:
+                world_fantasy._get_records()
+        self.assertIsNone(world_fantasy._records_cache)
+        self.assertIn('1993 convention page', str(ctx.exception))
+
+    def test_broken_2005_convention_page_raises_and_does_not_cache(self):
+        pages = _sample_pages(convention_2005_html='<html><p>no table</p></html>')
+        with patch.object(
+            world_fantasy, '_fetch_source_pages', return_value=pages
+        ):
+            with self.assertRaises(world_fantasy.WorldFantasySourceError) as ctx:
+                world_fantasy._get_records()
+        self.assertIsNone(world_fantasy._records_cache)
+        self.assertIn('2005 convention page', str(ctx.exception))
+
     def test_get_records_caches_after_success(self):
         pages = _sample_pages()
         with patch.object(
             world_fantasy, '_fetch_source_pages', return_value=pages
         ) as fetch:
-            first = world_fantasy._get_records()
-            second = world_fantasy._get_records()
+            with patch.object(
+                world_fantasy, '_validate_full_archive_history'
+            ):
+                first = world_fantasy._get_records()
+                second = world_fantasy._get_records()
         self.assertIs(first, second)
         fetch.assert_called_once()
 
