@@ -51,6 +51,10 @@ _PLACE_RE = re.compile(
     re.IGNORECASE,
 )
 _DASH_SPLIT_RE = re.compile(r'[\u2014\u2013\u0097]+')
+_QUOTE_PAIRS = {
+    '"': '"',
+    '\u201c': '\u201d',
+}
 
 _SUPPORTED_CATEGORY_LABELS = (
     'Novel',
@@ -61,6 +65,7 @@ _SUPPORTED_CATEGORY_LABELS = (
     'Young Adult Book',
     'Young Adult Novel',
     'Translated Novel',
+    'Novella',
 )
 _SUPPORTED_CATEGORY_KEYS = frozenset(
     label.casefold() for label in _SUPPORTED_CATEGORY_LABELS
@@ -76,12 +81,12 @@ _DISCOVERY_TO_ANNUAL_CATEGORY = {
     'young adult book': 'Young Adult Book',
     'young adult novel': 'Young Adult Novel',
     'translated novel': 'Translated Novel',
+    'novella': 'Novella',
 }
 _DISCOVERY_SUPPORTED_KEYS = frozenset(_DISCOVERY_TO_ANNUAL_CATEGORY)
 _TRANSLATED_BY_RE = re.compile(r'translated\s+by', re.IGNORECASE)
 _TRANS_GLITCH_RE = re.compile(r',\s*trans(?:lators?|\d+)\b', re.IGNORECASE)
 _RECOGNIZED_UNSUPPORTED_KEYS = frozenset({
-    'novella',
     'novelette',
     'short story',
     'short fiction',
@@ -371,6 +376,30 @@ def _work_authors_from_links(
 # Author-page parsing (discovery only)
 # ---------------------------------------------------------------------------
 
+def _extract_leading_quoted_title(text: str) -> str | None:
+    """Return a complete leading double-quoted title, or None.
+
+    Activates only when, after leading whitespace, ``text`` begins with an
+    ASCII or curly double quote and contains that quote's matching closer.
+    Exactly one surrounding pair is stripped; interior quotes are left intact.
+    Whitespace inside the pair is collapsed. Single-quoted forms, unmatched
+    double quotes, and empty quotes return None.
+    """
+    stripped = text.lstrip()
+    if not stripped:
+        return None
+    closer = _QUOTE_PAIRS.get(stripped[0])
+    if closer is None:
+        return None
+    close_at = stripped.find(closer, 1)
+    if close_at < 0:
+        return None
+    title = _collapse_ws(stripped[1:close_at])
+    if not title:
+        return None
+    return title
+
+
 def _parse_discovery_placement(
     text: str, *, winner_markup: bool
 ) -> tuple[int | None, bool, bool]:
@@ -520,8 +549,10 @@ class _AuthorPageParser(HTMLParser):
         self._pending_annual_url = annual_url
 
     def _finish_titlemid(self) -> None:
-        title = _collapse_ws(''.join(self._title_parts))
+        bold_title = _collapse_ws(''.join(self._title_parts))
         meta_text = ''.join(self._titlemid_parts)
+        quoted_title = _extract_leading_quoted_title(meta_text)
+        title = quoted_title if quoted_title is not None else bold_title
         winner_markup = self._winner_markup
         year = self._pending_year
         annual_url = self._pending_annual_url
@@ -750,10 +781,12 @@ class _AnnualPageParser(HTMLParser):
     def _finish_li(self) -> None:
         in_li = self._in_li
         raw_value = self._li_value
-        title = _collapse_ws(''.join(self._title_parts))
+        li_text = ''.join(self._li_parts)
+        quoted_title = _extract_leading_quoted_title(li_text)
+        bold_title = _collapse_ws(''.join(self._title_parts))
+        title = quoted_title if quoted_title is not None else bold_title
         linked = tuple(self._linked_authors)
         winner = self._winner_markup
-        li_text = ''.join(self._li_parts)
         kind = self._current_kind
         category = self._current_category
         self._in_li = False

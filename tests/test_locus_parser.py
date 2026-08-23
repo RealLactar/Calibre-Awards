@@ -13,6 +13,7 @@ from awards.sources import locus
 URL_1990 = 'https://www.sfadb.com/Locus_Awards_1990'
 URL_1971 = 'https://www.sfadb.com/Locus_Awards_1971'
 URL_1979 = 'https://www.sfadb.com/Locus_Awards_1979'
+URL_2008 = 'https://www.sfadb.com/Locus_Awards_2008'
 URL_2010 = 'https://www.sfadb.com/Locus_Awards_2010'
 URL_2018 = 'https://www.sfadb.com/Locus_Awards_2018'
 URL_2024 = 'https://www.sfadb.com/Locus_Awards_2024'
@@ -45,13 +46,19 @@ def _entry(year: int, title: str, category: str, place_html: str) -> str:
 """
 
 
+_MUSE_OF_FIRE_DISCOVERY = """
+<div class="dateleftindent"><a href="Locus_Awards_2008">2008</a>: </div>
+<div class="titlemid">&#8220;Muse of Fire &#8221; (<b>The New Space Opera</b>)
+ — novella — 5th place</div>
+"""
+
 HTML_SIMMONS = _author_page(
     'Dan Simmons',
     _entry(2010, 'Drood', 'fantasy novel', '3rd place')
     + _entry(1990, 'Hyperion', 'sf novel', '<span class="win">winner</span>')
     + _entry(1990, 'Phases of Gravity', 'sf novel', '9th place')
     + _entry(1990, 'Carrion Comfort', 'horror novel', '<span class="win">winner</span>')
-    + _entry(2008, 'Muse of Fire', 'novella', '5th place'),
+    + _MUSE_OF_FIRE_DISCOVERY,
 )
 
 HTML_CHERRYH_LIVE_SHAPE = """
@@ -206,6 +213,15 @@ HTML_1979 = """
 <ol>
 <li value="1"> <span class="winner">Winner:</span> <b>Dreamsnake</b>, <a href="Vonda_N_McIntyre">Vonda N. McIntyre</a> (Houghton Mifflin)</li>
 <li value="2"> <b>Blind Voices</b>, <a href="Tom_Reamy">Tom Reamy</a> (Berkley Putnam)</li>
+</ol>
+</div>
+"""
+
+HTML_2008 = """
+<div class="categoryblock">
+<div class="category">Novella</div>
+<ol>
+<li value="5"> &#8220;Muse of Fire&#8221;, <a href="Dan_Simmons">Dan Simmons</a> (<b>The New Space Opera</b>)</li>
 </ol>
 </div>
 """
@@ -383,6 +399,7 @@ PAGES = {
     URL_1990: HTML_1990,
     URL_1971: HTML_1971,
     URL_1979: HTML_1979,
+    URL_2008: HTML_2008,
     URL_2018: HTML_2018,
     URL_2024: HTML_2024,
     URL_2026: HTML_2026,
@@ -441,9 +458,27 @@ class AnnualParseTests(LocusTestCase):
         self.assertEqual(by_title['The Boat of a Million Years'].rank, 6)
         self.assertFalse(by_title['Rimrunners'].winner)
 
-    def test_novella_is_recognized_but_not_emitted(self):
+    def test_father_of_stones_is_emitted_as_novella_winner(self):
         records = locus._parse_annual_page(HTML_1990, 1990, URL_1990)
-        self.assertFalse(any(record.category == 'Novella' for record in records))
+        novellas = [record for record in records if record.category == 'Novella']
+        self.assertEqual(len(novellas), 1)
+        record = novellas[0]
+        self.assertEqual(record.work_title, 'The Father of Stones')
+        self.assertEqual(record.work_author, 'Lucius Shepard')
+        self.assertEqual(record.category, 'Novella')
+        self.assertEqual(record.rank, 1)
+        self.assertTrue(record.winner)
+
+    def test_muse_of_fire_live_shaped_annual_row(self):
+        records = locus._parse_annual_page(HTML_2008, 2008, URL_2008)
+        self.assertEqual(len(records), 1)
+        record = records[0]
+        self.assertEqual(record.work_title, 'Muse of Fire')
+        self.assertNotEqual(record.work_title, 'The New Space Opera')
+        self.assertEqual(record.work_author, 'Dan Simmons')
+        self.assertEqual(record.category, 'Novella')
+        self.assertEqual(record.rank, 5)
+        self.assertFalse(record.winner)
 
     def test_1971_ties_preserve_shared_ranks(self):
         records = locus._parse_annual_page(HTML_1971, 1971, URL_1971)
@@ -485,6 +520,7 @@ class AnnualParseTests(LocusTestCase):
             records_1979[0].category,
             records_1990[0].category,
             next(r.category for r in records_1990 if r.category == 'Horror Novel'),
+            next(r.category for r in records_1990 if r.category == 'Novella'),
             next(r.category for r in records_2024 if r.category == 'Young Adult Novel'),
             next(r.category for r in records_2024 if r.category == 'First Novel'),
             next(r.category for r in records_2026 if r.category == 'Young Adult Book'),
@@ -502,6 +538,7 @@ class AnnualParseTests(LocusTestCase):
                 'Young Adult Book',
                 'Translated Novel',
                 'Fantasy Novel',
+                'Novella',
             },
         )
         self.assertNotIn('Science Fiction Novel', labels)
@@ -584,7 +621,89 @@ class AnnualParseTests(LocusTestCase):
         )
 
 
+class QuotedTitleExtractionTests(LocusTestCase):
+    def test_curly_double_quotes(self):
+        self.assertEqual(
+            locus._extract_leading_quoted_title('\u201cMuse of Fire\u201d'),
+            'Muse of Fire',
+        )
+
+    def test_live_extra_space_before_closing_quote(self):
+        self.assertEqual(
+            locus._extract_leading_quoted_title('\u201cMuse of Fire \u201d'),
+            'Muse of Fire',
+        )
+
+    def test_ascii_double_quotes(self):
+        self.assertEqual(
+            locus._extract_leading_quoted_title('"Muse of Fire"'),
+            'Muse of Fire',
+        )
+
+    def test_single_quoted_forms_are_not_extracted(self):
+        self.assertIsNone(
+            locus._extract_leading_quoted_title('\u2018Muse of Fire\u2019')
+        )
+        self.assertIsNone(locus._extract_leading_quoted_title("'Muse of Fire'"))
+        self.assertIsNone(locus._extract_leading_quoted_title("'Don't Look Now'"))
+        self.assertIsNone(
+            locus._extract_leading_quoted_title('\u2018Don\u2019t Look Now\u2019')
+        )
+
+    def test_internal_quotes_are_preserved(self):
+        self.assertEqual(
+            locus._extract_leading_quoted_title(
+                '\u201cThe "Inner" Title\u201d (Anthology)'
+            ),
+            'The "Inner" Title',
+        )
+        self.assertEqual(
+            locus._extract_leading_quoted_title('"Title with \'apostrophes\'"'),
+            "Title with 'apostrophes'",
+        )
+
+    def test_unmatched_quote_returns_none(self):
+        self.assertIsNone(
+            locus._extract_leading_quoted_title('\u201cMuse of Fire')
+        )
+        self.assertIsNone(locus._extract_leading_quoted_title('"Muse of Fire'))
+
+    def test_ordinary_unquoted_novel_text_returns_none(self):
+        self.assertIsNone(
+            locus._extract_leading_quoted_title(
+                'Hyperion (Doubleday Foundation) — sf novel — winner'
+            )
+        )
+        self.assertIsNone(locus._extract_leading_quoted_title('Muse of Fire'))
+
+
 class AuthorPageParseTests(LocusTestCase):
+    def test_muse_of_fire_discovery_maps_to_novella(self):
+        page = locus._parse_author_page(HTML_SIMMONS, URL_SIMMONS)
+        entry = next(
+            item for item in page.entries if item.award_year == 2008
+        )
+        self.assertEqual(entry.work_title, 'Muse of Fire')
+        self.assertNotEqual(entry.work_title, 'The New Space Opera')
+        self.assertEqual(entry.category_text.casefold(), 'novella')
+        self.assertEqual(entry.rank, 5)
+        self.assertFalse(entry.winner)
+        self.assertEqual(entry.annual_url, URL_2008)
+        self.assertEqual(
+            locus._annual_category_for_discovery(entry.category_text),
+            'Novella',
+        )
+
+    def test_hyperion_discovery_still_uses_bold_title(self):
+        page = locus._parse_author_page(HTML_SIMMONS, URL_SIMMONS)
+        entry = next(
+            item for item in page.entries if item.work_title == 'Hyperion'
+        )
+        self.assertEqual(entry.category_text.casefold(), 'sf novel')
+        self.assertEqual(entry.rank, 1)
+        self.assertTrue(entry.winner)
+        self.assertEqual(entry.annual_url, URL_1990)
+
     def test_one_dash_live_markup_still_finds_sf_novel(self):
         page = locus._parse_author_page(HTML_CHERRYH_LIVE_SHAPE, URL_CHERRYH)
         self.assertEqual(page.page_name, 'C. J. Cherryh')
@@ -630,7 +749,8 @@ class LookupAndQualificationTests(LocusTestCase):
             return locus.lookup(title, author)
 
     def test_hyperion_winner_rank_one(self):
-        results = self._lookup('Hyperion', 'Dan Simmons')
+        with patch.object(locus, '_request_html', side_effect=_fake_request) as mocked:
+            results = locus.lookup('Hyperion', 'Dan Simmons')
         self.assertEqual(len(results), 1)
         result = results[0]
         self.assertEqual(result.award_name, 'Locus Award')
@@ -644,6 +764,9 @@ class LookupAndQualificationTests(LocusTestCase):
             qualify_award_result(result).decision,
             QualificationDecision.QUALIFIES,
         )
+        fetched = [call.args[1] for call in mocked.call_args_list]
+        self.assertEqual(fetched, [URL_SIMMONS, URL_1990])
+        self.assertNotIn(URL_2008, fetched)
 
     def test_1990_qualification_boundary(self):
         cases = (
@@ -713,13 +836,27 @@ class LookupAndQualificationTests(LocusTestCase):
             [URL_SIMMONS],
         )
 
-    def test_novella_discovery_does_not_fetch_annual_page(self):
+    def test_muse_of_fire_lookup_fetches_only_2008_annual_page(self):
         with patch.object(locus, '_request_html', side_effect=_fake_request) as mocked:
             results = locus.lookup('Muse of Fire', 'Dan Simmons')
-        self.assertEqual(results, [])
+        self.assertEqual(len(results), 1)
+        result = results[0]
+        self.assertEqual(result.work_title, 'Muse of Fire')
+        self.assertNotEqual(result.work_title, 'The New Space Opera')
+        self.assertEqual(result.award_name, 'Locus Award')
+        self.assertEqual(result.award_year, 2008)
+        self.assertEqual(result.category, 'Novella')
+        self.assertEqual(result.rank, 5)
+        self.assertEqual(result.status, '5th place')
+        self.assertEqual(result.source_name, 'Science Fiction Awards Database')
+        self.assertEqual(result.source_url, URL_2008)
+        self.assertEqual(
+            qualify_award_result(result).decision,
+            QualificationDecision.QUALIFIES,
+        )
         self.assertEqual(
             [call.args[1] for call in mocked.call_args_list],
-            [URL_SIMMONS],
+            [URL_SIMMONS, URL_2008],
         )
 
     def test_no_locus_section_is_empty_not_an_error(self):
