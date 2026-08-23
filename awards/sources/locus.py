@@ -51,6 +51,7 @@ _PLACE_RE = re.compile(
     re.IGNORECASE,
 )
 _DASH_SPLIT_RE = re.compile(r'[\u2014\u2013\u0097]+')
+_LEADING_WINNER_LABEL_RE = re.compile(r'^winner:\s*', re.IGNORECASE)
 _QUOTE_PAIRS = {
     '"': '"',
     '\u201c': '\u201d',
@@ -66,6 +67,9 @@ _SUPPORTED_CATEGORY_LABELS = (
     'Young Adult Novel',
     'Translated Novel',
     'Novella',
+    'Novelette',
+    'Short Story',
+    'Short Fiction',
 )
 _SUPPORTED_CATEGORY_KEYS = frozenset(
     label.casefold() for label in _SUPPORTED_CATEGORY_LABELS
@@ -82,14 +86,14 @@ _DISCOVERY_TO_ANNUAL_CATEGORY = {
     'young adult novel': 'Young Adult Novel',
     'translated novel': 'Translated Novel',
     'novella': 'Novella',
+    'novelette': 'Novelette',
+    'short story': 'Short Story',
+    'short fiction': 'Short Fiction',
 }
 _DISCOVERY_SUPPORTED_KEYS = frozenset(_DISCOVERY_TO_ANNUAL_CATEGORY)
 _TRANSLATED_BY_RE = re.compile(r'translated\s+by', re.IGNORECASE)
 _TRANS_GLITCH_RE = re.compile(r',\s*trans(?:lators?|\d+)\b', re.IGNORECASE)
 _RECOGNIZED_UNSUPPORTED_KEYS = frozenset({
-    'novelette',
-    'short story',
-    'short fiction',
     'anthology',
     'collection',
     'anthology/collection',
@@ -398,6 +402,23 @@ def _extract_leading_quoted_title(text: str) -> str | None:
     if not title:
         return None
     return title
+
+
+def _extract_annual_quoted_title(li_text: str) -> str | None:
+    """Extract a quoted annual-page title, allowing a leading Winner: label.
+
+    Tries a complete leading double-quoted title first. If that fails, removes
+    only a leading ``Winner:`` label (whitespace-tolerant, case-insensitive)
+    and retries the same helper. Other prefixes are not stripped.
+    """
+    quoted = _extract_leading_quoted_title(li_text)
+    if quoted is not None:
+        return quoted
+    stripped = li_text.lstrip()
+    match = _LEADING_WINNER_LABEL_RE.match(stripped)
+    if match is None:
+        return None
+    return _extract_leading_quoted_title(stripped[match.end() :])
 
 
 def _parse_discovery_placement(
@@ -782,7 +803,7 @@ class _AnnualPageParser(HTMLParser):
         in_li = self._in_li
         raw_value = self._li_value
         li_text = ''.join(self._li_parts)
-        quoted_title = _extract_leading_quoted_title(li_text)
+        quoted_title = _extract_annual_quoted_title(li_text)
         bold_title = _collapse_ws(''.join(self._title_parts))
         title = quoted_title if quoted_title is not None else bold_title
         linked = tuple(self._linked_authors)

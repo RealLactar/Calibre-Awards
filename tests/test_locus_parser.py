@@ -12,14 +12,23 @@ from awards.sources import locus
 
 URL_1990 = 'https://www.sfadb.com/Locus_Awards_1990'
 URL_1971 = 'https://www.sfadb.com/Locus_Awards_1971'
+URL_1974 = 'https://www.sfadb.com/Locus_Awards_1974'
+URL_1975 = 'https://www.sfadb.com/Locus_Awards_1975'
 URL_1979 = 'https://www.sfadb.com/Locus_Awards_1979'
 URL_2008 = 'https://www.sfadb.com/Locus_Awards_2008'
 URL_2010 = 'https://www.sfadb.com/Locus_Awards_2010'
+URL_2017 = 'https://www.sfadb.com/Locus_Awards_2017'
 URL_2018 = 'https://www.sfadb.com/Locus_Awards_2018'
 URL_2024 = 'https://www.sfadb.com/Locus_Awards_2024'
+URL_2025 = 'https://www.sfadb.com/Locus_Awards_2025'
 URL_2026 = 'https://www.sfadb.com/Locus_Awards_2026'
 URL_SIMMONS = 'https://www.sfadb.com/Dan_Simmons'
 URL_CHERRYH = 'https://www.sfadb.com/C_J_Cherryh'
+URL_HUANG = 'https://www.sfadb.com/S_L_Huang'
+URL_ELMOHTAR = 'https://www.sfadb.com/Amal_El-Mohtar'
+URL_ELLISON = 'https://www.sfadb.com/Harlan_Ellison'
+URL_CLARKE = 'https://www.sfadb.com/Susanna_Clarke'
+URL_EKLUND = 'https://www.sfadb.com/Gordon_Eklund'
 
 
 def _author_page(name: str, rows: str) -> str:
@@ -143,6 +152,43 @@ HTML_MCINTYRE = _author_page(
     _entry(1979, 'Dreamsnake', 'novel', '<span class="win">winner</span>'),
 )
 
+_RIVER_JUDGE_DISCOVERY = """
+<div class="dateleftindent"><a href="Locus_Awards_2025">2025</a>: </div>
+<div class="titlemid">&#8220;The River Judge&#8221; (Reactor 6 mar 2024)
+ &#0151; novelette &#0151; 4th place</div>
+"""
+
+HTML_HUANG = _author_page('S. L. Huang', _RIVER_JUDGE_DISCOVERY)
+
+_SEASONS_DISCOVERY = """
+<div class="dateleftindent"><a href="Locus_Awards_2017">2017</a>: </div>
+<div class="titlemid">&#8220;Seasons of Glass and Iron&#8221; (<b>The Starlit Wood</b>)
+short story &#0151; <span class="win">winner</span></div>
+"""
+
+HTML_ELMOHTAR = _author_page('Amal El-Mohtar', _SEASONS_DISCOVERY)
+
+_DEATHBIRD_DISCOVERY = """
+<div class="dateleftindent"><a href="Locus_Awards_1974">1974</a>: </div>
+<div class="titlemid">&#8220;The Deathbird &#8221; (<i>F&amp;SF</i> Mar 1973)
+ &#0151; short fiction &#0151; <span class="win">winner</span></div>
+"""
+
+HTML_ELLISON = _author_page('Harlan Ellison', _DEATHBIRD_DISCOVERY)
+
+HTML_CLARKE = _author_page(
+    'Susanna Clarke',
+    _entry(2025, 'The Wood at Midwinter', 'short story', '6th place'),
+)
+
+_STARS_ARE_GODS_DISCOVERY = """
+<div class="dateleftindent"><a href="Locus_Awards_1975">1975</a>: </div>
+<div class="titlemid">&#8220;If the Stars Are Gods&#8221; (<b>Universe 4</b>)
+ &#0151; novelette &#0151; 8th place</div>
+"""
+
+HTML_EKLUND = _author_page('Gordon Eklund', _STARS_ARE_GODS_DISCOVERY)
+
 HTML_NO_LOCUS = """
 <html><body>
 <div class="pagetitle">Dan Simmons</div>
@@ -225,6 +271,90 @@ HTML_2008 = """
 </ol>
 </div>
 """
+
+HTML_1974 = """
+<div class="categoryblock">
+<div class="category">Short Fiction</div>
+<ol>
+<li value="1"> <span class="winner">Winner:</span> &#8220;The Deathbird&#8221;, <a href="Harlan_Ellison">Harlan Ellison</a> (<i>F&amp;SF</i> Mar 1973)</li>
+</ol>
+</div>
+<div class="categoryblock">
+<div class="category">Novella</div>
+<ol>
+<li value="1"> <span class="winner">Winner:</span> &#8220;The Death of Doctor Island&#8221;, <a href="Gene_Wolfe">Gene Wolfe</a> (<b>Universe 3</b>)</li>
+</ol>
+</div>
+"""
+
+HTML_1975_NOVELETTE = """
+<div class="categoryblock">
+<div class="category">Novelette</div>
+<ol>
+<li value="8"> &#8220;If the Stars Are Gods&#8221;, <a href="Gordon_Eklund">Gordon Eklund</a> &amp; <a href="Gregory_Benford">Gregory Benford</a> (<b>Universe 4</b>)</li>
+</ol>
+</div>
+"""
+
+HTML_2017 = """
+<div class="categoryblock">
+<div class="category">Short Story</div>
+<ol>
+<li value="1"> <span class="winner">Winner:</span> &#8220;Seasons of Glass and Iron&#8221;, <a href="Amal_El-Mohtar">Amal El-Mohtar</a> (<b>The Starlit Wood</b>)</li>
+</ol>
+</div>
+"""
+
+HTML_2025 = """
+<div class="categoryblock">
+<div class="category">Novelette</div>
+<ol>
+<li value="4"> &#8220;The River Judge&#8221;, <a href="S_L_Huang">S. L. Huang</a> (Reactor 6 mar 2024)</li>
+</ol>
+</div>
+<div class="categoryblock">
+<div class="category">Short Story</div>
+<ol>
+<li value="6"> <b>The Wood at Midwinter</b>, <a href="Susanna_Clarke">Susanna Clarke</a> (Bloomsbury)</li>
+</ol>
+</div>
+"""
+
+HTML_FINALIST_PREFIX = """
+<div class="categoryblock">
+<div class="category">Novelette</div>
+<ol>
+<li value="2"> Finalist: &#8220;Some Story&#8221;, <a href="Test_Author">Test Author</a> (<b>Some Anthology</b>)</li>
+</ol>
+</div>
+"""
+
+HTML_SHORT_OVERLAP_ANNUAL = """
+<div class="categoryblock">
+<div class="category">Novelette</div>
+<ol>
+<li value="3"> &#8220;Same Short Book&#8221;, <a href="Short_Overlap_Author">Short Overlap Author</a> (Mag)</li>
+</ol>
+</div>
+<div class="categoryblock">
+<div class="category">Short Story</div>
+<ol>
+<li value="1"> <span class="winner">Winner:</span> &#8220;Same Short Book&#8221;, <a href="Short_Overlap_Author">Short Overlap Author</a> (Mag)</li>
+</ol>
+</div>
+"""
+
+HTML_SHORT_OVERLAP_AUTHOR = _author_page(
+    'Short Overlap Author',
+    """
+<div class="dateleftindent"><a href="Locus_Awards_1992">1992</a>: </div>
+<div class="titlemid">&#8220;Same Short Book&#8221; (Mag)
+ &#0151; novelette &#0151; 3rd place</div>
+<div class="dateleftindent"><a href="Locus_Awards_1992">1992</a>: </div>
+<div class="titlemid">&#8220;Same Short Book&#8221; (Mag)
+ &#0151; short story &#0151; <span class="win">winner</span></div>
+""",
+)
 
 HTML_2018 = """
 <div class="categoryblock">
@@ -377,6 +507,8 @@ HTML_OVERLAP_FIRST_ONLY = _author_page(
 
 URL_OVERLAP = 'https://www.sfadb.com/Locus_Awards_1991'
 URL_TEST_AUTHOR = 'https://www.sfadb.com/Test_Author'
+URL_SHORT_OVERLAP = 'https://www.sfadb.com/Locus_Awards_1992'
+URL_SHORT_AUTHOR = 'https://www.sfadb.com/Short_Overlap_Author'
 
 
 PAGES = {
@@ -398,13 +530,24 @@ PAGES = {
     'https://www.sfadb.com/Vonda_N_McIntyre': HTML_MCINTYRE,
     URL_1990: HTML_1990,
     URL_1971: HTML_1971,
+    URL_1974: HTML_1974,
+    URL_1975: HTML_1975_NOVELETTE,
     URL_1979: HTML_1979,
     URL_2008: HTML_2008,
+    URL_2017: HTML_2017,
     URL_2018: HTML_2018,
     URL_2024: HTML_2024,
+    URL_2025: HTML_2025,
     URL_2026: HTML_2026,
+    URL_HUANG: HTML_HUANG,
+    URL_ELMOHTAR: HTML_ELMOHTAR,
+    URL_ELLISON: HTML_ELLISON,
+    URL_CLARKE: HTML_CLARKE,
+    URL_EKLUND: HTML_EKLUND,
     URL_TEST_AUTHOR: HTML_OVERLAP_AUTHOR,
     URL_OVERLAP: HTML_OVERLAP_ANNUAL,
+    URL_SHORT_AUTHOR: HTML_SHORT_OVERLAP_AUTHOR,
+    URL_SHORT_OVERLAP: HTML_SHORT_OVERLAP_ANNUAL,
 }
 
 
@@ -479,6 +622,80 @@ class AnnualParseTests(LocusTestCase):
         self.assertEqual(record.category, 'Novella')
         self.assertEqual(record.rank, 5)
         self.assertFalse(record.winner)
+
+    def test_river_judge_live_shaped_annual_row(self):
+        records = locus._parse_annual_page(HTML_2025, 2025, URL_2025)
+        record = next(item for item in records if item.work_title == 'The River Judge')
+        self.assertEqual(record.work_author, 'S. L. Huang')
+        self.assertEqual(record.category, 'Novelette')
+        self.assertEqual(record.rank, 4)
+        self.assertFalse(record.winner)
+
+    def test_seasons_of_glass_and_iron_winner_does_not_use_anthology_title(self):
+        records = locus._parse_annual_page(HTML_2017, 2017, URL_2017)
+        self.assertEqual(len(records), 1)
+        record = records[0]
+        self.assertEqual(record.work_title, 'Seasons of Glass and Iron')
+        self.assertNotEqual(record.work_title, 'The Starlit Wood')
+        self.assertEqual(record.work_author, 'Amal El-Mohtar')
+        self.assertEqual(record.category, 'Short Story')
+        self.assertEqual(record.rank, 1)
+        self.assertTrue(record.winner)
+
+    def test_deathbird_stays_short_fiction_not_short_story_or_novelette(self):
+        records = locus._parse_annual_page(HTML_1974, 1974, URL_1974)
+        record = next(item for item in records if item.work_title == 'The Deathbird')
+        self.assertEqual(record.work_author, 'Harlan Ellison')
+        self.assertEqual(record.category, 'Short Fiction')
+        self.assertNotEqual(record.category, 'Short Story')
+        self.assertNotEqual(record.category, 'Novelette')
+        self.assertEqual(record.rank, 1)
+        self.assertTrue(record.winner)
+
+    def test_quoted_novella_winner_does_not_use_anthology_title(self):
+        records = locus._parse_annual_page(HTML_1974, 1974, URL_1974)
+        record = next(
+            item for item in records if item.work_title == 'The Death of Doctor Island'
+        )
+        self.assertNotEqual(record.work_title, 'Universe 3')
+        self.assertEqual(record.work_author, 'Gene Wolfe')
+        self.assertEqual(record.category, 'Novella')
+        self.assertEqual(record.rank, 1)
+        self.assertTrue(record.winner)
+
+    def test_wood_at_midwinter_uses_bold_title_fallback(self):
+        records = locus._parse_annual_page(HTML_2025, 2025, URL_2025)
+        record = next(
+            item for item in records if item.work_title == 'The Wood at Midwinter'
+        )
+        self.assertEqual(record.work_author, 'Susanna Clarke')
+        self.assertEqual(record.category, 'Short Story')
+        self.assertEqual(record.rank, 6)
+        self.assertFalse(record.winner)
+
+    def test_stars_are_gods_keeps_both_linked_authors(self):
+        records = locus._parse_annual_page(HTML_1975_NOVELETTE, 1975, URL_1975)
+        self.assertEqual(len(records), 1)
+        record = records[0]
+        self.assertEqual(record.work_title, 'If the Stars Are Gods')
+        self.assertNotEqual(record.work_title, 'Universe 4')
+        self.assertEqual(record.work_author, 'Gordon Eklund & Gregory Benford')
+        self.assertEqual(record.category, 'Novelette')
+        self.assertEqual(record.rank, 8)
+        self.assertTrue(
+            locus._record_matches(record, 'If the Stars Are Gods', 'Gordon Eklund')
+        )
+        self.assertTrue(
+            locus._record_matches(record, 'If the Stars Are Gods', 'Gregory Benford')
+        )
+
+    def test_finalist_prefix_does_not_activate_winner_quoted_path(self):
+        records = locus._parse_annual_page(
+            HTML_FINALIST_PREFIX, 2025, URL_2025
+        )
+        self.assertEqual(len(records), 1)
+        self.assertEqual(records[0].work_title, 'Some Anthology')
+        self.assertNotEqual(records[0].work_title, 'Some Story')
 
     def test_1971_ties_preserve_shared_ranks(self):
         records = locus._parse_annual_page(HTML_1971, 1971, URL_1971)
@@ -677,6 +894,45 @@ class QuotedTitleExtractionTests(LocusTestCase):
         self.assertIsNone(locus._extract_leading_quoted_title('Muse of Fire'))
 
 
+class AnnualQuotedTitleTests(LocusTestCase):
+    def test_quoted_non_winner_extracts_without_winner_prefix(self):
+        self.assertEqual(
+            locus._extract_annual_quoted_title(
+                ' \u201cThe River Judge\u201d, S. L. Huang (Reactor 6 mar 2024)'
+            ),
+            'The River Judge',
+        )
+
+    def test_winner_prefix_then_quoted_title(self):
+        self.assertEqual(
+            locus._extract_annual_quoted_title(
+                ' Winner: \u201cSeasons of Glass and Iron\u201d, '
+                'Amal El-Mohtar (The Starlit Wood)'
+            ),
+            'Seasons of Glass and Iron',
+        )
+        self.assertEqual(
+            locus._extract_annual_quoted_title(
+                'winner:\u201cThe Deathbird\u201d, Harlan Ellison'
+            ),
+            'The Deathbird',
+        )
+
+    def test_winner_prefix_without_quotes_returns_none(self):
+        self.assertIsNone(
+            locus._extract_annual_quoted_title(
+                ' Winner: Hyperion, Dan Simmons (Doubleday Foundation)'
+            )
+        )
+
+    def test_finalist_prefix_is_not_stripped(self):
+        self.assertIsNone(
+            locus._extract_annual_quoted_title(
+                ' Finalist: \u201cSome Story\u201d, Test Author (Some Anthology)'
+            )
+        )
+
+
 class AuthorPageParseTests(LocusTestCase):
     def test_muse_of_fire_discovery_maps_to_novella(self):
         page = locus._parse_author_page(HTML_SIMMONS, URL_SIMMONS)
@@ -703,6 +959,42 @@ class AuthorPageParseTests(LocusTestCase):
         self.assertEqual(entry.rank, 1)
         self.assertTrue(entry.winner)
         self.assertEqual(entry.annual_url, URL_1990)
+
+    def test_river_judge_discovery_maps_to_novelette(self):
+        page = locus._parse_author_page(HTML_HUANG, URL_HUANG)
+        entry = page.entries[0]
+        self.assertEqual(entry.work_title, 'The River Judge')
+        self.assertEqual(entry.category_text.casefold(), 'novelette')
+        self.assertEqual(entry.rank, 4)
+        self.assertFalse(entry.winner)
+        self.assertEqual(entry.annual_url, URL_2025)
+        self.assertEqual(
+            locus._annual_category_for_discovery(entry.category_text),
+            'Novelette',
+        )
+
+    def test_seasons_discovery_maps_to_short_story_without_first_emdash(self):
+        page = locus._parse_author_page(HTML_ELMOHTAR, URL_ELMOHTAR)
+        entry = page.entries[0]
+        self.assertEqual(entry.work_title, 'Seasons of Glass and Iron')
+        self.assertNotEqual(entry.work_title, 'The Starlit Wood')
+        self.assertEqual(entry.category_text.casefold(), 'short story')
+        self.assertEqual(entry.rank, 1)
+        self.assertTrue(entry.winner)
+        self.assertEqual(entry.annual_url, URL_2017)
+
+    def test_deathbird_discovery_maps_to_short_fiction(self):
+        page = locus._parse_author_page(HTML_ELLISON, URL_ELLISON)
+        entry = page.entries[0]
+        self.assertEqual(entry.work_title, 'The Deathbird')
+        self.assertEqual(entry.category_text.casefold(), 'short fiction')
+        self.assertEqual(entry.rank, 1)
+        self.assertTrue(entry.winner)
+        self.assertEqual(entry.annual_url, URL_1974)
+        self.assertEqual(
+            locus._annual_category_for_discovery(entry.category_text),
+            'Short Fiction',
+        )
 
     def test_one_dash_live_markup_still_finds_sf_novel(self):
         page = locus._parse_author_page(HTML_CHERRYH_LIVE_SHAPE, URL_CHERRYH)
@@ -767,6 +1059,9 @@ class LookupAndQualificationTests(LocusTestCase):
         fetched = [call.args[1] for call in mocked.call_args_list]
         self.assertEqual(fetched, [URL_SIMMONS, URL_1990])
         self.assertNotIn(URL_2008, fetched)
+        self.assertNotIn(URL_2025, fetched)
+        self.assertNotIn(URL_2017, fetched)
+        self.assertNotIn(URL_1974, fetched)
 
     def test_1990_qualification_boundary(self):
         cases = (
@@ -857,6 +1152,84 @@ class LookupAndQualificationTests(LocusTestCase):
         self.assertEqual(
             [call.args[1] for call in mocked.call_args_list],
             [URL_SIMMONS, URL_2008],
+        )
+
+    def test_river_judge_lookup_fetches_only_2025_annual_page(self):
+        with patch.object(locus, '_request_html', side_effect=_fake_request) as mocked:
+            results = locus.lookup('The River Judge', 'S. L. Huang')
+        self.assertEqual(len(results), 1)
+        result = results[0]
+        self.assertEqual(result.work_title, 'The River Judge')
+        self.assertEqual(result.award_name, 'Locus Award')
+        self.assertEqual(result.award_year, 2025)
+        self.assertEqual(result.category, 'Novelette')
+        self.assertEqual(result.rank, 4)
+        self.assertEqual(result.status, '4th place')
+        self.assertEqual(result.source_name, 'Science Fiction Awards Database')
+        self.assertEqual(result.source_url, URL_2025)
+        self.assertEqual(
+            qualify_award_result(result).decision,
+            QualificationDecision.QUALIFIES,
+        )
+        self.assertEqual(
+            [call.args[1] for call in mocked.call_args_list],
+            [URL_HUANG, URL_2025],
+        )
+
+    def test_seasons_of_glass_and_iron_lookup_is_short_story_winner(self):
+        results = self._lookup('Seasons of Glass and Iron', 'Amal El-Mohtar')
+        self.assertEqual(len(results), 1)
+        result = results[0]
+        self.assertEqual(result.work_title, 'Seasons of Glass and Iron')
+        self.assertNotEqual(result.work_title, 'The Starlit Wood')
+        self.assertEqual(result.award_year, 2017)
+        self.assertEqual(result.category, 'Short Story')
+        self.assertEqual(result.rank, 1)
+        self.assertEqual(result.status, 'Winner')
+        self.assertEqual(
+            qualify_award_result(result).decision,
+            QualificationDecision.QUALIFIES,
+        )
+
+    def test_deathbird_lookup_is_historical_short_fiction_winner(self):
+        results = self._lookup('The Deathbird', 'Harlan Ellison')
+        self.assertEqual(len(results), 1)
+        result = results[0]
+        self.assertEqual(result.work_title, 'The Deathbird')
+        self.assertEqual(result.award_year, 1974)
+        self.assertEqual(result.category, 'Short Fiction')
+        self.assertNotEqual(result.category, 'Short Story')
+        self.assertNotEqual(result.category, 'Novelette')
+        self.assertEqual(result.rank, 1)
+        self.assertEqual(result.status, 'Winner')
+        self.assertEqual(
+            qualify_award_result(result).decision,
+            QualificationDecision.QUALIFIES,
+        )
+
+    def test_wood_at_midwinter_rank_six_does_not_qualify(self):
+        results = self._lookup('The Wood at Midwinter', 'Susanna Clarke')
+        self.assertEqual(len(results), 1)
+        result = results[0]
+        self.assertEqual(result.category, 'Short Story')
+        self.assertEqual(result.rank, 6)
+        self.assertEqual(result.status, '6th place')
+        self.assertEqual(
+            qualify_award_result(result).decision,
+            QualificationDecision.DOES_NOT_QUALIFY,
+        )
+
+    def test_stars_are_gods_multi_author_novelette_does_not_qualify(self):
+        results = self._lookup('If the Stars Are Gods', 'Gordon Eklund')
+        self.assertEqual(len(results), 1)
+        result = results[0]
+        self.assertEqual(result.work_title, 'If the Stars Are Gods')
+        self.assertEqual(result.work_author, 'Gordon Eklund & Gregory Benford')
+        self.assertEqual(result.category, 'Novelette')
+        self.assertEqual(result.rank, 8)
+        self.assertEqual(
+            qualify_award_result(result).decision,
+            QualificationDecision.DOES_NOT_QUALIFY,
         )
 
     def test_no_locus_section_is_empty_not_an_error(self):
@@ -1011,6 +1384,23 @@ class LookupAndQualificationTests(LocusTestCase):
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0].category, 'First Novel')
         self.assertEqual(results[0].rank, 1)
+
+    def test_same_short_title_keeps_novelette_and_short_story_distinct(self):
+        def fake(_opener, url: str):
+            if url == URL_SHORT_AUTHOR:
+                return 200, HTML_SHORT_OVERLAP_AUTHOR
+            if url == URL_SHORT_OVERLAP:
+                return 200, HTML_SHORT_OVERLAP_ANNUAL
+            return 404, ''
+
+        with patch.object(locus, '_request_html', side_effect=fake):
+            results = locus.lookup('Same Short Book', 'Short Overlap Author')
+        by_category = {result.category: result for result in results}
+        self.assertEqual(set(by_category), {'Novelette', 'Short Story'})
+        self.assertEqual(by_category['Novelette'].rank, 3)
+        self.assertEqual(by_category['Novelette'].status, '3rd place')
+        self.assertEqual(by_category['Short Story'].rank, 1)
+        self.assertEqual(by_category['Short Story'].status, 'Winner')
 
 
 class RedirectHostTests(LocusTestCase):
