@@ -10,14 +10,15 @@ import urllib.request
 from dataclasses import dataclass
 from html.parser import HTMLParser
 from http.cookiejar import CookieJar
+from urllib.parse import urljoin, urlparse
 
 from ..matching import normalize_title_conjunctions
 from ..model import AwardResult
 
 TIMEOUT_SECONDS = 30
-HOME_URL = 'https://www.pulitzer.org/'
 FICTION_URL = 'https://www.pulitzer.org/prize-winners-by-category/219'
 NOVEL_URL = 'https://www.pulitzer.org/prize-winners-by-category/261'
+_DETAIL_ORIGIN = 'https://www.pulitzer.org'
 
 _CATEGORY_URLS = (
     ('Fiction', FICTION_URL),
@@ -43,6 +44,12 @@ _CITATION_RE = re.compile(
     re.IGNORECASE | re.DOTALL,
 )
 _INITIALS_SPACE_RE = re.compile(r'\b([A-Za-z])\.\s+')
+_DETAIL_SLUG_RE = re.compile(r'^[0-9A-Za-z][0-9A-Za-z_-]*$')
+_OFFICIAL_HTML_HOSTS = frozenset({'pulitzer.org', 'www.pulitzer.org'})
+_FICTION_MIN_YEAR = 1948
+_NOVEL_MIN_YEAR = 1918
+_NOVEL_MAX_YEAR = 1947
+_PLAUSIBLE_YEAR_MAX = 2099
 
 
 class PulitzerSourceError(RuntimeError):
@@ -64,7 +71,9 @@ class _ParsedRecord:
 # ---------------------------------------------------------------------------
 
 def _build_opener() -> urllib.request.OpenerDirector:
-    return urllib.request.build_opener(urllib.request.HTTPCookieProcessor(CookieJar()))
+    return urllib.request.build_opener(
+        urllib.request.HTTPCookieProcessor(CookieJar())
+    )
 
 
 def _is_cloudflare_challenge(html: str) -> bool:
@@ -74,6 +83,8 @@ def _is_cloudflare_challenge(html: str) -> bool:
         or 'checking your browser' in lowered
         or 'cf-browser-verification' in lowered
         or 'enable javascript and cookies to continue' in lowered
+        or 'cf_chl_' in lowered
+        or 'cdn-cgi/challenge' in lowered
     )
 
 
@@ -81,31 +92,23 @@ def _read_response_body(response) -> str:
     return response.read().decode('utf-8', errors='replace')
 
 
-def _fetch_html(
-    opener: urllib.request.OpenerDirector,
-    url: str,
-    *,
-    referer: str | None,
-    allow_challenge: bool = False,
-) -> str:
-    headers = dict(_BROWSER_HEADERS)
-    if referer is not None:
-        headers['Referer'] = referer
-    request = urllib.request.Request(url, headers=headers)
+def _blocked_error(url: str, status: int) -> PulitzerSourceError:
+    return PulitzerSourceError(
+        'Pulitzer temporarily blocked automated retrieval '
+        f'(HTTP {status}) for {url}'
+    )
+
+
+def _fetch_html(opener: urllib.request.OpenerDirector, url: str) -> str:
+    request = urllib.request.Request(url, headers=dict(_BROWSER_HEADERS))
     try:
         with opener.open(request, timeout=TIMEOUT_SECONDS) as response:
             status = getattr(response, 'status', None) or response.getcode()
             html = _read_response_body(response)
     except urllib.error.HTTPError as exc:
         body = _read_response_body(exc)
-        if allow_challenge and exc.code == 403 and _is_cloudflare_challenge(body):
-            # Warm-up may receive a challenge page while still setting cookies.
-            return body
         if exc.code == 403 or _is_cloudflare_challenge(body):
-            raise PulitzerSourceError(
-                'Pulitzer temporarily blocked automated retrieval '
-                f'(HTTP {exc.code}) for {url}'
-            ) from exc
+            raise _blocked_error(url, exc.code) from exc
         raise PulitzerSourceError(
             f'Pulitzer request failed with HTTP {exc.code} for {url}'
         ) from exc
@@ -115,12 +118,7 @@ def _fetch_html(
         ) from exc
 
     if status == 403 or _is_cloudflare_challenge(html):
-        if allow_challenge and _is_cloudflare_challenge(html):
-            return html
-        raise PulitzerSourceError(
-            'Pulitzer temporarily blocked automated retrieval '
-            f'(HTTP {status}) for {url}'
-        )
+        raise _blocked_error(url, status)
     if status != 200:
         raise PulitzerSourceError(
             f'Pulitzer request failed with HTTP {status} for {url}'
@@ -128,28 +126,64 @@ def _fetch_html(
     return html
 
 
-def _warmup(opener: urllib.request.OpenerDirector) -> None:
-    _fetch_html(
-        opener,
-        HOME_URL,
-        referer=None,
-        allow_challenge=True,
-    )
+_category_pages_cache: tuple[tuple[str, str, str], ...] | None = None
+_cache_lock = threading.Lock()
+
+
+def _reset_runtime_state() -> None:
+    global _category_pages_cache
+    with _cache_lock:
+        _category_pages_cache = None
+
+
+def _validate_category_records(
+    category: str,
+    url: str,
+    records: list[_ParsedRecord],
+) -> None:
+    if not records:
+        raise PulitzerSourceError(
+            f'Pulitzer {category} page did not contain prize records for {url}'
+        )
+    if any(record.category != category for record in records):
+        raise PulitzerSourceError(
+            f'Pulitzer {category} page contained mixed categories for {url}'
+        )
+    winners = [record for record in records if record.status == 'Winner']
+    if not winners:
+        raise PulitzerSourceError(
+            f'Pulitzer {category} page did not contain a Winner for {url}'
+        )
+    years = [record.award_year for record in records]
+    if category == 'Fiction':
+        plausible = all(
+            _FICTION_MIN_YEAR <= year <= _PLAUSIBLE_YEAR_MAX for year in years
+        )
+    elif category == 'Novel':
+        plausible = all(
+            _NOVEL_MIN_YEAR <= year <= _NOVEL_MAX_YEAR for year in years
+        )
+    else:
+        raise PulitzerSourceError(
+            f'Pulitzer retrieval received an unexpected category {category!r}'
+        )
+    if not plausible:
+        raise PulitzerSourceError(
+            f'Pulitzer {category} page years were not plausible for {url}'
+        )
 
 
 def _fetch_category_pages(
     opener: urllib.request.OpenerDirector,
-) -> list[tuple[str, str, str]]:
-    """Return list of (category, url, html)."""
+) -> tuple[tuple[str, str, str], ...]:
+    """Fetch and structurally validate Fiction then Novel pages."""
     pages: list[tuple[str, str, str]] = []
     for category, url in _CATEGORY_URLS:
-        html = _fetch_html(opener, url, referer=HOME_URL, allow_challenge=False)
+        html = _fetch_html(opener, url)
+        records = _parse_category_html(html, category, url)
+        _validate_category_records(category, url, records)
         pages.append((category, url, html))
-    return pages
-
-
-_category_pages_cache: tuple[tuple[str, str, str], ...] | None = None
-_cache_lock = threading.Lock()
+    return tuple(pages)
 
 
 def _get_category_pages() -> tuple[tuple[str, str, str], ...]:
@@ -159,8 +193,7 @@ def _get_category_pages() -> tuple[tuple[str, str, str], ...]:
         if _category_pages_cache is not None:
             return _category_pages_cache
         opener = _build_opener()
-        _warmup(opener)
-        pages = tuple(_fetch_category_pages(opener))
+        pages = _fetch_category_pages(opener)
         _category_pages_cache = pages
         return pages
 
@@ -189,6 +222,27 @@ def _parse_citation(text: str) -> tuple[str, str] | None:
     return title, author
 
 
+def _safe_detail_url(href: str | None, *, status: str, fallback: str) -> str:
+    """Return an official Pulitzer winner/finalist URL, or the category fallback."""
+    if not href or not href.strip():
+        return fallback
+    resolved = urljoin(f'{_DETAIL_ORIGIN}/', href.strip())
+    parsed = urlparse(resolved)
+    if parsed.scheme != 'https':
+        return fallback
+    host = (parsed.hostname or '').casefold().rstrip('.')
+    if host not in _OFFICIAL_HTML_HOSTS:
+        return fallback
+    parts = [piece for piece in parsed.path.split('/') if piece]
+    if len(parts) != 2:
+        return fallback
+    kind, slug = parts
+    expected = 'winners' if status == 'Winner' else 'finalists'
+    if kind != expected or not _DETAIL_SLUG_RE.fullmatch(slug):
+        return fallback
+    return f'{_DETAIL_ORIGIN}/{kind}/{slug}'
+
+
 class _PulitzerCategoryParser(HTMLParser):
     """Parse one official Pulitzer category page into winner/finalist records."""
 
@@ -201,6 +255,7 @@ class _PulitzerCategoryParser(HTMLParser):
         self._capture: str | None = None
         self._buffer: list[str] = []
         self._em_buffer: list[str] = []
+        self._citation_href: str | None = None
         self._in_em = False
         self._finalist_depth = 0
         self._seen: set[tuple[int, str, str, str]] = set()
@@ -210,14 +265,22 @@ class _PulitzerCategoryParser(HTMLParser):
         classes = attr.get('class', '').split()
 
         if tag == 'a':
-            year_match = _YEAR_HREF_RE.search(attr.get('href', ''))
+            href = attr.get('href', '')
+            year_match = _YEAR_HREF_RE.search(href)
             if year_match:
                 self._year = int(year_match.group(1))
+            elif (
+                self._capture in {'winner', 'finalist'}
+                and href
+                and self._citation_href is None
+            ):
+                self._citation_href = href
 
         if tag == 'h2' and self._capture is None:
             self._capture = 'winner'
             self._buffer = []
             self._em_buffer = []
+            self._citation_href = None
             return
 
         if tag == 'div' and 'finalist-title' in classes and self._capture is None:
@@ -225,6 +288,7 @@ class _PulitzerCategoryParser(HTMLParser):
             self._finalist_depth = 1
             self._buffer = []
             self._em_buffer = []
+            self._citation_href = None
             return
 
         if tag == 'div' and self._capture == 'finalist':
@@ -279,6 +343,7 @@ class _PulitzerCategoryParser(HTMLParser):
         if self._year is None:
             self._buffer = []
             self._em_buffer = []
+            self._citation_href = None
             return
 
         full_text = ''.join(self._buffer)
@@ -287,6 +352,7 @@ class _PulitzerCategoryParser(HTMLParser):
         if parsed is None:
             self._buffer = []
             self._em_buffer = []
+            self._citation_href = None
             return
 
         title, author = parsed
@@ -297,6 +363,7 @@ class _PulitzerCategoryParser(HTMLParser):
         if key in self._seen:
             self._buffer = []
             self._em_buffer = []
+            self._citation_href = None
             return
         self._seen.add(key)
 
@@ -307,11 +374,16 @@ class _PulitzerCategoryParser(HTMLParser):
                 status=status,
                 work_title=title,
                 work_author=author,
-                source_url=self.source_url,
+                source_url=_safe_detail_url(
+                    self._citation_href,
+                    status=status,
+                    fallback=self.source_url,
+                ),
             )
         )
         self._buffer = []
         self._em_buffer = []
+        self._citation_href = None
 
 
 def _parse_category_html(
