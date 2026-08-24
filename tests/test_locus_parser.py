@@ -10,15 +10,20 @@ from awards.qualifier import QualificationDecision, qualify_award_result
 from awards.source_registry import AwardSource
 from awards.sources import locus
 
+URL_1984 = 'https://www.sfadb.com/Locus_Awards_1984'
+URL_1987 = 'https://www.sfadb.com/Locus_Awards_1987'
 URL_1990 = 'https://www.sfadb.com/Locus_Awards_1990'
 URL_1971 = 'https://www.sfadb.com/Locus_Awards_1971'
 URL_1974 = 'https://www.sfadb.com/Locus_Awards_1974'
 URL_1975 = 'https://www.sfadb.com/Locus_Awards_1975'
 URL_1979 = 'https://www.sfadb.com/Locus_Awards_1979'
+URL_1999 = 'https://www.sfadb.com/Locus_Awards_1999'
 URL_2008 = 'https://www.sfadb.com/Locus_Awards_2008'
+URL_2009 = 'https://www.sfadb.com/Locus_Awards_2009'
 URL_2010 = 'https://www.sfadb.com/Locus_Awards_2010'
 URL_2017 = 'https://www.sfadb.com/Locus_Awards_2017'
 URL_2018 = 'https://www.sfadb.com/Locus_Awards_2018'
+URL_2020 = 'https://www.sfadb.com/Locus_Awards_2020'
 URL_2024 = 'https://www.sfadb.com/Locus_Awards_2024'
 URL_2025 = 'https://www.sfadb.com/Locus_Awards_2025'
 URL_2026 = 'https://www.sfadb.com/Locus_Awards_2026'
@@ -29,6 +34,10 @@ URL_ELMOHTAR = 'https://www.sfadb.com/Amal_El-Mohtar'
 URL_ELLISON = 'https://www.sfadb.com/Harlan_Ellison'
 URL_CLARKE = 'https://www.sfadb.com/Susanna_Clarke'
 URL_EKLUND = 'https://www.sfadb.com/Gordon_Eklund'
+URL_CHIANG = 'https://www.sfadb.com/Ted_Chiang'
+URL_GIBSON = 'https://www.sfadb.com/William_Gibson'
+URL_DAVIDSON = 'https://www.sfadb.com/Avram_Davidson'
+URL_SILVERBERG = 'https://www.sfadb.com/Robert_Silverberg'
 
 
 def _author_page(name: str, rows: str) -> str:
@@ -88,7 +97,8 @@ HTML_EFFINGER = _author_page(
 
 HTML_ANDERSON = _author_page(
     'Poul Anderson',
-    _entry(1990, 'The Boat of a Million Years', 'sf novel', '6th place'),
+    _entry(1990, 'The Boat of a Million Years', 'sf novel', '6th place')
+    + _entry(1984, 'Hoka!', 'collection', '6th place'),
 )
 
 HTML_WELLS = _author_page(
@@ -356,6 +366,134 @@ HTML_SHORT_OVERLAP_AUTHOR = _author_page(
 """,
 )
 
+_EXHALATION_COLLECTION_DISCOVERY = """
+<div class="dateleftindent">
+    <a href="Locus_Awards_2020">2020</a>:
+</div>
+<div class="titlemid">
+    <b>Exhalation</b> (Knopf; Picador)
+    collection &#0151; <span class="win">winner</span>
+</div>
+"""
+
+_EXHALATION_SHORT_STORY_DISCOVERY = """
+<div class="dateleftindent"><a href="Locus_Awards_2009">2009</a>: </div>
+<div class="titlemid">&#8220;Exhalation&#8221; (<i>F&amp;SF</i>)
+ &#0151; short story &#0151; 2nd place</div>
+"""
+
+HTML_CHIANG = _author_page('Ted Chiang', _EXHALATION_COLLECTION_DISCOVERY)
+
+HTML_CHIANG_CROSS = _author_page(
+    'Ted Chiang',
+    _EXHALATION_COLLECTION_DISCOVERY + _EXHALATION_SHORT_STORY_DISCOVERY,
+)
+
+HTML_GIBSON = _author_page(
+    'William Gibson',
+    """
+<div class="dateleftindent"><a href="Locus_Awards_1987">1987</a>:</div>
+<div class="titlemid"><b>Burning Chrome</b> (Arbor House)
+collection &#0151; 2nd place</div>
+""",
+)
+
+_TREASURY_COLLECTION_DISCOVERY = """
+<div class="dateleftindent"><a href="Locus_Awards_1999">1999</a>:</div>
+<div class="titlemid"><b>The Avram Davidson Treasury</b> (Tor)
+collection &#0151; <span class="win">winner</span></div>
+"""
+
+HTML_DAVIDSON = _author_page('Avram Davidson', _TREASURY_COLLECTION_DISCOVERY)
+
+HTML_SILVERBERG = _author_page(
+    'Robert Silverberg',
+    _TREASURY_COLLECTION_DISCOVERY,
+)
+
+HTML_2020_COLLECTION = """
+<div class="categoryblock">
+<div class="category">Collection</div>
+<ol>
+<li value="1">
+    <span class="winner">Winner:</span>
+    <b>Exhalation</b>,
+    <a href="Ted_Chiang">Ted Chiang</a>
+    (Knopf; Picador)
+</li>
+</ol>
+</div>
+"""
+
+HTML_2009_EXHALATION_STORY = """
+<div class="categoryblock">
+<div class="category">Short Story</div>
+<ol>
+<li value="2"> &#8220;Exhalation&#8221;, <a href="Ted_Chiang">Ted Chiang</a> (<i>F&amp;SF</i>)</li>
+</ol>
+</div>
+"""
+
+HTML_1987_COLLECTION = """
+<div class="categoryblock">
+<div class="category">Collection</div>
+<ol>
+<li value="2">
+    <b>Burning Chrome</b>,
+    <a href="William_Gibson">William Gibson</a>
+    (Arbor House)
+</li>
+</ol>
+</div>
+"""
+
+HTML_1999_COLLECTION = """
+<div class="categoryblock">
+<div class="category">Collection</div>
+<ol>
+<li value="1">
+    <span class="winner">Winner:</span>
+    <b>The Avram Davidson Treasury</b>,
+    <a href="Avram_Davidson">Avram Davidson</a>,
+    edited by
+    <a href="Robert_Silverberg">Robert Silverberg</a>
+    &
+    <a href="Grania_Davis">Grania Davis</a>
+    (Tor)
+</li>
+</ol>
+</div>
+"""
+
+HTML_1984_COLLECTION = """
+<div class="categoryblock">
+<div class="category">Collection</div>
+<ol>
+<li value="6">
+    <b>Hoka!</b>,
+    <a href="Poul_Anderson">Poul Anderson</a>
+    &
+    <a href="Gordon_R_Dickson">Gordon R. Dickson</a>
+    (...)
+</li>
+</ol>
+</div>
+"""
+
+HTML_WOLFE_AKA_COLLECTION = """
+<div class="categoryblock">
+<div class="category">Collection</div>
+<ol>
+<li value="2">
+    <b>The Best of Gene Wolfe</b>
+    (aka <b>The Very Best of Gene Wolfe</b>),
+    <a href="Gene_Wolfe">Gene Wolfe</a>
+    (Tor)
+</li>
+</ol>
+</div>
+"""
+
 HTML_2018 = """
 <div class="categoryblock">
 <div class="category">Sf Novel</div>
@@ -528,17 +666,26 @@ PAGES = {
     'https://www.sfadb.com/Robert_Jackson_Bennett': HTML_BENNETT,
     'https://www.sfadb.com/Larry_Niven': HTML_NIVEN,
     'https://www.sfadb.com/Vonda_N_McIntyre': HTML_MCINTYRE,
+    URL_1984: HTML_1984_COLLECTION,
+    URL_1987: HTML_1987_COLLECTION,
     URL_1990: HTML_1990,
     URL_1971: HTML_1971,
     URL_1974: HTML_1974,
     URL_1975: HTML_1975_NOVELETTE,
     URL_1979: HTML_1979,
+    URL_1999: HTML_1999_COLLECTION,
     URL_2008: HTML_2008,
+    URL_2009: HTML_2009_EXHALATION_STORY,
     URL_2017: HTML_2017,
     URL_2018: HTML_2018,
+    URL_2020: HTML_2020_COLLECTION,
     URL_2024: HTML_2024,
     URL_2025: HTML_2025,
     URL_2026: HTML_2026,
+    URL_CHIANG: HTML_CHIANG,
+    URL_GIBSON: HTML_GIBSON,
+    URL_DAVIDSON: HTML_DAVIDSON,
+    URL_SILVERBERG: HTML_SILVERBERG,
     URL_HUANG: HTML_HUANG,
     URL_ELMOHTAR: HTML_ELMOHTAR,
     URL_ELLISON: HTML_ELLISON,
@@ -835,6 +982,139 @@ class AnnualParseTests(LocusTestCase):
         self.assertEqual(red_sword.linked_authors, ('Bora Chung',))
         self.assertFalse(
             locus._record_matches(red_sword, 'Red Sword', 'Anton Hur')
+        )
+
+    def test_exhalation_collection_winner(self):
+        records = locus._parse_annual_page(HTML_2020_COLLECTION, 2020, URL_2020)
+        self.assertEqual(len(records), 1)
+        record = records[0]
+        self.assertEqual(record.work_title, 'Exhalation')
+        self.assertEqual(record.work_author, 'Ted Chiang')
+        self.assertEqual(record.category, 'Collection')
+        self.assertEqual(record.rank, 1)
+        self.assertTrue(record.winner)
+        self.assertEqual(record.linked_authors, ('Ted Chiang',))
+
+    def test_burning_chrome_collection_second_place(self):
+        records = locus._parse_annual_page(HTML_1987_COLLECTION, 1987, URL_1987)
+        self.assertEqual(len(records), 1)
+        record = records[0]
+        self.assertEqual(record.work_title, 'Burning Chrome')
+        self.assertEqual(record.work_author, 'William Gibson')
+        self.assertEqual(record.category, 'Collection')
+        self.assertEqual(record.rank, 2)
+        self.assertFalse(record.winner)
+
+    def test_avram_davidson_treasury_keeps_author_not_editors(self):
+        records = locus._parse_annual_page(HTML_1999_COLLECTION, 1999, URL_1999)
+        self.assertEqual(len(records), 1)
+        record = records[0]
+        self.assertEqual(record.work_title, 'The Avram Davidson Treasury')
+        self.assertEqual(record.work_author, 'Avram Davidson')
+        self.assertEqual(record.linked_authors, ('Avram Davidson',))
+        self.assertEqual(record.category, 'Collection')
+        self.assertEqual(record.rank, 1)
+        self.assertTrue(record.winner)
+        self.assertTrue(locus._author_matches_record('Avram Davidson', record))
+        self.assertFalse(locus._author_matches_record('Robert Silverberg', record))
+        self.assertFalse(locus._author_matches_record('Grania Davis', record))
+
+    def test_hoka_keeps_both_collection_authors(self):
+        records = locus._parse_annual_page(HTML_1984_COLLECTION, 1984, URL_1984)
+        self.assertEqual(len(records), 1)
+        record = records[0]
+        self.assertEqual(record.work_title, 'Hoka!')
+        self.assertEqual(record.work_author, 'Poul Anderson & Gordon R. Dickson')
+        self.assertEqual(
+            record.linked_authors,
+            ('Poul Anderson', 'Gordon R. Dickson'),
+        )
+        self.assertEqual(record.category, 'Collection')
+        self.assertEqual(record.rank, 6)
+        self.assertTrue(locus._author_matches_record('Poul Anderson', record))
+        self.assertTrue(locus._author_matches_record('Gordon R. Dickson', record))
+
+    def test_best_of_gene_wolfe_keeps_first_bold_title(self):
+        records = locus._parse_annual_page(
+            HTML_WOLFE_AKA_COLLECTION, 2010, URL_2010
+        )
+        self.assertEqual(len(records), 1)
+        record = records[0]
+        self.assertEqual(record.work_title, 'The Best of Gene Wolfe')
+        self.assertNotEqual(record.work_title, 'The Very Best of Gene Wolfe')
+        self.assertEqual(record.work_author, 'Gene Wolfe')
+        self.assertEqual(record.category, 'Collection')
+
+
+class WorkAuthorFromLinksTests(LocusTestCase):
+    def test_edited_by_keeps_author_only(self):
+        self.assertEqual(
+            locus._work_authors_from_links(
+                ('Author', 'Editor'),
+                'Title, Author, edited by Editor',
+            ),
+            ('Author',),
+        )
+
+    def test_edited_by_two_editors_keeps_author_only(self):
+        self.assertEqual(
+            locus._work_authors_from_links(
+                ('Author', 'Editor One', 'Editor Two'),
+                'Title, Author, edited by Editor One & Editor Two',
+            ),
+            ('Author',),
+        )
+
+    def test_two_authors_without_edited_by_are_kept(self):
+        self.assertEqual(
+            locus._work_authors_from_links(
+                ('Author One', 'Author Two'),
+                'Title, Author One & Author Two',
+            ),
+            ('Author One', 'Author Two'),
+        )
+
+    def test_translated_by_keeps_author_only(self):
+        self.assertEqual(
+            locus._work_authors_from_links(
+                ('Author', 'Translator'),
+                'Title, Author, translated by Translator',
+            ),
+            ('Author',),
+        )
+
+    def test_earliest_of_translated_by_and_edited_by(self):
+        self.assertEqual(
+            locus._work_authors_from_links(
+                ('Author', 'Translator', 'Editor'),
+                'Title, Author, translated by Translator, edited by Editor',
+            ),
+            ('Author',),
+        )
+
+    def test_edited_by_without_prior_author_is_empty(self):
+        self.assertEqual(
+            locus._work_authors_from_links(
+                ('Editor',),
+                'Title, edited by Editor',
+            ),
+            (),
+        )
+
+    def test_unsupported_editor_phrases_are_not_cutoffs(self):
+        self.assertEqual(
+            locus._work_authors_from_links(
+                ('Author', 'Other'),
+                'Title, Author, ed. Other',
+            ),
+            ('Author', 'Other'),
+        )
+        self.assertEqual(
+            locus._work_authors_from_links(
+                ('Author', 'Other'),
+                'Title, Author, selected by Other',
+            ),
+            ('Author', 'Other'),
         )
 
 
@@ -1205,6 +1485,104 @@ class LookupAndQualificationTests(LocusTestCase):
         self.assertEqual(
             qualify_award_result(result).decision,
             QualificationDecision.QUALIFIES,
+        )
+
+    def test_exhalation_collection_lookup_fetches_only_2020(self):
+        with patch.object(locus, '_request_html', side_effect=_fake_request) as mocked:
+            results = locus.lookup('Exhalation', 'Ted Chiang')
+        self.assertEqual(len(results), 1)
+        result = results[0]
+        self.assertEqual(result.work_title, 'Exhalation')
+        self.assertEqual(result.work_author, 'Ted Chiang')
+        self.assertEqual(result.award_name, 'Locus Award')
+        self.assertEqual(result.award_year, 2020)
+        self.assertEqual(result.category, 'Collection')
+        self.assertEqual(result.rank, 1)
+        self.assertEqual(result.status, 'Winner')
+        self.assertEqual(result.source_name, 'Science Fiction Awards Database')
+        self.assertEqual(result.source_url, URL_2020)
+        self.assertEqual(
+            qualify_award_result(result).decision,
+            QualificationDecision.QUALIFIES,
+        )
+        self.assertEqual(
+            [call.args[1] for call in mocked.call_args_list],
+            [URL_CHIANG, URL_2020],
+        )
+
+    def test_burning_chrome_collection_lookup_qualifies(self):
+        results = self._lookup('Burning Chrome', 'William Gibson')
+        self.assertEqual(len(results), 1)
+        result = results[0]
+        self.assertEqual(result.work_title, 'Burning Chrome')
+        self.assertEqual(result.work_author, 'William Gibson')
+        self.assertEqual(result.award_year, 1987)
+        self.assertEqual(result.category, 'Collection')
+        self.assertEqual(result.rank, 2)
+        self.assertEqual(result.status, '2nd place')
+        self.assertEqual(
+            qualify_award_result(result).decision,
+            QualificationDecision.QUALIFIES,
+        )
+
+    def test_hoka_collection_rank_six_does_not_qualify(self):
+        results = self._lookup('Hoka!', 'Poul Anderson')
+        self.assertEqual(len(results), 1)
+        result = results[0]
+        self.assertEqual(result.work_title, 'Hoka!')
+        self.assertEqual(result.work_author, 'Poul Anderson & Gordon R. Dickson')
+        self.assertEqual(result.award_year, 1984)
+        self.assertEqual(result.category, 'Collection')
+        self.assertEqual(result.rank, 6)
+        self.assertEqual(result.status, '6th place')
+        self.assertEqual(
+            qualify_award_result(result).decision,
+            QualificationDecision.DOES_NOT_QUALIFY,
+        )
+
+    def test_treasury_author_lookup_qualifies(self):
+        results = self._lookup('The Avram Davidson Treasury', 'Avram Davidson')
+        self.assertEqual(len(results), 1)
+        result = results[0]
+        self.assertEqual(result.work_title, 'The Avram Davidson Treasury')
+        self.assertEqual(result.work_author, 'Avram Davidson')
+        self.assertEqual(result.award_year, 1999)
+        self.assertEqual(result.category, 'Collection')
+        self.assertEqual(result.rank, 1)
+        self.assertEqual(result.status, 'Winner')
+        self.assertEqual(
+            qualify_award_result(result).decision,
+            QualificationDecision.QUALIFIES,
+        )
+
+    def test_treasury_editor_author_page_does_not_qualify(self):
+        results = self._lookup(
+            'The Avram Davidson Treasury',
+            'Robert Silverberg',
+        )
+        self.assertEqual(results, [])
+
+    def test_exhalation_collection_and_short_story_stay_separate(self):
+        pages = dict(PAGES)
+        pages[URL_CHIANG] = HTML_CHIANG_CROSS
+
+        def fake(_opener, url: str):
+            body = pages.get(url)
+            if body is None:
+                return 404, ''
+            return 200, body
+
+        with patch.object(locus, '_request_html', side_effect=fake):
+            results = locus.lookup('Exhalation', 'Ted Chiang')
+        by_category = {result.category: result for result in results}
+        self.assertEqual(set(by_category), {'Collection', 'Short Story'})
+        self.assertEqual(by_category['Collection'].award_year, 2020)
+        self.assertEqual(by_category['Collection'].rank, 1)
+        self.assertEqual(by_category['Short Story'].award_year, 2009)
+        self.assertEqual(by_category['Short Story'].rank, 2)
+        self.assertNotEqual(
+            by_category['Collection'].category,
+            by_category['Short Story'].category,
         )
 
     def test_wood_at_midwinter_rank_six_does_not_qualify(self):

@@ -70,6 +70,7 @@ _SUPPORTED_CATEGORY_LABELS = (
     'Novelette',
     'Short Story',
     'Short Fiction',
+    'Collection',
 )
 _SUPPORTED_CATEGORY_KEYS = frozenset(
     label.casefold() for label in _SUPPORTED_CATEGORY_LABELS
@@ -89,13 +90,14 @@ _DISCOVERY_TO_ANNUAL_CATEGORY = {
     'novelette': 'Novelette',
     'short story': 'Short Story',
     'short fiction': 'Short Fiction',
+    'collection': 'Collection',
 }
 _DISCOVERY_SUPPORTED_KEYS = frozenset(_DISCOVERY_TO_ANNUAL_CATEGORY)
 _TRANSLATED_BY_RE = re.compile(r'translated\s+by', re.IGNORECASE)
+_EDITED_BY_RE = re.compile(r'edited\s+by', re.IGNORECASE)
 _TRANS_GLITCH_RE = re.compile(r',\s*trans(?:lators?|\d+)\b', re.IGNORECASE)
 _RECOGNIZED_UNSUPPORTED_KEYS = frozenset({
     'anthology',
-    'collection',
     'anthology/collection',
     'magazine',
     'publisher',
@@ -363,13 +365,27 @@ def _discovery_category_supported(category_text: str) -> bool:
     return _annual_category_for_discovery(category_text) is not None
 
 
+def _earliest_role_cutoff(text: str) -> re.Match[str] | None:
+    matches = [
+        match
+        for match in (
+            _TRANSLATED_BY_RE.search(text),
+            _EDITED_BY_RE.search(text),
+        )
+        if match is not None
+    ]
+    if not matches:
+        return None
+    return min(matches, key=lambda match: match.start())
+
+
 def _work_authors_from_links(
     linked: tuple[str, ...], li_text: str
 ) -> tuple[str, ...]:
     collapsed = _collapse_ws(li_text)
-    translated_by = _TRANSLATED_BY_RE.search(collapsed)
-    if translated_by is not None:
-        before = collapsed[: translated_by.start()]
+    cutoff = _earliest_role_cutoff(collapsed)
+    if cutoff is not None:
+        before = collapsed[: cutoff.start()]
         return tuple(name for name in linked if name in before)
     if _TRANS_GLITCH_RE.search(collapsed):
         return linked[:1]
@@ -1021,17 +1037,24 @@ def lookup(title: str, author: str, series: str | None = None) -> list[AwardResu
         expected_category = _annual_category_for_discovery(entry.category_text)
         if expected_category is None:
             continue
-        found = [
+        title_on_annual = [
             record
             for record in records
             if record.category == expected_category
-            and _record_matches(record, cleaned_title, cleaned_author)
+            and _titles_equivalent(cleaned_title, record.work_title)
         ]
-        if not found:
+        if not title_on_annual:
             raise LocusSourceError(
                 'SFADB author-page Locus entry was not present on the '
                 f'annual results page: {entry.annual_url}'
             )
+        found = [
+            record
+            for record in title_on_annual
+            if _author_matches_record(cleaned_author, record)
+        ]
+        if not found:
+            continue
         for record in found:
             if entry.rank is not None and record.rank != entry.rank:
                 raise LocusSourceError(
