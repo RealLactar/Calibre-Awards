@@ -330,5 +330,96 @@ class SeriesAwardFormattingTests(unittest.TestCase):
         self.assertEqual(result.identity_kind, 'work')
 
 
+class AuthorAwardFormattingTests(unittest.TestCase):
+    def test_author_identity_appends_author_scope_inside_category(self):
+        result = _result(
+            work_title='Ernest Hemingway',
+            work_author='Ernest Hemingway',
+            award_name='Nobel Prize',
+            award_year=1954,
+            category='Literature',
+            status='Winner',
+            rank=None,
+            source_name='NobelPrize.org',
+            source_url='https://www.nobelprize.org/prizes/literature/1954/hemingway/facts/',
+            identity_kind='author',
+        )
+        formatted = format_award_result(result)
+        self.assertEqual(
+            formatted,
+            'Winner - 1954 Nobel Prize - Literature [Author: Ernest Hemingway]',
+        )
+        self.assertEqual(formatted.split(' - '), [
+            'Winner',
+            '1954 Nobel Prize',
+            'Literature [Author: Ernest Hemingway]',
+        ])
+
+    def test_author_annotation_uses_work_author_not_work_title(self):
+        result = _result(
+            work_title='Canonical Awarded Author Identity',
+            work_author='Displayed Author',
+            award_name='Nobel Prize',
+            award_year=1954,
+            category='Literature',
+            identity_kind='author',
+        )
+        formatted = format_award_result(result)
+        self.assertEqual(
+            formatted,
+            'Winner - 1954 Nobel Prize - Literature [Author: Displayed Author]',
+        )
+        self.assertNotIn('Canonical Awarded Author Identity', formatted)
+
+    def test_author_custom_template_still_substitutes_placeholders(self):
+        result = _result(
+            work_title='Ernest Hemingway',
+            work_author='Ernest Hemingway',
+            award_name='Nobel Prize',
+            award_year=1954,
+            category='Literature',
+            identity_kind='author',
+        )
+        self.assertEqual(
+            format_award_result(
+                result,
+                template='<award> (<year>): <placement> [<category>]',
+            ),
+            'Nobel Prize (1954): Winner [Literature [Author: Ernest Hemingway]]',
+        )
+
+    def test_work_formatting_is_unchanged_beside_author_results(self):
+        result = _result()
+        self.assertEqual(
+            format_award_result(result),
+            'Winner - 1988 Pulitzer Prize - Fiction',
+        )
+
+    def test_cited_work_nobel_formats_without_author_or_cited_suffix(self):
+        result = _result(
+            work_title='The Old Man and the Sea',
+            work_author='Ernest Hemingway',
+            award_name='Nobel Prize',
+            award_year=1954,
+            category='Literature',
+            status='Winner',
+            rank=None,
+            source_name='NobelPrize.org',
+            source_url='https://www.nobelprize.org/prizes/literature/1954/hemingway/facts/',
+            notes=(
+                'This work was specifically cited in the Nobel Prize '
+                'motivation.'
+            ),
+            identity_kind='work',
+        )
+        formatted = format_award_result(result)
+        self.assertEqual(
+            formatted,
+            'Winner - 1954 Nobel Prize - Literature',
+        )
+        self.assertNotIn('[Author:', formatted)
+        self.assertNotIn('specifically cited', formatted)
+
+
 if __name__ == '__main__':
     unittest.main()

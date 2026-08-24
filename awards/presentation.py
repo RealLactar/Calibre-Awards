@@ -21,14 +21,109 @@ def format_series_line(series: str) -> str | None:
     return f'Series: {text}'
 
 
+def result_identity_kind(result) -> str:
+    """Return identity_kind, defaulting to work when absent."""
+    kind = getattr(result, 'identity_kind', 'work')
+    if kind == 'series':
+        return 'series'
+    if kind == 'author':
+        return 'author'
+    return 'work'
+
+
 def lookup_has_series_award(lookup_series: str, assessments) -> bool:
     """True when series context is present and a series award is displayed."""
     if not lookup_series.strip():
         return False
     return any(
-        getattr(item.result, 'identity_kind', 'work') == 'series'
+        result_identity_kind(item.result) == 'series'
         for item in assessments
     )
+
+
+def format_author_award_caption(author: str) -> str:
+    """Return the quiet author-award scope caption."""
+    return (
+        f'AUTHOR AWARD - Awarded to {author.strip()}, '
+        'not specifically to this book.'
+    )
+
+
+CITED_WORK_SCOPE_NOTE = (
+    'This work was specifically cited in the Nobel Prize motivation.'
+)
+
+
+def format_cited_work_caption() -> str:
+    """Return the quiet specifically-cited-work scope caption."""
+    return f'WORK AWARD - {CITED_WORK_SCOPE_NOTE}'
+
+
+def is_cited_work_result(result) -> bool:
+    """True when a work result carries the cited-work scope note."""
+    if result_identity_kind(result) != 'work':
+        return False
+    notes = getattr(result, 'notes', None)
+    if not isinstance(notes, str):
+        return False
+    return notes.strip() == CITED_WORK_SCOPE_NOTE
+
+
+def source_author_identity_if_different(
+    lookup_author: str,
+    source_author: str,
+) -> str | None:
+    """Return the official author spelling only when it visibly differs."""
+    official = source_author.strip()
+    if lookup_author.strip() == official:
+        return None
+    return official or None
+
+
+def match_row_scope_lines(
+    result,
+    lookup_title: str,
+    lookup_author: str,
+    lookup_series: str = '',
+) -> tuple[str, ...]:
+    """Return extra award-row lines for identity scope.
+
+    Author awards never compare the Calibre book title to work_title.
+    """
+    kind = result_identity_kind(result)
+    work_title = getattr(result, 'work_title', '') or ''
+    work_author = getattr(result, 'work_author', '') or ''
+    if kind == 'author':
+        lines = [format_author_award_caption(work_author)]
+        source_author = source_author_identity_if_different(
+            lookup_author,
+            work_author,
+        )
+        if source_author is not None:
+            lines.append(f'Source author: {source_author}')
+        return tuple(lines)
+    if kind == 'series':
+        source_identity = source_identity_if_different(
+            lookup_series,
+            lookup_author,
+            work_title,
+            work_author,
+        )
+        if source_identity is None:
+            return ()
+        return (f'Source series: {source_identity}',)
+    lines: list[str] = []
+    if is_cited_work_result(result):
+        lines.append(format_cited_work_caption())
+    source_identity = source_identity_if_different(
+        lookup_title,
+        lookup_author,
+        work_title,
+        work_author,
+    )
+    if source_identity is not None:
+        lines.append(f'Source: {source_identity}')
+    return tuple(lines)
 
 
 def source_identity_if_different(

@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-_IDENTITY_KINDS = frozenset({'work', 'series'})
+_IDENTITY_KINDS = frozenset({'work', 'series', 'author'})
 
 
 @dataclass(frozen=True, slots=True)
@@ -9,11 +9,15 @@ class AwardResult:
 
     Source-neutral; no qualification logic.
 
-    identity_kind distinguishes a direct-work award from a series award
-    that the current book may inherit because it belongs to the awarded
-    series. work_title holds the official source work title for
-    identity_kind='work', or the official source series name for
-    identity_kind='series'.
+    identity_kind names the awarded entity. work_title holds that entity's
+    official source name:
+
+    - work: official work title
+    - series: official series name
+    - author: official author/laureate name
+
+    For identity_kind='author', work_title and work_author may both contain
+    the official author name.
     """
 
     work_title: str
@@ -46,9 +50,9 @@ class AwardResult:
         kind = self.identity_kind.strip() if self.identity_kind else ''
         if kind not in _IDENTITY_KINDS:
             raise ValueError(
-                "identity_kind must be 'work' or 'series'"
+                "identity_kind must be 'work', 'series', or 'author'"
             )
         if kind != self.identity_kind:
             raise ValueError(
-                "identity_kind must be 'work' or 'series'"
+                "identity_kind must be 'work', 'series', or 'author'"
             )

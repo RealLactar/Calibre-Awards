@@ -39,6 +39,19 @@ class AwardResultIdentityKindTests(unittest.TestCase):
         )
         self.assertEqual(result.identity_kind, 'series')
 
+    def test_accepts_author_identity_kind(self):
+        result = _result(
+            work_title='Ernest Hemingway',
+            work_author='Ernest Hemingway',
+            award_name='Nobel Prize',
+            award_year=1954,
+            category='Literature',
+            identity_kind='author',
+        )
+        self.assertEqual(result.identity_kind, 'author')
+        self.assertEqual(result.work_title, 'Ernest Hemingway')
+        self.assertEqual(result.work_author, 'Ernest Hemingway')
+
     def test_invalid_identity_kind_is_rejected(self):
         with self.assertRaises(ValueError):
             _result(identity_kind='volume')
@@ -46,6 +59,8 @@ class AwardResultIdentityKindTests(unittest.TestCase):
             _result(identity_kind='')
         with self.assertRaises(ValueError):
             _result(identity_kind=' work')
+        with self.assertRaises(ValueError):
+            _result(identity_kind=' author ')
 
 
 if __name__ == '__main__':

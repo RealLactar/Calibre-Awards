@@ -3,7 +3,7 @@ from calibre_plugins.calibre_awards.awards.presentation import (
     format_book_line,
     format_series_line,
     lookup_has_series_award,
-    source_identity_if_different,
+    match_row_scope_lines,
 )
 from calibre_plugins.calibre_awards.awards.qualifier import QualificationDecision
 from qt.core import (
@@ -168,27 +168,16 @@ class _AwardMatchRow(QWidget):
         self.checkbox.setToolTip(tooltip)
         layout.addWidget(self.checkbox)
 
-        if getattr(result, 'identity_kind', 'work') == 'series':
-            source_identity = source_identity_if_different(
-                lookup_series,
-                lookup_author,
-                result.work_title,
-                result.work_author,
-            )
-            source_label = 'Source series'
-        else:
-            source_identity = source_identity_if_different(
-                lookup_title,
-                lookup_author,
-                result.work_title,
-                result.work_author,
-            )
-            source_label = 'Source'
-        if source_identity is not None:
-            source = QLabel(f'{source_label}: {source_identity}', self)
-            source.setWordWrap(True)
-            source.setTextFormat(Qt.PlainText)
-            layout.addWidget(source)
+        for line in match_row_scope_lines(
+            result,
+            lookup_title,
+            lookup_author,
+            lookup_series,
+        ):
+            scope = QLabel(line, self)
+            scope.setWordWrap(True)
+            scope.setTextFormat(Qt.PlainText)
+            layout.addWidget(scope)
 
         decision_name = assessment.qualification.decision.name
         reason = (assessment.qualification.reason or '').strip()

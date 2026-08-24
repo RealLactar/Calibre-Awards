@@ -68,6 +68,13 @@ def _format_category(result) -> str:
         if series_name is None:
             return category
         return f'{category} [{series_name}]'
+    if identity_kind == 'author':
+        author_name = _nonempty_text(getattr(result, 'work_author', None))
+        if category is None:
+            return _MISSING_CATEGORY
+        if author_name is None:
+            return category
+        return f'{category} [Author: {author_name}]'
     if category is not None:
         return category
     return _MISSING_CATEGORY

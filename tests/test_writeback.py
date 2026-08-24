@@ -7,7 +7,7 @@ import unittest
 from awards.engine import AwardAssessment, AwardLookupReport, SourceFailure
 from awards.formatter import DEFAULT_AWARD_OUTPUT_TEMPLATE, format_award_result
 from awards.model import AwardResult
-from awards.qualifier import QualificationDecision, QualificationResult
+from awards.qualifier import QualificationDecision, QualificationResult, qualify_award_result
 from awards.writeback import (
     append_award_values,
     formatted_qualifying_awards,
@@ -54,6 +54,87 @@ class QualifyingAwardFormattingTests(unittest.TestCase):
         self.assertEqual(
             formatted_qualifying_awards(report),
             ['Winner - 1988 Pulitzer Prize - Fiction'],
+        )
+
+    def test_author_identity_winner_is_included_as_formatted_value(self):
+        result = _result(
+            work_title='Ernest Hemingway',
+            work_author='Ernest Hemingway',
+            award_name='Nobel Prize',
+            award_year=1954,
+            category='Literature',
+            status='Winner',
+            rank=None,
+            source_name='NobelPrize.org',
+            source_url=(
+                'https://www.nobelprize.org/prizes/literature/'
+                '1954/hemingway/facts/'
+            ),
+            identity_kind='author',
+        )
+        self.assertEqual(
+            qualify_award_result(result).decision,
+            QualificationDecision.QUALIFIES,
+        )
+        report = AwardLookupReport(
+            assessments=(_assessment(result),),
+            failures=(),
+        )
+        self.assertEqual(
+            formatted_qualifying_awards(report),
+            [
+                'Winner - 1954 Nobel Prize - Literature '
+                '[Author: Ernest Hemingway]'
+            ],
+        )
+        prepared = prepare_append_award_values(
+            [],
+            formatted_qualifying_awards(report),
+        )
+        self.assertEqual(
+            prepared.values,
+            [
+                'Winner - 1954 Nobel Prize - Literature '
+                '[Author: Ernest Hemingway]'
+            ],
+        )
+        self.assertEqual(prepared.rejected_for_comma, [])
+
+    def test_cited_work_identity_winner_writes_without_author_scope(self):
+        result = _result(
+            work_title='The Old Man and the Sea',
+            work_author='Ernest Hemingway',
+            award_name='Nobel Prize',
+            award_year=1954,
+            category='Literature',
+            status='Winner',
+            rank=None,
+            source_name='NobelPrize.org',
+            source_url=(
+                'https://www.nobelprize.org/prizes/literature/'
+                '1954/hemingway/facts/'
+            ),
+            notes=(
+                'This work was specifically cited in the Nobel Prize '
+                'motivation.'
+            ),
+            identity_kind='work',
+        )
+        self.assertEqual(
+            qualify_award_result(result).decision,
+            QualificationDecision.QUALIFIES,
+        )
+        report = AwardLookupReport(
+            assessments=(_assessment(result),),
+            failures=(),
+        )
+        self.assertEqual(
+            formatted_qualifying_awards(report),
+            ['Winner - 1954 Nobel Prize - Literature'],
+        )
+        self.assertNotIn(
+            'Winner - 1954 Nobel Prize - Literature [Author: Ernest Hemingway]',
+            formatted_qualifying_awards(report),
         )
 
     def test_review_is_excluded(self):

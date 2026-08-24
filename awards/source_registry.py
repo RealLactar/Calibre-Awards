@@ -9,6 +9,7 @@ from .model import AwardResult
 from .sources.hugo import lookup as hugo_lookup
 from .sources.locus import lookup as locus_lookup
 from .sources.nebula import lookup as nebula_lookup
+from .sources.nobel import lookup as nobel_lookup
 from .sources.pulitzer import lookup as pulitzer_lookup
 from .sources.world_fantasy import lookup as world_fantasy_lookup
 
@@ -58,5 +59,10 @@ AWARD_SOURCES: tuple[AwardSource, ...] = (
         key='world_fantasy',
         display_name='World Fantasy Awards',
         lookup=world_fantasy_lookup,
+    ),
+    AwardSource(
+        key='nobel',
+        display_name='NobelPrize.org',
+        lookup=nobel_lookup,
     ),
 )
