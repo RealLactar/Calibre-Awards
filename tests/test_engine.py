@@ -312,5 +312,243 @@ class EngineConcurrencyTests(unittest.TestCase):
         )
 
 
+class EngineEnabledSourceFilterTests(unittest.TestCase):
+    def test_omitted_or_none_runs_every_registered_source(self):
+        attempted: list[str] = []
+        lock = threading.Lock()
+
+        def _one(title: str, author: str, series=None):
+            with lock:
+                attempted.append('one')
+            return []
+
+        def _two(title: str, author: str, series=None):
+            with lock:
+                attempted.append('two')
+            return []
+
+        sources = (
+            _source('one', 'Source One', _one),
+            _source('two', 'Source Two', _two),
+        )
+        with patch('awards.engine.AWARD_SOURCES', sources):
+            omitted = lookup_awards('Beloved', 'Toni Morrison')
+            none_keys = lookup_awards(
+                'Beloved',
+                'Toni Morrison',
+                enabled_source_keys=None,
+            )
+        self.assertEqual(attempted.count('one'), 2)
+        self.assertEqual(attempted.count('two'), 2)
+        self.assertEqual(omitted.assessments, ())
+        self.assertEqual(omitted.failures, ())
+        self.assertEqual(none_keys.assessments, ())
+        self.assertEqual(none_keys.failures, ())
+
+    def test_excluded_lookup_is_never_invoked(self):
+        attempted: list[str] = []
+
+        def _ok(title: str, author: str, series=None):
+            attempted.append('ok')
+            return [_result(source_name='OK Awards')]
+
+        def _boom(title: str, author: str, series=None):
+            attempted.append('boom')
+            raise RuntimeError('should not run')
+
+        sources = (
+            _source('ok', 'OK Awards', _ok),
+            _source('bad', 'Bad Awards', _boom),
+        )
+        with patch('awards.engine.AWARD_SOURCES', sources):
+            report = lookup_awards(
+                'Beloved',
+                'Toni Morrison',
+                enabled_source_keys=('ok',),
+            )
+        self.assertEqual(attempted, ['ok'])
+        self.assertEqual(len(report.assessments), 1)
+        self.assertEqual(report.failures, ())
+
+    def test_only_one_enabled_source_runs(self):
+        attempted: list[str] = []
+
+        def _pulitzer(title: str, author: str, series=None):
+            attempted.append('pulitzer')
+            return []
+
+        def _nobel(title: str, author: str, series=None):
+            attempted.append('nobel')
+            return [_result(source_name='NobelPrize.org')]
+
+        sources = (
+            _source('pulitzer', 'Pulitzer Prizes', _pulitzer),
+            _source('nebula', 'Nebula Awards', lambda *a, **k: attempted.append('nebula') or []),
+            _source('nobel', 'NobelPrize.org', _nobel),
+        )
+        with patch('awards.engine.AWARD_SOURCES', sources):
+            report = lookup_awards(
+                'Beloved',
+                'Toni Morrison',
+                enabled_source_keys=('nobel',),
+            )
+        self.assertEqual(attempted, ['nobel'])
+        self.assertEqual(
+            [item.result.source_name for item in report.assessments],
+            ['NobelPrize.org'],
+        )
+
+    def test_empty_enabled_keys_run_zero_sources(self):
+        attempted: list[str] = []
+
+        def _ok(title: str, author: str, series=None):
+            attempted.append('ok')
+            return [_result()]
+
+        sources = (_source('ok', 'OK Awards', _ok),)
+        with patch('awards.engine.AWARD_SOURCES', sources):
+            report = lookup_awards(
+                'Beloved',
+                'Toni Morrison',
+                enabled_source_keys=(),
+            )
+        self.assertEqual(attempted, [])
+        self.assertEqual(report.assessments, ())
+        self.assertEqual(report.failures, ())
+
+    def test_unknown_enabled_key_is_ignored(self):
+        attempted: list[str] = []
+
+        def _nobel(title: str, author: str, series=None):
+            attempted.append('nobel')
+            return []
+
+        sources = (_source('nobel', 'NobelPrize.org', _nobel),)
+        with patch('awards.engine.AWARD_SOURCES', sources):
+            report = lookup_awards(
+                'Beloved',
+                'Toni Morrison',
+                enabled_source_keys=('nobel', 'removed_old_source'),
+            )
+        self.assertEqual(attempted, ['nobel'])
+        self.assertEqual(report.failures, ())
+
+    def test_caller_order_does_not_reorder_registry_execution(self):
+        attempted: list[str] = []
+        lock = threading.Lock()
+
+        def _hugo(title: str, author: str, series=None):
+            with lock:
+                attempted.append('hugo')
+            return [_result(source_name='Hugo Awards')]
+
+        def _nobel(title: str, author: str, series=None):
+            with lock:
+                attempted.append('nobel')
+            return [_result(source_name='NobelPrize.org')]
+
+        sources = (
+            _source('pulitzer', 'Pulitzer Prizes', lambda *a, **k: []),
+            _source('hugo', 'Hugo Awards', _hugo),
+            _source('nobel', 'NobelPrize.org', _nobel),
+        )
+        with patch('awards.engine.AWARD_SOURCES', sources):
+            report = lookup_awards(
+                'Beloved',
+                'Toni Morrison',
+                enabled_source_keys=('nobel', 'hugo'),
+            )
+        self.assertEqual(set(attempted), {'hugo', 'nobel'})
+        self.assertEqual(
+            [item.result.source_name for item in report.assessments],
+            ['Hugo Awards', 'NobelPrize.org'],
+        )
+
+    def test_excluded_raising_source_creates_no_failure(self):
+        def _boom(title: str, author: str, series=None):
+            raise RuntimeError('timeout')
+
+        def _ok(title: str, author: str, series=None):
+            return [_result(source_name='OK Awards')]
+
+        sources = (
+            _source('bad', 'Bad Awards', _boom),
+            _source('ok', 'OK Awards', _ok),
+        )
+        with patch('awards.engine.AWARD_SOURCES', sources):
+            report = lookup_awards(
+                'Beloved',
+                'Toni Morrison',
+                enabled_source_keys=('ok',),
+            )
+        self.assertEqual(report.failures, ())
+        self.assertEqual(len(report.assessments), 1)
+
+    def test_enabled_raising_source_still_becomes_failure(self):
+        def _boom(title: str, author: str, series=None):
+            raise ValueError('bad payload')
+
+        sources = (_source('broken', 'Broken Awards', _boom),)
+        with patch('awards.engine.AWARD_SOURCES', sources):
+            report = lookup_awards(
+                'Beloved',
+                'Toni Morrison',
+                enabled_source_keys=('broken',),
+            )
+        self.assertEqual(len(report.failures), 1)
+        self.assertEqual(report.failures[0].source_name, 'Broken Awards')
+        self.assertEqual(report.failures[0].error_type, 'ValueError')
+
+    def test_progress_total_uses_filtered_source_count(self):
+        events: list[LookupProgress] = []
+
+        def _nobel(title: str, author: str, series=None):
+            return []
+
+        def _unused(title: str, author: str, series=None):
+            raise AssertionError('disabled source was submitted')
+
+        sources = (
+            _source('pulitzer', 'Pulitzer Prizes', _unused),
+            _source('nobel', 'NobelPrize.org', _nobel),
+        )
+        with patch('awards.engine.AWARD_SOURCES', sources):
+            lookup_awards(
+                'Beloved',
+                'Toni Morrison',
+                on_progress=events.append,
+                enabled_source_keys=('nobel',),
+            )
+        self.assertEqual(events[0], LookupProgress(0, 1, None))
+        self.assertEqual(len(events), 2)
+        self.assertTrue(all(item.total_sources == 1 for item in events))
+        self.assertEqual(events[1].source_name, 'NobelPrize.org')
+
+    def test_progress_total_for_two_enabled_sources(self):
+        events: list[LookupProgress] = []
+
+        def _ok(title: str, author: str, series=None):
+            return []
+
+        sources = (
+            _source('pulitzer', 'Pulitzer Prizes', _ok),
+            _source('hugo', 'Hugo Awards', _ok),
+            _source('nobel', 'NobelPrize.org', _ok),
+        )
+        with patch('awards.engine.AWARD_SOURCES', sources):
+            lookup_awards(
+                'Beloved',
+                'Toni Morrison',
+                on_progress=events.append,
+                enabled_source_keys=('nobel', 'hugo'),
+            )
+        self.assertTrue(all(item.total_sources == 2 for item in events))
+        self.assertEqual(events[0].completed_sources, 0)
+        self.assertEqual(
+            sorted(item.source_name for item in events[1:]),
+            ['Hugo Awards', 'NobelPrize.org'],
+        )
+
+
 if __name__ == '__main__':
     unittest.main()

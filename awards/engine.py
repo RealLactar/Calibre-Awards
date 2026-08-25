@@ -48,13 +48,27 @@ def assess_award_result(result: AwardResult) -> AwardAssessment:
     return AwardAssessment(result=result, qualification=qualification)
 
 
+def _award_sources_for_keys(enabled_source_keys) -> tuple[AwardSource, ...]:
+    """Select registered sources by key, preserving AWARD_SOURCES order."""
+    if enabled_source_keys is None:
+        return AWARD_SOURCES
+    allowed = frozenset(enabled_source_keys)
+    return tuple(source for source in AWARD_SOURCES if source.key in allowed)
+
+
 def lookup_awards(
     title: str,
     author: str,
     series: str | None = None,
     on_progress: ProgressCallback | None = None,
+    *,
+    enabled_source_keys=None,
 ) -> AwardLookupReport:
-    """Search configured award sources and return assessments plus failures."""
+    """Search configured award sources and return assessments plus failures.
+
+    enabled_source_keys=None uses every registered source. An empty collection
+    uses none. Unknown keys are ignored. Order follows AWARD_SOURCES.
+    """
     cleaned_title = title.strip()
     cleaned_author = author.strip()
     if not cleaned_title:
@@ -65,7 +79,7 @@ def lookup_awards(
     return _lookup_awards_from_sources(
         cleaned_title,
         cleaned_author,
-        AWARD_SOURCES,
+        _award_sources_for_keys(enabled_source_keys),
         series=cleaned_series,
         on_progress=on_progress,
     )

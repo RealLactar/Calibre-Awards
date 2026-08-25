@@ -4,11 +4,18 @@ from calibre.utils.config import JSONConfig
 from calibre_plugins.calibre_awards.awards.formatter import (
     DEFAULT_AWARD_OUTPUT_TEMPLATE,
 )
+from calibre_plugins.calibre_awards.awards.source_info import SOURCE_INFOS
+from calibre_plugins.calibre_awards.awards.source_settings import (
+    normalize_disabled_source_keys,
+)
 from qt.core import (
     QCheckBox,
     QComboBox,
+    QGroupBox,
+    QHBoxLayout,
     QLabel,
     QLineEdit,
+    QPushButton,
     QRadioButton,
     Qt,
     QVBoxLayout,
@@ -25,6 +32,7 @@ prefs.defaults['award_output_template'] = DEFAULT_AWARD_OUTPUT_TEMPLATE
 prefs.defaults['writeback_enabled'] = False
 prefs.defaults['writeback_field'] = ''
 prefs.defaults['writeback_mode'] = WRITEBACK_MODE_APPEND
+prefs.defaults['disabled_source_keys'] = []
 
 
 def _award_output_template_from_value(value) -> str:
@@ -87,6 +95,36 @@ class ConfigWidget(QWidget):
         QWidget.__init__(self)
         layout = QVBoxLayout()
         self.setLayout(layout)
+
+        sources_group = QGroupBox('Award sources', self)
+        sources_layout = QVBoxLayout(sources_group)
+        hint = QLabel(
+            'Disabled sources are skipped during Check Awards.',
+            sources_group,
+        )
+        hint.setWordWrap(True)
+        sources_layout.addWidget(hint)
+        disabled_keys = set(
+            normalize_disabled_source_keys(prefs['disabled_source_keys'])
+        )
+        self.source_checkboxes = {}
+        for info in SOURCE_INFOS:
+            checkbox = QCheckBox(info.display_name, sources_group)
+            checkbox.setChecked(info.key not in disabled_keys)
+            self.source_checkboxes[info.key] = checkbox
+            sources_layout.addWidget(checkbox)
+        buttons = QWidget(sources_group)
+        buttons_layout = QHBoxLayout(buttons)
+        buttons_layout.setContentsMargins(0, 0, 0, 0)
+        select_all = QPushButton('Select All', buttons)
+        select_none = QPushButton('Select None', buttons)
+        select_all.clicked.connect(self.select_all_sources)
+        select_none.clicked.connect(self.select_no_sources)
+        buttons_layout.addWidget(select_all)
+        buttons_layout.addWidget(select_none)
+        buttons_layout.addStretch(1)
+        sources_layout.addWidget(buttons)
+        layout.addWidget(sources_group)
 
         intro = QLabel(
             'This setting controls the format of each award result.'
@@ -240,6 +278,14 @@ class ConfigWidget(QWidget):
             return WRITEBACK_MODE_REPLACE
         return WRITEBACK_MODE_APPEND
 
+    def select_all_sources(self):
+        for checkbox in self.source_checkboxes.values():
+            checkbox.setChecked(True)
+
+    def select_no_sources(self):
+        for checkbox in self.source_checkboxes.values():
+            checkbox.setChecked(False)
+
     def validate(self):
         if (
             self.enabled_checkbox.isChecked()
@@ -269,3 +315,8 @@ class ConfigWidget(QWidget):
         prefs['writeback_enabled'] = enabled
         prefs['writeback_field'] = lookup_name
         prefs['writeback_mode'] = self._selected_mode()
+        prefs['disabled_source_keys'] = [
+            info.key
+            for info in SOURCE_INFOS
+            if not self.source_checkboxes[info.key].isChecked()
+        ]

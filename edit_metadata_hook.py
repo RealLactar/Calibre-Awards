@@ -17,6 +17,10 @@ from calibre_plugins.calibre_awards.awards.formatter import (
     DEFAULT_AWARD_OUTPUT_TEMPLATE,
     format_award_result,
 )
+from calibre_plugins.calibre_awards.awards.source_info import SOURCE_INFOS
+from calibre_plugins.calibre_awards.awards.source_settings import (
+    compute_enabled_source_keys,
+)
 from calibre_plugins.calibre_awards.awards.writeback import (
     prepare_append_award_values,
     prepare_replace_award_values,
@@ -55,12 +59,13 @@ class _AwardLookupThread(QThread):
     failed = pyqtSignal(str)
     progress = pyqtSignal(int, int, str)
 
-    def __init__(self, title, author, series=''):
+    def __init__(self, title, author, series='', enabled_source_keys=()):
         # Intentionally unparented: must outlive the Edit Metadata dialog.
         super().__init__(None)
         self._title = title
         self._author = author
         self._series = series
+        self.enabled_source_keys = enabled_source_keys
 
     def run(self):
         try:
@@ -69,6 +74,7 @@ class _AwardLookupThread(QThread):
                 self._author,
                 series=self._series,
                 on_progress=self._emit_progress,
+                enabled_source_keys=self.enabled_source_keys,
             )
         except Exception as exc:
             self.failed.emit(f'{type(exc).__name__}: {exc}')
@@ -516,9 +522,27 @@ def _apply_selected_award_writeback(dialog, selected_assessments, template):
     return '\n'.join(lines)
 
 
+def _enabled_lookup_source_keys():
+    return compute_enabled_source_keys(
+        tuple(info.key for info in SOURCE_INFOS),
+        prefs['disabled_source_keys'],
+    )
+
+
 def _start_award_lookup(dialog, button):
     global _FIRST_SEARCH_STARTED
     if getattr(dialog, _RUNNING_ATTR, False):
+        return
+
+    enabled_keys = _enabled_lookup_source_keys()
+    if enabled_keys == ():
+        info_dialog(
+            dialog,
+            'Calibre Awards',
+            'No award sources are enabled. Enable at least one source in '
+            'Calibre Awards preferences.',
+            show=True,
+        )
         return
 
     title = dialog.title.current_val
@@ -540,7 +564,12 @@ def _start_award_lookup(dialog, button):
     else:
         progress.schedule_show(_LATER_SEARCH_PROGRESS_DELAY_MS)
 
-    thread = _AwardLookupThread(lookup_title, lookup_author, lookup_series)
+    thread = _AwardLookupThread(
+        lookup_title,
+        lookup_author,
+        lookup_series,
+        enabled_source_keys=enabled_keys,
+    )
     receiver = _LookupUiReceiver(
         button,
         lookup_title,
