@@ -1,4 +1,10 @@
-"""Official Nebula Awards written-work source (nebulas.sfwa.org)."""
+"""Official Nebula Awards written-work source (nebulas.sfwa.org).
+
+Categories are fetched independently, but a lookup treats the official archive
+as one unit: every configured category must parse, and one category failure
+fails the source. Pagination follows official rel=next links. Caches store
+validated pages and records only.
+"""
 
 from __future__ import annotations
 
@@ -163,6 +169,7 @@ _NORTON_CONFIG = _NebulaAwardConfig(
         'Andre Norton Award for Young Adult Science Fiction and Fantasy',
     ),
     first_year=2005,
+    # Some Norton winner lines omit the year.
     winner_year_optional=True,
 )
 _AWARD_CONFIGS: tuple[_NebulaAwardConfig, ...] = (
@@ -245,6 +252,7 @@ _pages_cache: dict[str, tuple[tuple[str, str], ...]] = {}
 _records_cache: dict[str, tuple[_ParsedRecord, ...]] = {}
 _category_locks: dict[str, threading.Lock] = {}
 _category_locks_guard = threading.Lock()
+# Intra-source bound: avoid opening every category archive at once.
 _MAX_CATEGORY_WORKERS = 2
 
 
@@ -266,7 +274,11 @@ def _lock_for_category(key: str) -> threading.Lock:
 def _load_category(
     config: _NebulaAwardConfig,
 ) -> tuple[tuple[tuple[str, str], ...], tuple[_ParsedRecord, ...]]:
-    """Fetch/parse/validate one category; cache pages and records together."""
+    """Fetch/parse/validate one category; cache pages and records together.
+
+    Per-category locks prevent duplicate simultaneous loads of the same archive.
+    Failed retrieval is not written into the success caches.
+    """
     lock = _lock_for_category(config.key)
     with lock:
         cached_records = _records_cache.get(config.key)
@@ -820,7 +832,11 @@ def _glue_generational_suffixes(parts: list[str]) -> list[str]:
 
 
 def _split_official_author_list(author: str) -> tuple[str, ...] | None:
-    """Parse a simple official person list, or None if the string is unsafe."""
+    """Parse a simple official person list, or None if the string is unsafe.
+
+    Role phrases such as "with" or "edited by" are not guessed into authors.
+    A missing author is left empty unless a keyed override supplies it.
+    """
     text = _collapse_ws(author)
     if not text:
         return None
@@ -891,6 +907,7 @@ def lookup(title: str, author: str, series: str | None = None) -> list[AwardResu
     seen_results: set[tuple[int, str, str, str, str, str, str | None]] = set()
     loaded: dict[str, tuple[_ParsedRecord, ...] | Exception] = {}
     max_workers = min(_MAX_CATEGORY_WORKERS, len(_AWARD_CONFIGS))
+    # Load categories concurrently, then raise any failure so the archive is all-or-nothing.
     with ThreadPoolExecutor(max_workers=max_workers) as pool:
         future_map = {
             pool.submit(_get_category_records, config): config

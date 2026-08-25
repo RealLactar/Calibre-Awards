@@ -1,3 +1,13 @@
+"""Calibre Awards preferences stored with JSONConfig.
+
+disabled_source_keys is an opt-out list so a newly registered source starts
+enabled for existing installations. Checkboxes follow SOURCE_INFOS; unknown
+stored keys have no checkbox until the next save rewrites the list from the
+current controls. Template and write-back settings are separate from source
+enablement. Select All / Select None change only this widget; Apply/OK in
+Calibre's preference dialog is what persists.
+"""
+
 from calibre.gui2 import error_dialog
 from calibre.gui2.ui import get_gui
 from calibre.utils.config import JSONConfig
@@ -32,6 +42,7 @@ prefs.defaults['award_output_template'] = DEFAULT_AWARD_OUTPUT_TEMPLATE
 prefs.defaults['writeback_enabled'] = False
 prefs.defaults['writeback_field'] = ''
 prefs.defaults['writeback_mode'] = WRITEBACK_MODE_APPEND
+# Opt-out list: a source added in a later release starts enabled.
 prefs.defaults['disabled_source_keys'] = []
 
 
@@ -56,6 +67,7 @@ def _writeback_mode_from_value(value) -> str:
 
 
 def _is_eligible_writeback_column(meta) -> bool:
+    # Multiple-value text only: Calibre splits that field on commas.
     if not meta or meta.get('datatype') != 'text':
         return False
     if not meta.get('is_multiple'):
@@ -91,6 +103,8 @@ def _eligible_writeback_fields(field_metadata) -> list[tuple[str, str]]:
 
 
 class ConfigWidget(QWidget):
+    """Preference controls; Calibre persists them only from save_settings()."""
+
     def __init__(self):
         QWidget.__init__(self)
         layout = QVBoxLayout()
@@ -109,6 +123,7 @@ class ConfigWidget(QWidget):
         )
         self.source_checkboxes = {}
         for info in SOURCE_INFOS:
+            # Current capabilities only; stale disabled keys have no checkbox.
             checkbox = QCheckBox(info.display_name, sources_group)
             checkbox.setChecked(info.key not in disabled_keys)
             self.source_checkboxes[info.key] = checkbox
@@ -279,6 +294,7 @@ class ConfigWidget(QWidget):
         return WRITEBACK_MODE_APPEND
 
     def select_all_sources(self):
+        # Widget state only; persistence waits for Calibre to accept/apply.
         for checkbox in self.source_checkboxes.values():
             checkbox.setChecked(True)
 
@@ -303,6 +319,8 @@ class ConfigWidget(QWidget):
         return True
 
     def save_settings(self):
+        # Persist when Calibre accepts/applies this widget. Canceling the
+        # preferences dialog leaves stored prefs unchanged under that flow.
         template = _award_output_template_from_value(self.template_edit.text())
         self.template_edit.setText(template)
         prefs['award_output_template'] = template
@@ -315,6 +333,7 @@ class ConfigWidget(QWidget):
         prefs['writeback_enabled'] = enabled
         prefs['writeback_field'] = lookup_name
         prefs['writeback_mode'] = self._selected_mode()
+        # Rebuild from current SOURCE_INFOS; stale stored keys are dropped.
         prefs['disabled_source_keys'] = [
             info.key
             for info in SOURCE_INFOS

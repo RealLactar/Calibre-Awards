@@ -406,11 +406,9 @@ class AuthorAwardFormattingTests(unittest.TestCase):
             rank=None,
             source_name='NobelPrize.org',
             source_url='https://www.nobelprize.org/prizes/literature/1954/hemingway/facts/',
-            notes=(
-                'This work was specifically cited in the Nobel Prize '
-                'motivation.'
-            ),
+            notes=None,
             identity_kind='work',
+            is_specifically_cited_work=True,
         )
         formatted = format_award_result(result)
         self.assertEqual(

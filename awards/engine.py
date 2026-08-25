@@ -1,4 +1,9 @@
-"""Orchestrate award-source lookup, policy selection, and qualification."""
+"""Orchestrate concurrent award-source lookup, then qualify the facts.
+
+Sources return AwardResult objects only. Qualification and policy selection
+happen here after retrieval so a parser never writes Calibre metadata and a
+failed source cannot erase successful results from the others.
+"""
 
 from __future__ import annotations
 
@@ -14,6 +19,8 @@ from .source_registry import AWARD_SOURCES, AwardSource
 
 @dataclass(frozen=True, slots=True)
 class AwardAssessment:
+    """One factual result paired with its qualification decision."""
+
     result: AwardResult
     qualification: QualificationResult
 
@@ -33,6 +40,8 @@ class AwardLookupReport:
 
 @dataclass(frozen=True, slots=True)
 class LookupProgress:
+    """Counts only sources actually scheduled for this lookup."""
+
     completed_sources: int
     total_sources: int
     source_name: str | None
@@ -49,7 +58,12 @@ def assess_award_result(result: AwardResult) -> AwardAssessment:
 
 
 def _award_sources_for_keys(enabled_source_keys) -> tuple[AwardSource, ...]:
-    """Select registered sources by key, preserving AWARD_SOURCES order."""
+    """Select registered sources by key, preserving AWARD_SOURCES order.
+
+    None means every registered source. An empty collection means none.
+    Those must not be collapsed with `enabled or None`, which would treat
+    "user disabled every source" as "run them all". Unknown keys are ignored.
+    """
     if enabled_source_keys is None:
         return AWARD_SOURCES
     allowed = frozenset(enabled_source_keys)
@@ -94,6 +108,7 @@ def _lookup_one_source(
     try:
         return source.lookup(title, author, series=series)
     except Exception as exc:
+        # Isolate the source: other scheduled lookups still complete.
         return SourceFailure(
             source_name=source.display_name,
             error_type=type(exc).__name__,
@@ -108,7 +123,12 @@ def _lookup_awards_from_sources(
     series: str | None = None,
     on_progress: ProgressCallback | None = None,
 ) -> AwardLookupReport:
-    """Run lookups against an explicit source iterable; used by tests."""
+    """Run the given sources concurrently and qualify their factual results.
+
+    Progress totals count this iterable only. Results are assembled in the
+    iterable's order, which for production is AWARD_SOURCES order, so network
+    timing cannot reshuffle the report or later write-back.
+    """
     source_list = tuple(sources)
     total = len(source_list)
     if on_progress is not None:
@@ -120,6 +140,7 @@ def _lookup_awards_from_sources(
             )
         )
 
+    # Index by source-list position; as_completed order is not report order.
     slots: list[list[AwardResult] | SourceFailure | None] = [None] * total
     if total:
         max_workers = total

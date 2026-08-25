@@ -1,7 +1,13 @@
 # Isolated runtime hook for Calibre's undocumented single-book Edit Metadata UI.
-# Do not call Calibre DB APIs from this module. Award write-back may update
-# Edit Metadata custom-column widgets via setter() only after the user accepts
-# the award-selection dialog.
+# Calibre does not offer Check Awards as a normal InterfaceAction inside that
+# window, so this module wraps MetadataSingleDialogBase.setupUi. Installed
+# Calibre source files are not modified. Undocumented dialog attributes used
+# here are the repair point if a future Calibre layout changes.
+#
+# Network lookup runs on a QThread; widgets stay on the GUI thread. This
+# module must not call Calibre DB APIs. Write-back updates Edit Metadata
+# custom-column widgets via setter() so Calibre's OK commits and Cancel
+# discards with the rest of the metadata edits.
 
 from functools import wraps
 import time
@@ -28,6 +34,7 @@ from calibre_plugins.calibre_awards.awards.writeback import (
 from calibre_plugins.calibre_awards.config import prefs
 from qt.core import (
     QDialog,
+    QDialogButtonBox,
     QFont,
     QLabel,
     QObject,
@@ -42,18 +49,24 @@ from qt.core import (
 
 BUTTON_OBJECT_NAME = 'calibre_awards_check_awards_button'
 _PATCH_ATTR = '_calibre_awards_setupui_patch'
+# Per-dialog: one lookup at a time. Stays True until the worker finishes,
+# including after the user cancels waiting.
 _RUNNING_ATTR = '_calibre_awards_lookup_running'
 _LATER_SEARCH_PROGRESS_DELAY_MS = 500
 
-# Keep strong references to active workers so closing Edit Metadata cannot
-# garbage-collect a still-running QThread.
+# Process-level strong refs: a QThread Python wrapper can be collected while
+# the native thread is still running if nothing owns it. Cleanup removes
+# entries after finished.
 _ACTIVE_THREADS = set()
 _THREAD_CLEANUP_RECEIVER = None
 _FIRST_SEARCH_STARTED = False
 
 
 class _AwardLookupThread(QThread):
-    """Run awards.engine.lookup_awards() off the GUI thread."""
+    """Run awards.engine.lookup_awards() off the GUI thread.
+
+    Emits progress/results/errors for GUI objects. Does not touch widgets.
+    """
 
     succeeded = pyqtSignal(object)
     failed = pyqtSignal(str)
@@ -93,12 +106,17 @@ class _AwardLookupThread(QThread):
 class _LookupProgressDialog(QDialog):
     """Determinate lookup progress owned by the open Edit Metadata dialog."""
 
+    waiting_canceled = pyqtSignal()
+
     def __init__(self, parent, show_first_search_warning):
         super().__init__(parent)
         self.setWindowTitle('Calibre Awards')
         self.setModal(True)
+        # Title-bar close is off so Cancel is the only waiting-time escape.
+        # closeEvent still ignores while _waiting: one cancel path, not two.
         self.setWindowFlag(Qt.WindowType.WindowCloseButtonHint, False)
-        self._lookup_running = True
+        self._waiting = True
+        self._canceled = False
         self._started = time.monotonic()
 
         layout = QVBoxLayout(self)
@@ -158,6 +176,22 @@ class _LookupProgressDialog(QDialog):
         self._elapsed = QLabel('Elapsed: 0.0 seconds', self)
         layout.addWidget(self._elapsed)
 
+        cancel_note = QLabel(
+            'Cancel stops waiting for this search. Website requests already '
+            'in progress may finish in the background.',
+            self,
+        )
+        cancel_note.setWordWrap(True)
+        cancel_note.setTextFormat(Qt.TextFormat.PlainText)
+        layout.addWidget(cancel_note)
+
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Cancel,
+            self,
+        )
+        buttons.rejected.connect(self.cancel_waiting)
+        layout.addWidget(buttons)
+
         self._timer = QTimer(self)
         self._timer.setInterval(250)
         self._timer.timeout.connect(self._tick_elapsed)
@@ -174,7 +208,7 @@ class _LookupProgressDialog(QDialog):
         self._show_timer.start(delay_ms)
 
     def _show_if_running(self):
-        if self._lookup_running:
+        if self._waiting:
             self.show()
 
     def _tick_elapsed(self):
@@ -182,7 +216,7 @@ class _LookupProgressDialog(QDialog):
         self._elapsed.setText(f'Elapsed: {elapsed:.1f} seconds')
 
     def handle_progress(self, completed, total, source_name):
-        if not self._lookup_running:
+        if not self._waiting:
             return
         try:
             maximum = total if total > 0 else 1
@@ -196,24 +230,52 @@ class _LookupProgressDialog(QDialog):
                     f'Last completed: {source_name}'
                 )
         except RuntimeError:
+            # Queued progress can arrive after the progress dialog is gone.
+            pass
+
+    def cancel_waiting(self):
+        """Stop displaying this lookup without stopping the worker.
+
+        Cancel means the user no longer wants progress, selection, or error
+        UI. The QThread and in-flight urllib requests continue until they
+        finish. The dialog running flag stays set until handle_finished.
+        """
+        if self._canceled or not self._waiting:
+            return
+        self._canceled = True
+        self._waiting = False
+        self._timer.stop()
+        self._show_timer.stop()
+        self.waiting_canceled.emit()
+        try:
+            self.hide()
+            self.close()
+        except RuntimeError:
+            # Progress dialog may already have been destroyed.
             pass
 
     def mark_finished(self):
-        self._lookup_running = False
+        self._waiting = False
         self._timer.stop()
         self._show_timer.stop()
         self.hide()
         self.close()
 
     def closeEvent(self, event):
-        if self._lookup_running:
+        # While waiting, ignore close so Cancel stays the only escape path.
+        if self._waiting:
             event.ignore()
             return
         event.accept()
 
 
 class _LookupUiReceiver(QObject):
-    """GUI-thread receiver for lookup results; parented to the Edit Metadata dialog."""
+    """GUI-thread receiver for lookup results; parented to Edit Metadata.
+
+    _canceled (user no longer waiting) is independent of worker finish.
+    A canceled lookup still runs to completion; handle_finished then
+    clears the running flag and re-enables Check Awards.
+    """
 
     def __init__(
         self,
@@ -230,6 +292,10 @@ class _LookupUiReceiver(QObject):
         self._lookup_author = lookup_author
         self._lookup_series = lookup_series
         self._progress = progress_dialog
+        self._canceled = False
+
+    def mark_canceled(self):
+        self._canceled = True
 
     def _close_progress(self):
         progress = self._progress
@@ -241,6 +307,8 @@ class _LookupUiReceiver(QObject):
             pass
 
     def handle_succeeded(self, report):
+        if self._canceled:
+            return
         self._close_progress()
         dialog = self.parent()
         if dialog is None:
@@ -253,6 +321,7 @@ class _LookupUiReceiver(QObject):
             status_text = _writeback_status_text(
                 dialog, can_write=write_enabled
             )
+            # Display assessments and default selections; write-back is opt-in.
             selection = AwardSelectionDialog(
                 dialog,
                 report,
@@ -289,6 +358,8 @@ class _LookupUiReceiver(QObject):
             pass
 
     def handle_failed(self, message):
+        if self._canceled:
+            return
         self._close_progress()
         dialog = self.parent()
         if dialog is None:
@@ -385,6 +456,8 @@ def _find_custom_widget(dialog, lookup_name):
 
 
 def _widget_is_eligible_writeback_target(widget, lookup_name):
+    # Restrict to widgets that can hold a tag-like list without fighting
+    # Calibre's comma-split display. Unsupported column types are skipped.
     if widget is None or _widget_lookup_name(widget) != lookup_name:
         return False
     if not callable(getattr(widget, 'getter', None)):
@@ -503,6 +576,7 @@ def _apply_selected_award_writeback(dialog, selected_assessments, template):
         prepared = prepare_append_award_values(existing, new_values)
 
     if prepared.values != existing:
+        # Widget only; Calibre OK commits, Cancel discards with other edits.
         widget.setter(prepared.values)
         if mode == 'replace':
             count = len(prepared.values)
@@ -523,6 +597,8 @@ def _apply_selected_award_writeback(dialog, selected_assessments, template):
 
 
 def _enabled_lookup_source_keys():
+    # Resolve prefs here. The engine gets an explicit tuple; sources do not
+    # read plugin preferences themselves.
     return compute_enabled_source_keys(
         tuple(info.key for info in SOURCE_INFOS),
         prefs['disabled_source_keys'],
@@ -535,6 +611,8 @@ def _start_award_lookup(dialog, button):
         return
 
     enabled_keys = _enabled_lookup_source_keys()
+    # Empty tuple means none. Do not coerce to None (None means all sources).
+    # No worker or network activity in this case.
     if enabled_keys == ():
         info_dialog(
             dialog,
@@ -547,6 +625,9 @@ def _start_award_lookup(dialog, button):
 
     title = dialog.title.current_val
     author = authors_to_string(dialog.authors.current_val)
+    # Optional series is passed through the common lookup interface.
+    # Work-only sources accept it but do not use it for matching; series-aware
+    # sources such as Hugo may use it for series identity.
     series = dialog.series.current_val
     lookup_title = ('' if title is None else str(title)).strip()
     lookup_author = ('' if author is None else str(author)).strip()
@@ -562,6 +643,7 @@ def _start_award_lookup(dialog, button):
     if is_first_search:
         progress.schedule_show(0)
     else:
+        # Delay so a quick cached lookup does not flash the progress dialog.
         progress.schedule_show(_LATER_SEARCH_PROGRESS_DELAY_MS)
 
     thread = _AwardLookupThread(
@@ -581,6 +663,7 @@ def _start_award_lookup(dialog, button):
     cleanup = _thread_cleanup_receiver()
 
     thread.progress.connect(progress.handle_progress)
+    progress.waiting_canceled.connect(receiver.mark_canceled)
     thread.succeeded.connect(receiver.handle_succeeded)
     thread.failed.connect(receiver.handle_failed)
     thread.finished.connect(receiver.handle_finished)
@@ -612,7 +695,11 @@ def _inject_check_awards_button(dialog):
 
 
 def install_edit_metadata_hook():
-    """Wrap MetadataSingleDialogBase.setupUi once; safe to call repeatedly."""
+    """Wrap MetadataSingleDialogBase.setupUi once; safe to call repeatedly.
+
+    Repeated wrapping would nest patches. After the original setupUi, inject
+    Check Awards if the dialog exposes the expected button-box layout.
+    """
     original = MetadataSingleDialogBase.setupUi
     if getattr(original, _PATCH_ATTR, False):
         return

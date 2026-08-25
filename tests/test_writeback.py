@@ -114,11 +114,9 @@ class QualifyingAwardFormattingTests(unittest.TestCase):
                 'https://www.nobelprize.org/prizes/literature/'
                 '1954/hemingway/facts/'
             ),
-            notes=(
-                'This work was specifically cited in the Nobel Prize '
-                'motivation.'
-            ),
+            notes=None,
             identity_kind='work',
+            is_specifically_cited_work=True,
         )
         self.assertEqual(
             qualify_award_result(result).decision,

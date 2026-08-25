@@ -1,4 +1,9 @@
-"""Compact identity strings for award-selection display. No matching logic."""
+"""GUI identity and scope captions. Separate from formatter write-back values.
+
+These helpers explain whether a result is for the current book, a series, an
+author, or a specifically cited work. They do not match titles or qualify
+awards.
+"""
 
 from __future__ import annotations
 
@@ -49,6 +54,7 @@ def format_author_award_caption(author: str) -> str:
     )
 
 
+# Display prose only. Cited-work state lives on AwardResult.is_specifically_cited_work.
 CITED_WORK_SCOPE_NOTE = (
     'This work was specifically cited in the Nobel Prize motivation.'
 )
@@ -60,13 +66,14 @@ def format_cited_work_caption() -> str:
 
 
 def is_cited_work_result(result) -> bool:
-    """True when a work result carries the cited-work scope note."""
+    """True when the semantic cited-work flag is set on a work result.
+
+    Caption text and notes are display only; they must not be used as the
+    marker.
+    """
     if result_identity_kind(result) != 'work':
         return False
-    notes = getattr(result, 'notes', None)
-    if not isinstance(notes, str):
-        return False
-    return notes.strip() == CITED_WORK_SCOPE_NOTE
+    return getattr(result, 'is_specifically_cited_work', False) is True
 
 
 def source_author_identity_if_different(
@@ -89,6 +96,7 @@ def match_row_scope_lines(
     """Return extra award-row lines for identity scope.
 
     Author awards never compare the Calibre book title to work_title.
+    Series awards compare Calibre series identity, not the book title.
     """
     kind = result_identity_kind(result)
     work_title = getattr(result, 'work_title', '') or ''
@@ -134,8 +142,9 @@ def source_identity_if_different(
 ) -> str | None:
     """Return the compact source identity only when it visibly differs.
 
-    Comparison strips leading/trailing whitespace and otherwise requires an
-    exact visible-string match. Matching-engine normalization is not applied.
+    Comparison strips surrounding whitespace and otherwise requires an exact
+    visible-string match. Matching-engine normalization is not applied, so a
+    spelling the matcher treated as equivalent can still be shown.
     """
     if (
         lookup_title.strip() == source_title.strip()

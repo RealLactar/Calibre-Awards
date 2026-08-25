@@ -1,4 +1,9 @@
-"""Plain-text formatting for award lookup reports."""
+"""Plain-text award values for display and write-back.
+
+This layer formats a result; it does not explain GUI identity scope.
+Series and author awards annotate the category so a stored value is not
+mistaken for a book-level award.
+"""
 
 from __future__ import annotations
 
@@ -35,6 +40,7 @@ def _nonempty_text(value) -> str | None:
 
 
 def _format_placement(result) -> str:
+    # Rank is the stored ordinal; status is used only when rank is absent.
     rank = getattr(result, 'rank', None)
     if rank is not None:
         return _ordinal(rank)

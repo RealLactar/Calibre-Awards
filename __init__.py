@@ -2,11 +2,14 @@ from calibre.customize import InterfaceActionBase
 
 
 class CalibreAwardsPlugin(InterfaceActionBase):
+    """Installable InterfaceActionBase plugin; UI lives in actual_plugin."""
+
     name = 'Calibre Awards'
     description = 'Find literary awards associated with books and stories'
     supported_platforms = ['windows', 'osx', 'linux']
     author = 'Agris Taurins'
     version = (0, 0, 1)
+    # Compatibility metadata for Calibre's plugin loader.
     minimum_calibre_version = (9, 13, 0)
     actual_plugin = 'calibre_plugins.calibre_awards.ui:CalibreAwardsAction'
 

@@ -343,7 +343,7 @@ class CitedWorkPresentationTests(unittest.TestCase):
             identity_kind='work',
             work_title='The Old Man and the Sea',
             work_author='Ernest Hemingway',
-            notes=CITED_WORK_SCOPE_NOTE,
+            is_specifically_cited_work=True,
         )
         self.assertTrue(is_cited_work_result(result))
         self.assertEqual(
@@ -357,6 +357,68 @@ class CitedWorkPresentationTests(unittest.TestCase):
                 'Prize motivation.',
             ),
         )
+
+    def test_cited_work_prose_in_notes_is_not_the_semantic_marker(self):
+        from types import SimpleNamespace
+
+        result = SimpleNamespace(
+            identity_kind='work',
+            work_title='The Old Man and the Sea',
+            work_author='Ernest Hemingway',
+            notes=CITED_WORK_SCOPE_NOTE,
+            is_specifically_cited_work=False,
+        )
+        self.assertFalse(is_cited_work_result(result))
+        self.assertEqual(
+            match_row_scope_lines(
+                result,
+                'The Old Man and the Sea',
+                'Ernest Hemingway',
+            ),
+            (),
+        )
+
+    def test_cited_flag_true_with_arbitrary_notes_is_still_cited_work(self):
+        from types import SimpleNamespace
+
+        result = SimpleNamespace(
+            identity_kind='work',
+            work_title='The Old Man and the Sea',
+            work_author='Ernest Hemingway',
+            notes='Nobel Prize status: declined.',
+            is_specifically_cited_work=True,
+        )
+        self.assertTrue(is_cited_work_result(result))
+        lines = match_row_scope_lines(
+            result,
+            'The Old Man and the Sea',
+            'Ernest Hemingway',
+        )
+        self.assertEqual(
+            lines,
+            (
+                'WORK AWARD - This work was specifically cited in the Nobel '
+                'Prize motivation.',
+            ),
+        )
+
+    def test_author_result_is_never_cited_work_even_if_flag_is_true(self):
+        from types import SimpleNamespace
+
+        result = SimpleNamespace(
+            identity_kind='author',
+            work_title='Ernest Hemingway',
+            work_author='Ernest Hemingway',
+            is_specifically_cited_work=True,
+        )
+        self.assertFalse(is_cited_work_result(result))
+        lines = match_row_scope_lines(
+            result,
+            'The Old Man and the Sea',
+            'Ernest Hemingway',
+        )
+        self.assertTrue(any(line.startswith('AUTHOR AWARD') for line in lines))
+        self.assertFalse(any('WORK AWARD' in line for line in lines))
 
     def test_ordinary_work_row_does_not_gain_work_award_caption(self):
         from types import SimpleNamespace

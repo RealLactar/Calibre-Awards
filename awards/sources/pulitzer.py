@@ -1,4 +1,9 @@
-"""Official Pulitzer Prize website source (Fiction and Novel categories)."""
+"""Official Pulitzer Prize website source (Fiction and Novel categories).
+
+HTTP 200 is not proof of a usable page: Pulitzer.org can return a browser
+challenge with a success status. This source does not attempt to bypass that
+block. Only structurally validated category pages are cached.
+"""
 
 from __future__ import annotations
 
@@ -47,6 +52,7 @@ _CITATION_RE = re.compile(
 _INITIALS_SPACE_RE = re.compile(r'\b([A-Za-z])\.\s+')
 _DETAIL_SLUG_RE = re.compile(r'^[0-9A-Za-z][0-9A-Za-z_-]*$')
 _OFFICIAL_HTML_HOSTS = frozenset({'pulitzer.org', 'www.pulitzer.org'})
+# Fiction and Novel occupy distinct official year ranges; mixing them is a parse error.
 _FICTION_MIN_YEAR = 1948
 _NOVEL_MIN_YEAR = 1918
 _NOVEL_MAX_YEAR = 1947
@@ -78,6 +84,7 @@ def _build_opener() -> urllib.request.OpenerDirector:
 
 
 def _is_cloudflare_challenge(html: str) -> bool:
+    # Challenge pages often arrive as HTTP 200. Status alone is not success.
     lowered = html.casefold()
     return (
         'just a moment...' in lowered
@@ -188,7 +195,12 @@ def _fetch_category_pages(
 
 
 def _get_category_pages() -> tuple[tuple[str, str, str], ...]:
-    """Return cached category pages, fetching once per process on success."""
+    """Return cached category pages, fetching once per process on success.
+
+    A blocked or invalid retrieval is not stored. A temporary upstream block
+    should cost a later request, not poison every lookup for the rest of the
+    Calibre session.
+    """
     global _category_pages_cache
     with _cache_lock:
         if _category_pages_cache is not None:
@@ -211,6 +223,7 @@ def _parse_citation(text: str) -> tuple[str, str] | None:
     cleaned = _collapse_ws(text)
     if not cleaned:
         return None
+    # "No award" years are not works.
     if cleaned.casefold() == 'no award':
         return None
     match = _CITATION_RE.match(cleaned)
@@ -224,7 +237,10 @@ def _parse_citation(text: str) -> tuple[str, str] | None:
 
 
 def _safe_detail_url(href: str | None, *, status: str, fallback: str) -> str:
-    """Return an official Pulitzer winner/finalist URL, or the category fallback."""
+    """Return an official Pulitzer winner/finalist URL, or the category fallback.
+
+    Off-host hrefs and unexpected path shapes are discarded rather than stored.
+    """
     if not href or not href.strip():
         return fallback
     resolved = urljoin(f'{_DETAIL_ORIGIN}/', href.strip())
@@ -440,6 +456,7 @@ def _titles_match(query_title: str, record_title: str) -> bool:
 
 
 def _authors_match(query_author: str, record_author: str) -> bool:
+    # Exact normalized strings only; no surname-only or token-subset matching.
     return _normalize_text(query_author) == _normalize_text(record_author)
 
 

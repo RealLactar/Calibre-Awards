@@ -1,4 +1,10 @@
-"""Explicit static registry of award lookup sources."""
+"""Executable award lookup sources, in user-visible order.
+
+This is the set of sources the engine can run. SOURCE_INFOS describes the
+same sources for help text; tests keep the two lists aligned. Source lookup
+callables must not read Calibre preferences — the engine filters enabled
+keys before scheduling.
+"""
 
 from __future__ import annotations
 

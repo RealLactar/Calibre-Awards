@@ -1,5 +1,7 @@
 # Build/install Calibre Awards via calibre-customize.
-# Suppresses SyntaxWarning noise from unrelated installed plugins only.
+# Filter SyntaxWarning noise from unrelated installed plugins only.
+# Never suppress warnings from calibre_awards itself.
+# Preserve calibre-customize's exit code.
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Continue'

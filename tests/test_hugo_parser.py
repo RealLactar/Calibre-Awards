@@ -341,6 +341,7 @@ HTML_1971_NOVELETTE_GAP = """
 
 URL_2010 = 'https://www.thehugoawards.org/hugo-history/2010-hugo-awards/'
 
+# Official 2010 Best Novelette winner is missing the opening quote.
 HTML_2010_NOVELETTE = """
 <p><strong>Best Novel</strong></p>
 <ul>

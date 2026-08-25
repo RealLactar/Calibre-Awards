@@ -66,6 +66,8 @@ class NebulaNovellaTests(unittest.TestCase):
         )
 
     def test_1990_hemingway_hoax_uses_official_nominated_work_author(self):
+        # Official 1990 winner line omits the author link; author comes from
+        # the nominated-work page rather than an invented byline.
         records = _parse(_load('best_novella_1990.html'), nebula._BEST_NOVELLA_CONFIG)
         winner = [record for record in records if record.status == 'Winner'][0]
         self.assertEqual(winner.work_title, 'The Hemingway Hoax')
@@ -88,6 +90,7 @@ class NebulaNovellaTests(unittest.TestCase):
         self.assertEqual(nominee.work_author, 'Pat Murphy')
 
     def test_missing_author_override_does_not_replace_parsed_author(self):
+        # Negative: the Hemingway workaround must not replace a linked author.
         html = """
         <h2>1990</h2><ul class="award_list"><li>
         <i class="fa fa-star" alt="Winner" title="Winner"></i>

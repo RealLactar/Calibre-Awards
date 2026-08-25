@@ -1,3 +1,5 @@
+"""Factual award records. Qualification, formatting, and GUI live elsewhere."""
+
 from dataclasses import dataclass
 
 _IDENTITY_KINDS = frozenset({'work', 'series', 'author'})
@@ -5,19 +7,24 @@ _IDENTITY_KINDS = frozenset({'work', 'series', 'author'})
 
 @dataclass(frozen=True, slots=True)
 class AwardResult:
-    """One award-related result for a looked-up Calibre book.
+    """One source-reported award fact for a looked-up Calibre book.
 
-    Source-neutral; no qualification logic.
+    This object is not a qualification decision. Parsers fill it; the
+    qualifier and GUI consume it later.
 
-    identity_kind names the awarded entity. work_title holds that entity's
-    official source name:
+    identity_kind is the entity that received the award:
 
-    - work: official work title
-    - series: official series name
-    - author: official author/laureate name
+    - work: a specific title
+    - series: a series as a whole
+    - author: a person, typically a laureate
 
-    For identity_kind='author', work_title and work_author may both contain
-    the official author name.
+    work_title always holds that entity's official source name, even when
+    the entity is a series or an author. For identity_kind='author',
+    work_title and work_author may both contain the official author name.
+
+    is_specifically_cited_work is semantic state, independent of notes and
+    of any user-facing caption. It may be True only when identity_kind is
+    'work'. notes is human/source commentary, not hidden control state.
     """
 
     work_title: str
@@ -31,6 +38,7 @@ class AwardResult:
     source_url: str | None
     notes: str | None = None
     identity_kind: str = 'work'
+    is_specifically_cited_work: bool = False
 
     def __post_init__(self) -> None:
         if not self.work_title or not self.work_title.strip():
@@ -55,4 +63,10 @@ class AwardResult:
         if kind != self.identity_kind:
             raise ValueError(
                 "identity_kind must be 'work', 'series', or 'author'"
+            )
+        if not isinstance(self.is_specifically_cited_work, bool):
+            raise ValueError('is_specifically_cited_work must be a bool')
+        if self.is_specifically_cited_work and kind != 'work':
+            raise ValueError(
+                "is_specifically_cited_work requires identity_kind to be 'work'"
             )

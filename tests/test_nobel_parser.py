@@ -7,7 +7,6 @@ import unittest
 from unittest.mock import patch
 
 from awards.formatter import format_award_result
-from awards.presentation import CITED_WORK_SCOPE_NOTE
 from awards.qualifier import QualificationDecision, qualify_award_result
 from awards.sources import nobel
 
@@ -300,6 +299,7 @@ class LookupTests(NobelTestCase):
         self.assertEqual(len(results), 1)
         result = results[0]
         self.assertEqual(result.identity_kind, 'author')
+        self.assertIs(result.is_specifically_cited_work, False)
         self.assertEqual(result.work_title, 'Ernest Hemingway')
         self.assertEqual(result.work_author, 'Ernest Hemingway')
         self.assertEqual(result.award_name, 'Nobel Prize')
@@ -507,6 +507,7 @@ class CitedWorkTests(NobelTestCase):
         self.assertEqual(len(results), 1)
         result = results[0]
         self.assertEqual(result.identity_kind, 'work')
+        self.assertIs(result.is_specifically_cited_work, True)
         self.assertEqual(result.work_title, title)
         self.assertEqual(result.work_author, author)
         self.assertEqual(result.award_name, 'Nobel Prize')
@@ -519,7 +520,7 @@ class CitedWorkTests(NobelTestCase):
             result.source_url,
             f'https://www.nobelprize.org/prizes/literature/{year}/{slug}/facts/',
         )
-        self.assertEqual(result.notes, CITED_WORK_SCOPE_NOTE)
+        self.assertIsNone(result.notes)
         self.assertEqual(
             format_award_result(result),
             f'Winner - {year} Nobel Prize - Literature',
@@ -540,6 +541,7 @@ class CitedWorkTests(NobelTestCase):
         self.assertEqual(len(results), 1)
         result = results[0]
         self.assertEqual(result.identity_kind, 'author')
+        self.assertIs(result.is_specifically_cited_work, False)
         self.assertEqual(result.work_title, author)
         self.assertEqual(result.work_author, author)
         self.assertEqual(result.award_year, year)

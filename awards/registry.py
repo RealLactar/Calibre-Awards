@@ -1,3 +1,10 @@
+"""Award-specific policies selected after lookup.
+
+At most one policy may match a result. Overlaps are a configuration error,
+not a merge. This registry is not the executable source list; that lives in
+source_registry.AWARD_SOURCES.
+"""
+
 from .model import AwardResult
 from .policy import AwardPolicy
 
@@ -13,21 +20,8 @@ PULITZER_FICTION_POLICY = AwardPolicy(
     ),
 )
 
-BOOKER_PRIZE_POLICY = AwardPolicy(
-    award_name='Booker Prize',
-    start_year=2026,
-    nonqualifying_statuses=frozenset({'Longlist', 'Longlisted'}),
-    notes=(
-        'The Booker Prize 2026 rules specify a 12- or 13-book longlist and '
-        'a six-book shortlist. Longlisted therefore does not qualify. '
-        'Shortlisted remains REVIEW because a six-book shortlist does not '
-        'establish top-five placement.'
-    ),
-)
-
 AWARD_POLICIES: tuple[AwardPolicy, ...] = (
     PULITZER_FICTION_POLICY,
-    BOOKER_PRIZE_POLICY,
 )
 
 
@@ -53,7 +47,11 @@ def _policy_matches(result: AwardResult, policy: AwardPolicy) -> bool:
 
 
 def find_award_policy(result: AwardResult) -> AwardPolicy | None:
-    """Return the single registry policy matching result, if any."""
+    """Return the single matching policy, or None.
+
+    Two matches raise RuntimeError: overlapping policies are an architecture
+    bug, not an invitation to pick one arbitrarily.
+    """
     matches = [
         policy for policy in AWARD_POLICIES if _policy_matches(result, policy)
     ]

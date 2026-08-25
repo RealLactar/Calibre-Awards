@@ -1,4 +1,9 @@
-"""Official Hugo Awards written-work and series source (thehugoawards.org)."""
+"""Official Hugo Awards written-work and series source (thehugoawards.org).
+
+The WordPress pages API is the archive. Ordinary year pages establish
+Winner/Finalist status, not ordinal placement. Curated statistics ranks are
+applied later only when they match that live record exactly.
+"""
 
 from __future__ import annotations
 
@@ -22,6 +27,7 @@ TIMEOUT_SECONDS = 30
 SOURCE_HOME_URL = 'https://www.thehugoawards.org/'
 PAGES_ENDPOINT = 'https://www.thehugoawards.org/wp-json/wp/v2/pages'
 HISTORY_PARENT_PAGE_ID = 6
+# One complete API page is required. Extra WP pages must fail, not drop history.
 ARCHIVE_PER_PAGE = 100
 ARCHIVE_FIELDS = 'title,link,slug,content'
 
@@ -296,6 +302,7 @@ def _validate_archive_payload(
 
     total_pages = _header_value(headers, 'X-WP-TotalPages')
     if total_pages is not None and total_pages != '1':
+        # Prefer a loud failure over silently omitting years beyond this page.
         raise HugoSourceError(
             'Hugo archive response was paginated unexpectedly: '
             f'X-WP-TotalPages={total_pages}'
@@ -362,6 +369,7 @@ def _is_non_work(text: str) -> bool:
     cleaned = _collapse_ws(text).casefold()
     if not cleaned:
         return True
+    # No Award / insufficient nominations are archive notes, not works.
     if cleaned == 'no award':
         return True
     if cleaned == 'no winner chosen':
@@ -436,9 +444,9 @@ def _parse_leading_quoted_title(text: str) -> tuple[str, str] | None:
 def _parse_unopened_quoted_title(text: str) -> tuple[str, str] | None:
     """Recover a title that ends with a closer but is missing its opener.
 
-    Used for the official 2010 Best Novelette winner HTML, equivalent to
-    The Island”, Peter Watts (...). The remainder after the closer must
-    already be a recognized author citation.
+    Restricted to the known 2010 Best Novelette winner HTML
+    (The Island”, Peter Watts). Do not reuse this as a generic
+    malformed-title heuristic.
     """
     cleaned = _collapse_ws(text)
     match = _UNOPENED_QUOTED_TITLE_RE.match(cleaned)
@@ -464,6 +472,7 @@ def _primary_and_match_titles(displayed_title: str) -> tuple[str, tuple[str, ...
     alternate = _collapse_ws(match.group('alt'))
     if not primary:
         return displayed, (displayed,)
+    # Aliases are extra match keys; the displayed official title stays primary.
     titles = [primary]
     if displayed not in titles:
         titles.append(displayed)
@@ -612,6 +621,7 @@ class _HugoCategoryParser(HTMLParser):
         self._title_finished = False
 
     def _allows_unopened_quote_recovery(self) -> bool:
+        # Exact year/category only; other malformed quotes stay unmatched.
         return (
             self.award_year == 2010
             and self.category == CATEGORY_BEST_NOVELETTE
@@ -1008,6 +1018,7 @@ def _validate_supported_category_records(
     records: tuple[_ParsedRecord, ...],
     regular_years: set[int],
 ) -> None:
+    # Historical category ranges: a silent markup change must not drop a decade.
     records_by_category: dict[str, list[_ParsedRecord]] = {
         category: [] for category in _PARSED_CATEGORIES
     }
@@ -1111,7 +1122,7 @@ _cache_lock = threading.Lock()
 
 
 def _get_archive_records() -> tuple[_ParsedRecord, ...]:
-    """Return cached Hugo work records, fetching once per process on success."""
+    """Return cached Hugo work records after archive and category validation."""
     global _archive_records_cache
     with _cache_lock:
         if _archive_records_cache is not None:
@@ -1284,7 +1295,11 @@ def _related_person_token_count(person: str) -> int:
 
 
 def _parse_related_book_people(record_author: str) -> tuple[str, ...] | None:
-    """Parse a simple official Related Book credit into people, or None."""
+    """Parse a simple official Related Book credit into people, or None.
+
+    Complex credits (with, translated by, introductions) are rejected rather
+    than partially guessed.
+    """
     text = _collapse_ws(record_author)
     if not text:
         return None
@@ -1391,6 +1406,7 @@ def _to_award_result(record: _ParsedRecord) -> AwardResult:
         )
     ranking = _ranking_for_record(record)
     if ranking is None or not _enrichment_is_consistent(record, ranking):
+        # History pages do not establish ordinal rank; leave rank unknown.
         return AwardResult(
             work_title=record.work_title,
             work_author=record.work_author,

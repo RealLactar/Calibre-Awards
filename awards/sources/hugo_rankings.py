@@ -4,8 +4,9 @@ These records are transcribed from official Hugo final-ballot statistics.
 They enrich an already-established live HTML Winner/Finalist result with
 rank, an optional tie note, and the exact statistics document URL.
 
-Absence of a row means rank is unavailable, not that the work was not a
-finalist. No rank is inferred from ordinary Hugo history-page list order.
+Absence of a row means rank is unknown, not that the work was not a
+finalist. Ordinary Hugo history-page list order must never be converted
+into rank. Shared ranks require tied=True on every sharing row.
 source_url identifies the official statistics document that establishes
 the rank.
 """

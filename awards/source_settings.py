@@ -1,4 +1,10 @@
-"""Pure helpers for opt-out award-source selection. Calibre-free and Qt-free."""
+"""Pure helpers for opt-out award-source selection. Calibre-free and Qt-free.
+
+Preferences persist disabled_source_keys, not enabled keys, so a source added
+in a later release starts on for existing users. Stale disabled keys are kept
+during normalize and ignored when computing the enabled set. Registry order
+wins; the preference list does not reorder sources.
+"""
 
 from __future__ import annotations
 
@@ -9,7 +15,9 @@ def normalize_disabled_source_keys(value) -> tuple[str, ...]:
     """Return unique trimmed source keys from a persisted preference value.
 
     A raw non-empty string is recovered as a single key. Mappings are ignored.
-    Unusable entries are skipped.
+    Unusable entries are skipped. Unknown or stale keys are preserved rather
+    than discarded; compute_enabled_source_keys ignores keys that are not in
+    the current registry. Registry order remains authoritative.
     """
     if value is None:
         return ()

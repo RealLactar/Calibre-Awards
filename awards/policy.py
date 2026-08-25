@@ -1,9 +1,15 @@
+"""Award-specific inclusion rules, kept separate from factual AwardResult data."""
+
 from dataclasses import dataclass
 
 
 @dataclass(frozen=True, slots=True)
 class AwardPolicy:
-    """Award-specific qualification policy; separate from factual AwardResult data."""
+    """Documented semantics for one award, optional category, and year range.
+
+    qualifying_statuses / nonqualifying_statuses never invent an ordinal rank.
+    Rank on the AwardResult, when present, is evaluated by the qualifier.
+    """
 
     award_name: str
     category: str | None = None

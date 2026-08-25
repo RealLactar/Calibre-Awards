@@ -63,5 +63,50 @@ class AwardResultIdentityKindTests(unittest.TestCase):
             _result(identity_kind=' author ')
 
 
+class AwardResultCitedWorkFlagTests(unittest.TestCase):
+    def test_default_is_specifically_cited_work_is_false(self):
+        result = _result()
+        self.assertIs(result.is_specifically_cited_work, False)
+
+    def test_work_with_cited_flag_true_is_accepted(self):
+        result = _result(
+            work_title='The Old Man and the Sea',
+            work_author='Ernest Hemingway',
+            award_name='Nobel Prize',
+            award_year=1954,
+            category='Literature',
+            identity_kind='work',
+            is_specifically_cited_work=True,
+        )
+        self.assertEqual(result.identity_kind, 'work')
+        self.assertIs(result.is_specifically_cited_work, True)
+
+    def test_author_with_cited_flag_true_is_rejected(self):
+        with self.assertRaises(ValueError):
+            _result(
+                work_title='Ernest Hemingway',
+                work_author='Ernest Hemingway',
+                award_name='Nobel Prize',
+                identity_kind='author',
+                is_specifically_cited_work=True,
+            )
+
+    def test_series_with_cited_flag_true_is_rejected(self):
+        with self.assertRaises(ValueError):
+            _result(
+                work_title='The Vorkosigan Saga',
+                work_author='Lois McMaster Bujold',
+                award_name='Hugo Award',
+                identity_kind='series',
+                is_specifically_cited_work=True,
+            )
+
+    def test_non_bool_cited_flag_is_rejected(self):
+        with self.assertRaises(ValueError):
+            _result(is_specifically_cited_work='yes')
+        with self.assertRaises(ValueError):
+            _result(is_specifically_cited_work=1)
+
+
 if __name__ == '__main__':
     unittest.main()

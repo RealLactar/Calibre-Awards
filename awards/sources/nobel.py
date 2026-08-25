@@ -1,4 +1,9 @@
-"""Official Nobel Prize in Literature source (api.nobelprize.org)."""
+"""Official Nobel Prize in Literature source (api.nobelprize.org).
+
+Literature prizes are author-level by default. Only a finite set of works
+that official Nobel material names explicitly is promoted to work identity.
+Motivation prose is not parsed into titles.
+"""
 
 from __future__ import annotations
 
@@ -13,7 +18,6 @@ from http.cookiejar import CookieJar
 from urllib.parse import urlparse
 
 from ..model import AwardResult
-from ..presentation import CITED_WORK_SCOPE_NOTE
 
 TIMEOUT_SECONDS = 30
 LAUREATES_URL = (
@@ -57,7 +61,7 @@ class _CitedWorkMapping:
 
 
 # Finite official specifically-cited works. No motivation parsing.
-# Sholokhov 1965 is intentionally omitted: Nobel names "his epic of the Don".
+# Sholokhov 1965 is omitted: "his epic of the Don" is not an explicit title.
 _CITED_WORKS: tuple[_CitedWorkMapping, ...] = (
     _CitedWorkMapping(
         '571',
@@ -314,6 +318,7 @@ def _select_source_url(
     laureate_links: object,
     laureate_id: str,
 ) -> str | None:
+    # Official facts/laureate URL shapes only; off-host hrefs are ignored.
     for links in (prize_links, laureate_links):
         facts = _facts_href_from_links(links)
         if facts is not None:
@@ -322,6 +327,7 @@ def _select_source_url(
 
 
 def _notes_for_status(status: str) -> str | None:
+    # Factual prize-status notes. These are not cited-work control state.
     key = status.casefold()
     if key == 'received':
         return None
@@ -418,6 +424,7 @@ def _parse_laureate(item: object) -> _Laureate:
         raise NobelSourceError(
             f'Nobel laureate {laureate_id} has no usable Literature prize'
         )
+    # Bounded official aliases only; no surname-only or fuzzy guessing.
     match_names = _unique_names(
         known_name,
         _localized_en(item.get('fullName')),
@@ -471,6 +478,7 @@ def _parse_laureates_payload(status: int, body: str) -> tuple[_Laureate, ...]:
 
 
 def _get_laureates() -> tuple[_Laureate, ...]:
+    """Return parsed laureates, caching only after payload validation."""
     global _laureates_cache
     with _cache_lock:
         if _laureates_cache is not None:
@@ -537,6 +545,7 @@ def _person_matches_laureate(person: str, laureate: _Laureate) -> bool:
 
 
 def _to_award_result(laureate: _Laureate) -> AwardResult:
+    # Ordinary Literature prize: the laureate, not every book they wrote.
     prize = laureate.prize
     return AwardResult(
         work_title=laureate.known_name,
@@ -556,6 +565,7 @@ def _to_award_result(laureate: _Laureate) -> AwardResult:
 def _to_cited_work_result(
     laureate: _Laureate, mapping: _CitedWorkMapping
 ) -> AwardResult:
+    # Semantic cited-work flag; prize.notes stay factual (usually None).
     prize = laureate.prize
     return AwardResult(
         work_title=mapping.canonical_title,
@@ -567,8 +577,9 @@ def _to_cited_work_result(
         rank=None,
         source_name=SOURCE_NAME,
         source_url=prize.source_url,
-        notes=CITED_WORK_SCOPE_NOTE,
+        notes=prize.notes,
         identity_kind='work',
+        is_specifically_cited_work=True,
     )
 
 
@@ -577,7 +588,11 @@ def lookup(
     author: str,
     series: str | None = None,
 ) -> list[AwardResult]:
-    """Look up Nobel Prize in Literature results."""
+    """Look up Nobel Prize in Literature results.
+
+    A mapped cited work replaces the generic author-level result for that
+    laureate. Other books by the same laureate remain author-level.
+    """
     cleaned_title = title.strip()
     cleaned_author = author.strip()
     if not cleaned_title:

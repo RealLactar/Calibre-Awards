@@ -20,7 +20,11 @@ from qt.core import (
 
 
 class AwardSelectionDialog(QDialog):
-    """Show matched award records for review; write-back happens only after accept."""
+    """Review matched assessments; write-back happens only after accept.
+
+    Qualification supplies the default checkbox state. The user still chooses
+    which rows to write. This dialog does not rewrite qualification decisions.
+    """
 
     def __init__(
         self,
@@ -150,6 +154,7 @@ class _AwardMatchRow(QWidget):
         lookup_series='',
     ):
         QWidget.__init__(self, parent)
+        # Keep the engine's qualification decision; the checkbox is only UI.
         self.assessment = assessment
         layout = QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 8)
@@ -157,6 +162,9 @@ class _AwardMatchRow(QWidget):
 
         formatted = format_award_result(assessment.result, template)
         self.checkbox = QCheckBox(formatted, self)
+        # QUALIFIES is the default checked recommendation. When write-back
+        # selection is enabled, REVIEW / DOES_NOT_QUALIFY rows are not
+        # forbidden; disabled write-back disables the checkboxes.
         self.checkbox.setChecked(
             assessment.qualification.decision is QualificationDecision.QUALIFIES
         )
@@ -174,6 +182,7 @@ class _AwardMatchRow(QWidget):
             lookup_author,
             lookup_series,
         ):
+            # Presentation helpers mark author- and series-level awards.
             scope = QLabel(line, self)
             scope.setWordWrap(True)
             scope.setTextFormat(Qt.PlainText)

@@ -1,4 +1,9 @@
-"""User-facing award-source capability metadata. Calibre-free and Qt-free."""
+"""User-facing award-source capability metadata. Calibre-free and Qt-free.
+
+SOURCE_INFOS describes what each source can do. It does not select sources,
+run lookups, or qualify results. Keep keys and order aligned with
+AWARD_SOURCES; tests enforce that, not a runtime import cycle.
+"""
 
 from __future__ import annotations
 

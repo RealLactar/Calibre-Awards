@@ -95,7 +95,11 @@ def _source_group(info, parent):
 
 
 class SupportedSourcesDialog(QDialog):
-    """Static help listing currently supported award sources."""
+    """Catalog of every registered source, ignoring enable/disable prefs.
+
+    Opening this dialog does no award lookup. Official-site links open
+    externally. Disabling a source skips Check Awards, not this help.
+    """
 
     def __init__(self, parent=None):
         QDialog.__init__(self, parent)

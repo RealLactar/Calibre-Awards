@@ -1,14 +1,9 @@
 """Science Fiction Awards Database Locus Awards source.
 
-Runtime lookup is a bounded two-stage retrieval:
-
-1. Construct a small set of SFADB author-page slugs from the queried author.
-2. Parse the author page's Locus Awards and Poll section as a discovery index.
-3. Fetch only the annual Locus_Awards_YYYY page(s) referenced by title-matched
-   book-category entries.
-
-Rank is taken only from explicit annual-page ``li value`` attributes.
-Qualification is not applied here.
+The SFADB author page is discovery only. The annual Locus_Awards_YYYY page
+establishes the authoritative rank from explicit ``li value`` attributes;
+visual list order is not placement. Discovery and annual results are
+cross-checked. Qualification is not applied here.
 """
 
 from __future__ import annotations
@@ -96,6 +91,7 @@ _DISCOVERY_SUPPORTED_KEYS = frozenset(_DISCOVERY_TO_ANNUAL_CATEGORY)
 _TRANSLATED_BY_RE = re.compile(r'translated\s+by', re.IGNORECASE)
 _EDITED_BY_RE = re.compile(r'edited\s+by', re.IGNORECASE)
 _TRANS_GLITCH_RE = re.compile(r',\s*trans(?:lators?|\d+)\b', re.IGNORECASE)
+# Known SFADB labels that are not book-work lookups. Unknown labels fail closed.
 _RECOGNIZED_UNSUPPORTED_KEYS = frozenset({
     'anthology',
     'anthology/collection',
@@ -159,7 +155,7 @@ def _reset_runtime_state() -> None:
 
 
 # ---------------------------------------------------------------------------
-# HTTP
+# HTTP retrieval
 # ---------------------------------------------------------------------------
 
 def _build_opener() -> urllib.request.OpenerDirector:
@@ -202,6 +198,7 @@ def _request_html(opener: urllib.request.OpenerDirector, url: str) -> tuple[int,
             f'Locus request failed with HTTP {status} for {url}'
         )
     if int(status) == 200 and not _is_sfadb_url(final_url):
+        # A 200 that landed off SFADB is not a usable author or annual page.
         raise LocusSourceError(
             f'Locus request redirected off SFADB: {url} -> {final_url}'
         )
@@ -382,6 +379,7 @@ def _earliest_role_cutoff(text: str) -> re.Match[str] | None:
 def _work_authors_from_links(
     linked: tuple[str, ...], li_text: str
 ) -> tuple[str, ...]:
+    # Cut off translator/editor credits so Collection rows keep work authors.
     collapsed = _collapse_ws(li_text)
     cutoff = _earliest_role_cutoff(collapsed)
     if cutoff is not None:
@@ -665,6 +663,7 @@ def _resolve_author_page(
             )
         page = _parse_author_page(body, url)
         if not _author_page_matches_query(page, author):
+            # Slug collision: displayed pagetitle must match the queried author.
             continue
         with _cache_lock:
             _author_page_cache[slug] = page
@@ -677,7 +676,11 @@ def _resolve_author_page(
 # ---------------------------------------------------------------------------
 
 class _AnnualPageParser(HTMLParser):
-    """Parse SFADB annual Locus categoryblock / ol / li value lists."""
+    """Parse SFADB annual Locus categoryblock / ol / li value lists.
+
+    Rank comes only from the explicit li value attribute. Repeated values
+    can be ties. List order is never treated as placement.
+    """
 
     def __init__(self, award_year: int, source_url: str) -> None:
         super().__init__(convert_charrefs=True)
@@ -963,6 +966,7 @@ def _get_annual_records(
     opener: urllib.request.OpenerDirector,
     annual_url: str,
 ) -> tuple[_AnnualRecord, ...]:
+    """Return parsed annual records, caching only after a successful parse."""
     year = _year_from_locus_href(annual_url)
     if year is None or not _is_sfadb_url(annual_url):
         raise LocusSourceError(
@@ -1027,13 +1031,8 @@ def lookup(title: str, author: str, series: str | None = None) -> list[AwardResu
 
     matches: list[AwardResult] = []
     seen: set[tuple[int, str, str, str, int, str]] = set()
-    fetched_urls: set[str] = set()
     for entry in discoveries:
-        if entry.annual_url not in fetched_urls:
-            records = _get_annual_records(opener, entry.annual_url)
-            fetched_urls.add(entry.annual_url)
-        else:
-            records = _get_annual_records(opener, entry.annual_url)
+        records = _get_annual_records(opener, entry.annual_url)
         expected_category = _annual_category_for_discovery(entry.category_text)
         if expected_category is None:
             continue

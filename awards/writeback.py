@@ -1,4 +1,14 @@
-"""Calibre-free helpers for later award write-back into a multiple-text field."""
+"""Calibre-free helpers for composing values for a multiple-text field.
+
+This module does not decide which awards are true. It receives formatted
+strings chosen by the caller. Append keeps existing values and order.
+Duplicate comparison is case-insensitive and conservative: a spelling that
+still differs after casefold is kept.
+
+Calibre multi-value fields split on commas, so a generated value containing a
+literal comma is rejected rather than stored as extra accidental fields.
+Existing comma-containing values are left untouched in append mode.
+"""
 
 from __future__ import annotations
 
@@ -13,7 +23,12 @@ def formatted_qualifying_awards(
     report,
     template: str = DEFAULT_AWARD_OUTPUT_TEMPLATE,
 ) -> list[str]:
-    """Return formatted strings for QUALIFIES assessments only."""
+    """Return formatted strings for QUALIFIES assessments only.
+
+    This helper does not apply user-selection logic. Callers that already have
+    explicitly selected formatted values should use prepare_append_award_values
+    or prepare_replace_award_values.
+    """
     return [
         format_award_result(item.result, template)
         for item in report.assessments
@@ -93,7 +108,11 @@ def prepare_append_award_values(
     existing: Iterable[str],
     new: Iterable[str],
 ) -> PreparedAwardWriteback:
-    """Append only safe new values; never filter or alter existing entries."""
+    """Append only safe new values; never filter or alter existing entries.
+
+    Comma rejection applies to incoming new values only. The caller decides
+    which awards to write; this helper does not re-qualify them.
+    """
     new_values = [str(value) for value in new]
     partition = partition_comma_unsafe_award_values(new_values)
     return PreparedAwardWriteback(

@@ -1,4 +1,10 @@
-"""Official World Fantasy Award Novel, Novella, Short Fiction, and Collection source."""
+"""Official World Fantasy Award Novel, Novella, Short Fiction, and Collection source.
+
+The official archive is assembled from multiple official pages because no
+single page is historically complete. Convention and later annual pages
+repair gaps or bad rows in the master tables. Validation against known
+baselines fails loudly if the site silently loses decades.
+"""
 
 from __future__ import annotations
 
@@ -33,6 +39,7 @@ ANNUAL_2024_URL = (
 )
 ANNUAL_2025_URL = 'https://worldfantasy.org/2025-wfc-nominations-and-winners/'
 
+# Master tables plus convention/annual repairs. Order is fetch order only.
 SOURCE_PAGE_URLS = (
     NOMINEES_URL,
     WINNERS_URL,
@@ -218,7 +225,11 @@ def _build_opener() -> urllib.request.OpenerDirector:
 
 
 def _decode_html_bytes(raw: bytes) -> str:
-    """Decode official HTML. Nominees pages may be Windows-1252 mislabeled as UTF-8."""
+    """Decode official HTML. Nominees pages may be Windows-1252 mislabeled as UTF-8.
+
+    Strict UTF-8 is tried first; cp1252 is the fallback for those mislabeled
+    bytes, not a general encoding guess.
+    """
     try:
         return raw.decode('utf-8')
     except UnicodeDecodeError:
@@ -278,7 +289,7 @@ def _reset_runtime_state() -> None:
 
 
 def _get_records() -> tuple[_ParsedRecord, ...]:
-    """Return cached records, fetching once per process on success."""
+    """Return cached records after fetch, parse, merge, and archive validation."""
     global _records_cache
     with _cache_lock:
         if _records_cache is not None:
@@ -1145,7 +1156,11 @@ def _novella_official_labels_by_year(
 
 
 def _validate_full_archive_history(winner_works: list[_TableWork]) -> None:
-    """Require the stable official master winners-table baseline."""
+    """Require the stable official master winners-table baseline.
+
+    Missing required years are treated as a site regression, not an empty
+    lookup for that decade.
+    """
     novel_winner_years = {
         work.award_year
         for work in winner_works
@@ -1238,6 +1253,7 @@ def _build_records_from_pages(
     seen_identities: set[tuple[int, str, str, str]] = set()
 
     def _add(record: _ParsedRecord) -> None:
+        # Merge by year-scoped identity; do not collapse distinct years.
         identities = _identities_for_record(record)
         if identities & seen_identities:
             return
@@ -1267,6 +1283,7 @@ def _build_records_from_pages(
         title: str,
         authors: tuple[str, ...],
     ) -> bool:
+        # 2013 slates can appear under 2012 in the master tables.
         if award_year != 2012:
             return False
         return bool(

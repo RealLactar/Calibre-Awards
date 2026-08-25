@@ -2,13 +2,13 @@
 
 ## Project Purpose
 
-Calibre Awards is a Calibre GUI plugin that discovers literary awards associated with a specific book or story.
+Calibre Awards is a functional Calibre GUI plugin that checks a book against multiple literary-award sources from the single-book Edit Metadata dialog, presents qualified/review results, and can optionally write selected formatted award values to a configured custom field.
 
-The eventual plugin should be accessible from Calibre's single-book Edit Metadata window without modifying Calibre's installed source files.
+Source coverage is intentionally expandable. The plugin must remain accessible from Calibre's single-book Edit Metadata window without modifying Calibre's installed source files.
 
 ## Architectural Rules
 
-1. Award retrieval, award qualification, output formatting, and Calibre GUI integration must remain separate components.
+1. Award retrieval, award qualification, output formatting, Calibre GUI integration, and write-back must remain separate components.
 
 2. Genre must never be treated as mutually exclusive. A work may belong to several applicable award families.
 
@@ -38,17 +38,7 @@ The eventual plugin should be accessible from Calibre's single-book Edit Metadat
 
 ## Development Environment
 
-- Windows 10
 - Calibre 9.13.0
 - Calibre embedded Python 3.14.6
 - System Python 3.14.6
-- Repository root: `C:\Users\apt\Git\Calibre-Awards`
 - Build/test tooling includes `calibre-customize` and `calibre-debug`
-
-## Current Development Goal
-
-The first proof of concept will be a normal installable Calibre plugin that can place a Check Awards button in the single-book Edit Metadata dialog without altering Calibre's installed files.
-
-Initially, clicking that button only needs to prove that it can read the Title and Author currently displayed in the open Edit Metadata dialog.
-
-Do not implement that proof of concept yet.

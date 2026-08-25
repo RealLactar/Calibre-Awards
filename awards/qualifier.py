@@ -1,3 +1,10 @@
+"""Inclusion decisions for factual AwardResult records.
+
+Rank is authoritative only when the source supplied it. Status words such as
+finalist or nominee never become an inferred ordinal. A caller-supplied
+policy must apply to the result before any of those rules run.
+"""
+
 from dataclasses import dataclass
 from enum import Enum
 
@@ -81,7 +88,16 @@ def qualify_award_result(
     result: AwardResult,
     policy: AwardPolicy | None = None,
 ) -> QualificationResult:
-    """Decide inclusion for one AwardResult without modifying it or the policy."""
+    """Decide inclusion for one AwardResult without modifying it or the policy.
+
+    Order: apply the supplied policy if any, then explicit rank, then Winner,
+    then policy status lists, then REVIEW. Rank 1-5 qualifies; rank above 5
+    does not. Winner qualifies without inventing a place. Policy status lists
+    do not override an explicit rank.
+    """
+    if policy is not None:
+        _ensure_policy_applies(result, policy)
+
     if result.rank is not None:
         if 1 <= result.rank <= 5:
             return QualificationResult(
@@ -102,7 +118,6 @@ def qualify_award_result(
         )
 
     if policy is not None:
-        _ensure_policy_applies(result, policy)
         if status in policy.qualifying_statuses:
             return QualificationResult(
                 QualificationDecision.QUALIFIES,
