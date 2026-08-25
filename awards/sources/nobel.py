@@ -21,6 +21,7 @@ LAUREATES_URL = (
     '?nobelPrizeCategory=lit&limit=200&offset=0'
 )
 SOURCE_NAME = 'NobelPrize.org'
+SOURCE_HOME_URL = 'https://www.nobelprize.org/'
 AWARD_NAME = 'Nobel Prize'
 CATEGORY_LITERATURE = 'Literature'
 LAUREATE_FALLBACK_URL = 'https://www.nobelprize.org/laureate/{id}'

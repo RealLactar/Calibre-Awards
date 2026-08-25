@@ -19,6 +19,7 @@ from ..model import AwardResult
 from .hugo_rankings import HugoRanking, HUGO_BEST_NOVEL_RANKINGS
 
 TIMEOUT_SECONDS = 30
+SOURCE_HOME_URL = 'https://www.thehugoawards.org/'
 PAGES_ENDPOINT = 'https://www.thehugoawards.org/wp-json/wp/v2/pages'
 HISTORY_PARENT_PAGE_ID = 6
 ARCHIVE_PER_PAGE = 100

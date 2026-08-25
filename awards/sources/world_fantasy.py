@@ -15,6 +15,7 @@ from ..matching import normalize_title_conjunctions
 from ..model import AwardResult
 
 TIMEOUT_SECONDS = 30
+SOURCE_HOME_URL = 'https://worldfantasy.org/awards/'
 NOMINEES_URL = 'https://worldfantasy.org/awards/nominees/'
 WINNERS_URL = 'https://worldfantasy.org/awards/winners/'
 CONVENTION_1982_URL = (

@@ -17,6 +17,7 @@ from ..matching import normalize_title_conjunctions
 from ..model import AwardResult
 
 TIMEOUT_SECONDS = 30
+SOURCE_HOME_URL = 'https://nebulas.sfwa.org/'
 
 CATEGORY_BEST_NOVEL = 'Best Novel'
 CATEGORY_BEST_NOVELLA = 'Best Novella'

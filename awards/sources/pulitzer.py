@@ -16,6 +16,7 @@ from ..matching import normalize_title_conjunctions
 from ..model import AwardResult
 
 TIMEOUT_SECONDS = 30
+SOURCE_HOME_URL = 'https://www.pulitzer.org/'
 FICTION_URL = 'https://www.pulitzer.org/prize-winners-by-category/219'
 NOVEL_URL = 'https://www.pulitzer.org/prize-winners-by-category/261'
 _DETAIL_ORIGIN = 'https://www.pulitzer.org'
