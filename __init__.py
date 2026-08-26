@@ -8,9 +8,9 @@ class CalibreAwardsPlugin(InterfaceActionBase):
     description = 'Find literary awards associated with books and stories'
     supported_platforms = ['windows', 'osx', 'linux']
     author = 'Agris Taurins'
-    version = (0, 1, 0)
+    version = (0, 1, 1)
     # Compatibility metadata for Calibre's plugin loader.
-    minimum_calibre_version = (9, 13, 0)
+    minimum_calibre_version = (6, 0, 0)
     actual_plugin = 'calibre_plugins.calibre_awards.ui:CalibreAwardsAction'
 
     def is_customizable(self):

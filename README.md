@@ -5,7 +5,7 @@ Metadata window. It searches supported literary-award sources, displays
 matching results, and can optionally write selected awards to a Calibre
 field.
 
-**First public beta / preview — version 0.1.0**
+**First public beta / preview — version 0.1.1**
 
 Coverage will expand during the 0.x preview line. Please treat this release
 as a preview and report mismatches.
@@ -117,13 +117,13 @@ Install from the **public release ZIP**, not from a Git checkout.
 
 1. In Calibre, open **Preferences → Plugins**.
 2. Choose **Load plugin from file**.
-3. Select `Calibre-Awards-0.1.0.zip`.
+3. Select `Calibre-Awards-0.1.1.zip`.
 4. Restart Calibre if it asks you to.
 
 Advanced users can install the same ZIP from a command prompt:
 
 ```text
-calibre-customize -a Calibre-Awards-0.1.0.zip
+calibre-customize -a Calibre-Awards-0.1.1.zip
 ```
 
 ## Upgrading
@@ -143,7 +143,7 @@ cannot be migrated.
 
 ## Requirements
 
-- Calibre 9.13.0 or later
+- Calibre 6.0.0 or later
 - Windows, macOS, or Linux (as declared by the plugin)
 - Internet connection during award lookup
 
