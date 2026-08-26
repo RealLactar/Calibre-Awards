@@ -4,8 +4,9 @@ disabled_source_keys is an opt-out list so a newly registered source starts
 enabled for existing installations. Checkboxes follow SOURCE_INFOS; unknown
 stored keys have no checkbox until the next save rewrites the list from the
 current controls. Template and write-back settings are separate from source
-enablement. Select All / Select None change only this widget; Apply/OK in
-Calibre's preference dialog is what persists.
+enablement. Select All / Select None and Restore rank & output defaults
+change only this widget; Apply/OK in Calibre's preference dialog is what
+persists.
 """
 
 from calibre.gui2 import error_dialog
@@ -149,92 +150,113 @@ class ConfigWidget(QWidget):
         sources_layout.addWidget(buttons)
         layout.addWidget(sources_group)
 
-        qualification_group = QGroupBox('Qualification', self)
-        qualification_layout = QVBoxLayout(qualification_group)
+        rank_and_output = QGroupBox('Qualification and award output', self)
+        rank_and_output_layout = QVBoxLayout(rank_and_output)
         self.max_rank_label = QLabel(
             'Highest explicit ordinal rank to include:',
-            qualification_group,
+            rank_and_output,
         )
-        self.max_rank_spin = QSpinBox(qualification_group)
+        self.max_rank_spin = QSpinBox(rank_and_output)
         self.max_rank_spin.setMinimum(MIN_MAX_QUALIFYING_RANK)
         self.max_rank_spin.setMaximum(MAX_MAX_QUALIFYING_RANK)
         self.max_rank_spin.setValue(
             normalize_max_qualifying_rank(prefs['max_qualifying_rank'])
         )
         self.max_rank_label.setBuddy(self.max_rank_spin)
-        qualification_layout.addWidget(self.max_rank_label)
-        qualification_layout.addWidget(self.max_rank_spin)
+        rank_and_output_layout.addWidget(self.max_rank_label)
+        rank_and_output_layout.addWidget(self.max_rank_spin)
         rank_hint = QLabel(
             'Applies only when an award source provides an explicit '
             'numerical rank. Unranked winners, finalists, and nominees '
             'keep their normal award-specific treatment.',
-            qualification_group,
+            rank_and_output,
         )
         rank_hint.setWordWrap(True)
-        qualification_layout.addWidget(rank_hint)
-        layout.addWidget(qualification_group)
+        rank_and_output_layout.addWidget(rank_hint)
 
         intro = QLabel(
-            'This setting controls the format of each award result.'
+            'This setting controls the format of each award result.',
+            rank_and_output,
         )
         intro.setWordWrap(True)
-        layout.addWidget(intro)
+        rank_and_output_layout.addWidget(intro)
 
-        self.template_label = QLabel('Award output &template:')
-        self.template_edit = QLineEdit(self)
+        self.template_label = QLabel('Award output &template:', rank_and_output)
+        self.template_edit = QLineEdit(rank_and_output)
         self.template_label.setBuddy(self.template_edit)
         self.template_edit.setText(
             _award_output_template_from_value(prefs['award_output_template'])
         )
         self.template_edit.setPlaceholderText(DEFAULT_AWARD_OUTPUT_TEMPLATE)
-        layout.addWidget(self.template_label)
-        layout.addWidget(self.template_edit)
+        rank_and_output_layout.addWidget(self.template_label)
+        rank_and_output_layout.addWidget(self.template_edit)
 
         placeholders = QLabel(
-            'Supported placeholders:\n'
-            '<placement>\n'
-            '<year>\n'
-            '<award>\n'
-            '<category>'
+            'Available placeholders:\n'
+            '<placement>, <year>, <award>, <category>',
+            rank_and_output,
         )
         placeholders.setTextFormat(Qt.PlainText)
         placeholders.setWordWrap(True)
-        layout.addWidget(placeholders)
+        rank_and_output_layout.addWidget(placeholders)
 
         default_label = QLabel(
-            f'Default format: {DEFAULT_AWARD_OUTPUT_TEMPLATE}'
+            f'Default:\n{DEFAULT_AWARD_OUTPUT_TEMPLATE}',
+            rank_and_output,
         )
         default_label.setTextFormat(Qt.PlainText)
         default_label.setWordWrap(True)
-        layout.addWidget(default_label)
+        rank_and_output_layout.addWidget(default_label)
 
+        restore_row = QWidget(rank_and_output)
+        restore_layout = QHBoxLayout(restore_row)
+        restore_layout.setContentsMargins(0, 0, 0, 0)
+        restore = QPushButton('Restore rank & output defaults', restore_row)
+        restore.clicked.connect(self.restore_qualification_and_output_defaults)
+        restore_layout.addWidget(restore)
+        restore_layout.addStretch(1)
+        rank_and_output_layout.addWidget(restore_row)
+        restore_hint = QLabel(
+            'Restores the rank cutoff and award output format to their '
+            'defaults. Source and write-back settings are not changed.',
+            rank_and_output,
+        )
+        restore_hint.setWordWrap(True)
+        rank_and_output_layout.addWidget(restore_hint)
+        layout.addWidget(rank_and_output)
+
+        writeback_group = QGroupBox('Write-back', self)
+        writeback_layout = QVBoxLayout(writeback_group)
         self.enabled_checkbox = QCheckBox(
             'Write selected awards to a custom column',
-            self,
+            writeback_group,
         )
         self.enabled_checkbox.setChecked(
             _writeback_enabled_from_value(prefs['writeback_enabled'])
         )
-        layout.addWidget(self.enabled_checkbox)
+        writeback_layout.addWidget(self.enabled_checkbox)
 
-        self.field_label = QLabel('Destination custom &column:')
-        self.field_combo = QComboBox(self)
+        self.field_label = QLabel(
+            'Destination custom &column:',
+            writeback_group,
+        )
+        self.field_combo = QComboBox(writeback_group)
         self.field_label.setBuddy(self.field_combo)
-        layout.addWidget(self.field_label)
-        layout.addWidget(self.field_combo)
+        writeback_layout.addWidget(self.field_label)
+        writeback_layout.addWidget(self.field_combo)
 
-        self.field_status = QLabel('')
+        self.field_status = QLabel('', writeback_group)
         self.field_status.setWordWrap(True)
         self.field_status.setTextFormat(Qt.PlainText)
-        layout.addWidget(self.field_status)
+        writeback_layout.addWidget(self.field_status)
 
         self.append_radio = QRadioButton(
             'Append to existing values (recommended)',
-            self,
+            writeback_group,
         )
         self.replace_radio = QRadioButton(
             'Replace existing values',
-            self,
+            writeback_group,
         )
         if _writeback_mode_from_value(prefs['writeback_mode']) == (
             WRITEBACK_MODE_REPLACE
@@ -242,8 +264,9 @@ class ConfigWidget(QWidget):
             self.replace_radio.setChecked(True)
         else:
             self.append_radio.setChecked(True)
-        layout.addWidget(self.append_radio)
-        layout.addWidget(self.replace_radio)
+        writeback_layout.addWidget(self.append_radio)
+        writeback_layout.addWidget(self.replace_radio)
+        layout.addWidget(writeback_group)
 
         self._populate_field_combo()
         self.field_combo.currentIndexChanged.connect(self._update_field_status)
@@ -334,6 +357,12 @@ class ConfigWidget(QWidget):
     def select_no_sources(self):
         for checkbox in self.source_checkboxes.values():
             checkbox.setChecked(False)
+
+    def restore_qualification_and_output_defaults(self):
+        # Open-form only. Persistence still happens through save_settings(),
+        # so Calibre's Apply/OK/Cancel behavior remains intact.
+        self.max_rank_spin.setValue(DEFAULT_MAX_QUALIFYING_RANK)
+        self.template_edit.setText(DEFAULT_AWARD_OUTPUT_TEMPLATE)
 
     def validate(self):
         if (
