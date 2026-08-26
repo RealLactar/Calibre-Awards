@@ -25,6 +25,10 @@ class AwardResult:
     is_specifically_cited_work is semantic state, independent of notes and
     of any user-facing caption. It may be True only when identity_kind is
     'work'. notes is human/source commentary, not hidden control state.
+
+    identity_confirmation_required is independent of qualification. When True,
+    the GUI must not auto-select the row even if the result QUALIFIES.
+    source_identity_note is factual mismatch text, not a behavior switch.
     """
 
     work_title: str
@@ -39,6 +43,8 @@ class AwardResult:
     notes: str | None = None
     identity_kind: str = 'work'
     is_specifically_cited_work: bool = False
+    identity_confirmation_required: bool = False
+    source_identity_note: str | None = None
 
     def __post_init__(self) -> None:
         if not self.work_title or not self.work_title.strip():
@@ -69,4 +75,17 @@ class AwardResult:
         if self.is_specifically_cited_work and kind != 'work':
             raise ValueError(
                 "is_specifically_cited_work requires identity_kind to be 'work'"
+            )
+        if not isinstance(self.identity_confirmation_required, bool):
+            raise ValueError('identity_confirmation_required must be a bool')
+        if self.identity_confirmation_required:
+            note = self.source_identity_note
+            if not isinstance(note, str) or not note.strip():
+                raise ValueError(
+                    'source_identity_note is required when '
+                    'identity_confirmation_required is True'
+                )
+        elif self.source_identity_note is not None:
+            raise ValueError(
+                'source_identity_note requires identity_confirmation_required'
             )

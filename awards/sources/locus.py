@@ -40,6 +40,7 @@ _BROWSER_HEADERS = {
 }
 
 _INITIALS_SPACE_RE = re.compile(r'\b([A-Za-z])\.\s+')
+_INITIAL_TOKEN_RE = re.compile(r'^[a-z]\.?$')
 _YEAR_HREF_RE = re.compile(r'Locus_Awards_(\d{4})/?$', re.IGNORECASE)
 _PLACE_RE = re.compile(
     r'(\d+)(?:st|nd|rd|th)\s+place(?:\s*\(\s*tie\s*\))?',
@@ -292,11 +293,100 @@ def _authors_equivalent(left: str, right: str) -> bool:
     return _normalize_text(_ascii_fold(left)) == _normalize_text(_ascii_fold(right))
 
 
+def _author_tokens(name: str) -> tuple[str, ...]:
+    # Do not use _normalize_text: it glues "M. " onto the next token.
+    text = _collapse_ws(_ascii_fold(unicodedata.normalize('NFKC', name)))
+    text = text.casefold()
+    if not text:
+        return ()
+    return tuple(text.split())
+
+
+def _is_initial_token(token: str) -> bool:
+    return _INITIAL_TOKEN_RE.fullmatch(token) is not None
+
+
+def _omitted_middle_initial_candidate(left: str, right: str) -> bool:
+    """True when names differ only by omitted interior initials.
+
+    Future bounded source-identity rules such as suffix differences
+    (Jr., Sr., II, III, IV) belong at this candidate-matching boundary.
+    """
+    if _authors_equivalent(left, right):
+        return False
+    a = _author_tokens(left)
+    b = _author_tokens(right)
+    if len(a) < 2 or len(b) < 2:
+        return False
+    if a[0] != b[0] or a[-1] != b[-1]:
+        return False
+    a_mid = a[1:-1]
+    b_mid = b[1:-1]
+    a_core = tuple(token for token in a_mid if not _is_initial_token(token))
+    b_core = tuple(token for token in b_mid if not _is_initial_token(token))
+    if a_core != b_core:
+        return False
+    a_initials = tuple(token for token in a_mid if _is_initial_token(token))
+    b_initials = tuple(token for token in b_mid if _is_initial_token(token))
+    if a_initials == b_initials:
+        return False
+    return _is_token_prefix(a_initials, b_initials) or _is_token_prefix(
+        b_initials, a_initials
+    )
+
+
+def _is_token_prefix(short: tuple[str, ...], long: tuple[str, ...]) -> bool:
+    return long[: len(short)] == short
+
+
+def _raw_name_tokens(author: str, *, fold: bool) -> tuple[str, ...]:
+    text = unicodedata.normalize('NFKC', author)
+    if fold:
+        text = _ascii_fold(text)
+    text = _collapse_ws(text)
+    if not text:
+        return ()
+    return tuple(text.split())
+
+
+def _is_raw_initial_token(token: str) -> bool:
+    stripped = token.rstrip('.')
+    return len(stripped) == 1 and stripped.isalpha()
+
+
+def _omitted_middle_initial_author_form(author: str, *, fold: bool) -> str | None:
+    tokens = _raw_name_tokens(author, fold=fold)
+    if len(tokens) < 3:
+        return None
+    kept = [tokens[0]]
+    dropped = False
+    for token in tokens[1:-1]:
+        if _is_raw_initial_token(token):
+            dropped = True
+            continue
+        kept.append(token)
+    kept.append(tokens[-1])
+    if not dropped:
+        return None
+    return ' '.join(kept)
+
+
 def _author_matches_record(query_author: str, record: _AnnualRecord) -> bool:
     if _authors_equivalent(query_author, record.work_author):
         return True
     return any(
         _authors_equivalent(query_author, name) for name in record.linked_authors
+    )
+
+
+def _author_candidate_matches_record(
+    query_author: str, record: _AnnualRecord
+) -> bool:
+    if _omitted_middle_initial_candidate(query_author, record.work_author):
+        return True
+    return any(
+        _omitted_middle_initial_candidate(query_author, name)
+        for name in record.linked_authors
     )
 
 
@@ -326,6 +416,14 @@ def _author_slug_candidates(author: str) -> tuple[str, ...]:
     raw = _slug_from_author(author, fold=False)
     candidates: list[str] = []
     for slug in (folded, raw):
+        if slug and slug not in candidates:
+            candidates.append(slug)
+    omitted_folded = _omitted_middle_initial_author_form(author, fold=True)
+    omitted_raw = _omitted_middle_initial_author_form(author, fold=False)
+    for form in (omitted_folded, omitted_raw):
+        if not form:
+            continue
+        slug = _slug_from_author(form, fold=False)
         if slug and slug not in candidates:
             candidates.append(slug)
     return tuple(candidates)
@@ -636,7 +734,9 @@ def _parse_author_page(html: str, page_url: str) -> _AuthorPage:
 def _author_page_matches_query(page: _AuthorPage, author: str) -> bool:
     if not page.page_name:
         return False
-    return _authors_equivalent(author, page.page_name)
+    if _authors_equivalent(author, page.page_name):
+        return True
+    return _omitted_middle_initial_candidate(author, page.page_name)
 
 
 def _resolve_author_page(
@@ -663,7 +763,8 @@ def _resolve_author_page(
             )
         page = _parse_author_page(body, url)
         if not _author_page_matches_query(page, author):
-            # Slug collision: displayed pagetitle must match the queried author.
+            # Slug collision: pagetitle must match exactly or as an
+            # omitted-middle-initial candidate. A hit is not enough.
             continue
         with _cache_lock:
             _author_page_cache[slug] = page
@@ -987,7 +1088,18 @@ def _get_annual_records(
     return records
 
 
-def _to_award_result(record: _AnnualRecord) -> AwardResult:
+def _to_award_result(
+    record: _AnnualRecord,
+    *,
+    query_author: str,
+    identity_confirmation_required: bool = False,
+) -> AwardResult:
+    identity_note = None
+    if identity_confirmation_required:
+        identity_note = (
+            f'Source lists the author as {record.work_author}; '
+            f'Calibre lists {query_author}.'
+        )
     return AwardResult(
         work_title=record.work_title,
         work_author=record.work_author,
@@ -999,6 +1111,8 @@ def _to_award_result(record: _AnnualRecord) -> AwardResult:
         source_name=SOURCE_NAME,
         source_url=record.source_url,
         notes='tie' if record.tied else None,
+        identity_confirmation_required=identity_confirmation_required,
+        source_identity_note=identity_note,
     )
 
 
@@ -1047,11 +1161,20 @@ def lookup(title: str, author: str, series: str | None = None) -> list[AwardResu
                 'SFADB author-page Locus entry was not present on the '
                 f'annual results page: {entry.annual_url}'
             )
-        found = [
+        exact = [
             record
             for record in title_on_annual
             if _author_matches_record(cleaned_author, record)
         ]
+        candidate = []
+        if not exact:
+            candidate = [
+                record
+                for record in title_on_annual
+                if _author_candidate_matches_record(cleaned_author, record)
+            ]
+        found = exact or candidate
+        confirmation_required = bool(candidate)
         if not found:
             continue
         for record in found:
@@ -1077,7 +1200,13 @@ def lookup(title: str, author: str, series: str | None = None) -> list[AwardResu
             if key in seen:
                 continue
             seen.add(key)
-            matches.append(_to_award_result(record))
+            matches.append(
+                _to_award_result(
+                    record,
+                    query_author=cleaned_author,
+                    identity_confirmation_required=confirmation_required,
+                )
+            )
     matches.sort(
         key=lambda result: (
             result.award_year or 0,

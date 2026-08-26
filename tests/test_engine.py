@@ -12,6 +12,7 @@ from awards.engine import (
     lookup_awards,
 )
 from awards.model import AwardResult
+from awards.qualifier import QualificationDecision
 from awards.source_registry import AwardSource
 
 
@@ -547,6 +548,78 @@ class EngineEnabledSourceFilterTests(unittest.TestCase):
         self.assertEqual(
             sorted(item.source_name for item in events[1:]),
             ['Hugo Awards', 'NobelPrize.org'],
+        )
+
+
+class EngineRankCutoffTests(unittest.TestCase):
+    def test_omitted_cutoff_rejects_rank_six(self):
+        def _ranked(title: str, author: str, series=None):
+            return [_result(status='Finalist', rank=6, award_name='Hugo Award')]
+
+        sources = (_source('hugo', 'Hugo Awards', _ranked),)
+        report = _lookup_awards_from_sources('Beloved', 'Toni Morrison', sources)
+        self.assertEqual(len(report.assessments), 1)
+        self.assertEqual(report.assessments[0].result.rank, 6)
+        self.assertEqual(
+            report.assessments[0].qualification.decision,
+            QualificationDecision.DOES_NOT_QUALIFY,
+        )
+
+    def test_public_lookup_awards_threads_cutoff(self):
+        def _ranked(title: str, author: str, series=None):
+            return [_result(status='Finalist', rank=6, award_name='Hugo Award')]
+
+        stub = _source('hugo', 'Hugo Awards', _ranked)
+        with patch('awards.engine.AWARD_SOURCES', (stub,)):
+            omitted = lookup_awards('Beloved', 'Toni Morrison')
+            raised = lookup_awards(
+                'Beloved',
+                'Toni Morrison',
+                max_qualifying_rank=10,
+            )
+        self.assertEqual(
+            omitted.assessments[0].qualification.decision,
+            QualificationDecision.DOES_NOT_QUALIFY,
+        )
+        self.assertEqual(
+            raised.assessments[0].qualification.decision,
+            QualificationDecision.QUALIFIES,
+        )
+
+    def test_cutoff_ten_qualifies_rank_six(self):
+        def _ranked(title: str, author: str, series=None):
+            return [_result(status='Finalist', rank=6, award_name='Hugo Award')]
+
+        sources = (_source('hugo', 'Hugo Awards', _ranked),)
+        report = _lookup_awards_from_sources(
+            'Beloved',
+            'Toni Morrison',
+            sources,
+            max_qualifying_rank=10,
+        )
+        self.assertEqual(
+            report.assessments[0].qualification.decision,
+            QualificationDecision.QUALIFIES,
+        )
+
+    def test_custom_cutoff_does_not_alter_unranked_winner(self):
+        def _winner(title: str, author: str, series=None):
+            return [_result(status='Winner', rank=None)]
+
+        sources = (_source('ok', 'OK Awards', _winner),)
+        report = _lookup_awards_from_sources(
+            'Beloved',
+            'Toni Morrison',
+            sources,
+            max_qualifying_rank=1,
+        )
+        self.assertEqual(
+            report.assessments[0].qualification.decision,
+            QualificationDecision.QUALIFIES,
+        )
+        self.assertEqual(
+            report.assessments[0].qualification.reason,
+            'Status indicates a win without an established ordinal rank.',
         )
 
 

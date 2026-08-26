@@ -13,6 +13,7 @@ from dataclasses import dataclass
 
 from .model import AwardResult
 from .qualifier import QualificationResult, qualify_award_result
+from .rank_cutoff import DEFAULT_MAX_QUALIFYING_RANK
 from .registry import find_award_policy
 from .source_registry import AWARD_SOURCES, AwardSource
 
@@ -50,10 +51,18 @@ class LookupProgress:
 ProgressCallback = Callable[[LookupProgress], None]
 
 
-def assess_award_result(result: AwardResult) -> AwardAssessment:
+def assess_award_result(
+    result: AwardResult,
+    *,
+    max_qualifying_rank: int = DEFAULT_MAX_QUALIFYING_RANK,
+) -> AwardAssessment:
     """Qualify one factual AwardResult using any matching registry policy."""
     policy = find_award_policy(result)
-    qualification = qualify_award_result(result, policy)
+    qualification = qualify_award_result(
+        result,
+        policy,
+        max_qualifying_rank=max_qualifying_rank,
+    )
     return AwardAssessment(result=result, qualification=qualification)
 
 
@@ -77,11 +86,13 @@ def lookup_awards(
     on_progress: ProgressCallback | None = None,
     *,
     enabled_source_keys=None,
+    max_qualifying_rank: int = DEFAULT_MAX_QUALIFYING_RANK,
 ) -> AwardLookupReport:
     """Search configured award sources and return assessments plus failures.
 
     enabled_source_keys=None uses every registered source. An empty collection
     uses none. Unknown keys are ignored. Order follows AWARD_SOURCES.
+    max_qualifying_rank is passed only to qualification, not to sources.
     """
     cleaned_title = title.strip()
     cleaned_author = author.strip()
@@ -96,6 +107,7 @@ def lookup_awards(
         _award_sources_for_keys(enabled_source_keys),
         series=cleaned_series,
         on_progress=on_progress,
+        max_qualifying_rank=max_qualifying_rank,
     )
 
 
@@ -122,6 +134,7 @@ def _lookup_awards_from_sources(
     sources: Iterable[AwardSource],
     series: str | None = None,
     on_progress: ProgressCallback | None = None,
+    max_qualifying_rank: int = DEFAULT_MAX_QUALIFYING_RANK,
 ) -> AwardLookupReport:
     """Run the given sources concurrently and qualify their factual results.
 
@@ -175,7 +188,12 @@ def _lookup_awards_from_sources(
         if not slot:
             continue
         for result in slot:
-            assessments.append(assess_award_result(result))
+            assessments.append(
+                assess_award_result(
+                    result,
+                    max_qualifying_rank=max_qualifying_rank,
+                )
+            )
     return AwardLookupReport(
         assessments=tuple(assessments),
         failures=tuple(failures),

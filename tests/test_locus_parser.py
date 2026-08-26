@@ -647,6 +647,8 @@ URL_OVERLAP = 'https://www.sfadb.com/Locus_Awards_1991'
 URL_TEST_AUTHOR = 'https://www.sfadb.com/Test_Author'
 URL_SHORT_OVERLAP = 'https://www.sfadb.com/Locus_Awards_1992'
 URL_SHORT_AUTHOR = 'https://www.sfadb.com/Short_Overlap_Author'
+URL_STEELE = 'https://www.sfadb.com/Allen_Steele'
+URL_STEELE_FULL = 'https://www.sfadb.com/Allen_M_Steele'
 
 
 PAGES = {
@@ -716,12 +718,22 @@ class LocusTestCase(unittest.TestCase):
 class AuthorSlugTests(LocusTestCase):
     def test_ordinary_and_initial_slugs(self):
         self.assertEqual(locus._author_slug_candidates('Dan Simmons'), ('Dan_Simmons',))
-        self.assertEqual(locus._author_slug_candidates('C. J. Cherryh'), ('C_J_Cherryh',))
-        self.assertEqual(locus._author_slug_candidates('N. K. Jemisin'), ('N_K_Jemisin',))
+        self.assertEqual(
+            locus._author_slug_candidates('C. J. Cherryh'),
+            ('C_J_Cherryh', 'C_Cherryh'),
+        )
+        self.assertEqual(
+            locus._author_slug_candidates('N. K. Jemisin'),
+            ('N_K_Jemisin', 'N_Jemisin'),
+        )
         self.assertEqual(locus._author_slug_candidates('T. Kingfisher'), ('T_Kingfisher',))
         self.assertEqual(
             locus._author_slug_candidates('Ursula K. Le Guin'),
-            ('Ursula_K_Le_Guin',),
+            ('Ursula_K_Le_Guin', 'Ursula_Le_Guin'),
+        )
+        self.assertEqual(
+            locus._author_slug_candidates('Allen M. Steele'),
+            ('Allen_M_Steele', 'Allen_Steele'),
         )
 
     def test_diacritic_slug_prefers_ascii_fold(self):
@@ -1396,6 +1408,20 @@ class LookupAndQualificationTests(LocusTestCase):
         results = self._lookup('The Boat of a Million Years', 'Poul Anderson')
         self.assertEqual(results[0].rank, 6)
 
+    def test_rank_six_qualifies_when_cutoff_is_ten(self):
+        results = self._lookup('The Boat of a Million Years', 'Poul Anderson')
+        self.assertEqual(len(results), 1)
+        result = results[0]
+        self.assertEqual(result.rank, 6)
+        self.assertEqual(
+            qualify_award_result(result).decision,
+            QualificationDecision.DOES_NOT_QUALIFY,
+        )
+        self.assertEqual(
+            qualify_award_result(result, max_qualifying_rank=10).decision,
+            QualificationDecision.QUALIFIES,
+        )
+
     def test_1979_unified_novel_category(self):
         results = self._lookup('Dreamsnake', 'Vonda N. McIntyre')
         self.assertEqual(results[0].category, 'Novel')
@@ -1859,6 +1885,165 @@ class CacheTests(LocusTestCase):
                 locus.lookup('Hyperion', 'Dan Simmons')
         self.assertEqual(calls['n'], 3)
         self.assertNotIn(URL_1990, locus._annual_page_cache)
+
+
+HTML_STEELE = _author_page(
+    'Allen Steele',
+    _entry(1991, 'Clarke County, Space', 'sf novel', '19th place'),
+)
+
+HTML_1991_CLARKE = """
+<div class="categoryblock">
+<div class="category">Sf Novel</div>
+<ol>
+<li value="19"> <b>Clarke County, Space</b>, <a href="Allen_Steele">Allen Steele</a> (Ace)</li>
+</ol>
+</div>
+"""
+
+
+def _steele_request(_opener, url: str) -> tuple[int, str]:
+    if url == URL_STEELE:
+        return 200, HTML_STEELE
+    if url == URL_OVERLAP:
+        return 200, HTML_1991_CLARKE
+    return 404, ''
+
+
+class OmittedMiddleInitialIdentityTests(LocusTestCase):
+    def test_candidate_allowed_pairs(self):
+        self.assertTrue(
+            locus._omitted_middle_initial_candidate(
+                'Allen M. Steele',
+                'Allen Steele',
+            )
+        )
+        self.assertTrue(
+            locus._omitted_middle_initial_candidate(
+                'Allen Steele',
+                'Allen M. Steele',
+            )
+        )
+        self.assertTrue(
+            locus._omitted_middle_initial_candidate(
+                'John R. R. Smith',
+                'John Smith',
+            )
+        )
+
+    def test_candidate_rejected_pairs(self):
+        self.assertFalse(
+            locus._omitted_middle_initial_candidate(
+                'John Michael Smith',
+                'John Smith',
+            )
+        )
+        self.assertFalse(
+            locus._omitted_middle_initial_candidate(
+                'John M. Smith',
+                'James Smith',
+            )
+        )
+        self.assertFalse(
+            locus._omitted_middle_initial_candidate(
+                'John M. Smith',
+                'John Jones',
+            )
+        )
+        self.assertFalse(
+            locus._omitted_middle_initial_candidate(
+                'John M. Smith',
+                'Smith',
+            )
+        )
+
+    def test_ascii_fold_candidate_still_requires_omitted_initial(self):
+        self.assertTrue(
+            locus._omitted_middle_initial_candidate(
+                'José M. García',
+                'Jose Garcia',
+            )
+        )
+        self.assertFalse(
+            locus._omitted_middle_initial_candidate(
+                'José García',
+                'Jose Garcia',
+            )
+        )
+
+    def test_exact_names_are_not_candidates(self):
+        self.assertFalse(
+            locus._omitted_middle_initial_candidate(
+                'Allen Steele',
+                'Allen Steele',
+            )
+        )
+        self.assertFalse(
+            locus._authors_equivalent('Allen M. Steele', 'Allen Steele')
+        )
+
+
+class ClarkeCountySpaceIdentityLookupTests(LocusTestCase):
+    def test_omitted_middle_initial_lookup_is_possible_identity_match(self):
+        with patch.object(locus, '_request_html', side_effect=_steele_request) as mocked:
+            results = locus.lookup('Clarke County, Space', 'Allen M. Steele')
+        self.assertEqual(len(results), 1)
+        result = results[0]
+        self.assertEqual(result.work_title, 'Clarke County, Space')
+        self.assertEqual(result.work_author, 'Allen Steele')
+        self.assertEqual(result.award_year, 1991)
+        self.assertEqual(result.category, 'Sf Novel')
+        self.assertEqual(result.rank, 19)
+        self.assertEqual(result.status, '19th place')
+        self.assertIs(result.identity_confirmation_required, True)
+        self.assertIsNotNone(result.source_identity_note)
+        self.assertIn('Allen Steele', result.source_identity_note)
+        self.assertIn('Allen M. Steele', result.source_identity_note)
+        fetched = [call.args[1] for call in mocked.call_args_list]
+        self.assertEqual(fetched[0], URL_STEELE_FULL)
+        self.assertEqual(fetched[1], URL_STEELE)
+        self.assertEqual(fetched[2], URL_OVERLAP)
+
+    def test_candidate_identity_still_qualifies_by_cutoff(self):
+        with patch.object(locus, '_request_html', side_effect=_steele_request):
+            results = locus.lookup('Clarke County, Space', 'Allen M. Steele')
+        result = results[0]
+        self.assertIs(result.identity_confirmation_required, True)
+        self.assertEqual(
+            qualify_award_result(result, max_qualifying_rank=12).decision,
+            QualificationDecision.DOES_NOT_QUALIFY,
+        )
+        self.assertEqual(
+            qualify_award_result(result, max_qualifying_rank=20).decision,
+            QualificationDecision.QUALIFIES,
+        )
+        self.assertIs(result.identity_confirmation_required, True)
+
+    def test_exact_author_lookup_does_not_require_confirmation(self):
+        with patch.object(locus, '_request_html', side_effect=_steele_request) as mocked:
+            results = locus.lookup('Clarke County, Space', 'Allen Steele')
+        self.assertEqual(len(results), 1)
+        result = results[0]
+        self.assertEqual(result.rank, 19)
+        self.assertEqual(result.status, '19th place')
+        self.assertEqual(result.work_author, 'Allen Steele')
+        self.assertIs(result.identity_confirmation_required, False)
+        self.assertIsNone(result.source_identity_note)
+        fetched = [call.args[1] for call in mocked.call_args_list]
+        self.assertEqual(fetched[0], URL_STEELE)
+        self.assertNotIn(URL_STEELE_FULL, fetched)
+
+    def test_wrong_pagetitle_on_omitted_slug_is_rejected(self):
+        def fake(_opener, url: str):
+            if url == URL_STEELE:
+                return 200, HTML_WRONG_PERSON
+            return 404, ''
+
+        with patch.object(locus, '_request_html', side_effect=fake):
+            self.assertEqual(
+                locus.lookup('Clarke County, Space', 'Allen M. Steele'),
+                [],
+            )
 
 
 if __name__ == '__main__':

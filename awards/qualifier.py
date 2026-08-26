@@ -10,6 +10,11 @@ from enum import Enum
 
 from .model import AwardResult
 from .policy import AwardPolicy
+from .rank_cutoff import (
+    DEFAULT_MAX_QUALIFYING_RANK,
+    MAX_MAX_QUALIFYING_RANK,
+    MIN_MAX_QUALIFYING_RANK,
+)
 
 _WINNER_STATUSES = frozenset({
     'winner',
@@ -84,31 +89,55 @@ def _ensure_policy_applies(result: AwardResult, policy: AwardPolicy) -> None:
             )
 
 
+def _require_max_qualifying_rank(max_qualifying_rank) -> int:
+    if isinstance(max_qualifying_rank, bool) or not isinstance(
+        max_qualifying_rank, int
+    ):
+        raise ValueError(
+            'max_qualifying_rank must be an int from '
+            f'{MIN_MAX_QUALIFYING_RANK} through {MAX_MAX_QUALIFYING_RANK}'
+        )
+    if not (
+        MIN_MAX_QUALIFYING_RANK
+        <= max_qualifying_rank
+        <= MAX_MAX_QUALIFYING_RANK
+    ):
+        raise ValueError(
+            'max_qualifying_rank must be an int from '
+            f'{MIN_MAX_QUALIFYING_RANK} through {MAX_MAX_QUALIFYING_RANK}'
+        )
+    return max_qualifying_rank
+
+
 def qualify_award_result(
     result: AwardResult,
     policy: AwardPolicy | None = None,
+    *,
+    max_qualifying_rank: int = DEFAULT_MAX_QUALIFYING_RANK,
 ) -> QualificationResult:
     """Decide inclusion for one AwardResult without modifying it or the policy.
 
     Order: apply the supplied policy if any, then explicit rank, then Winner,
-    then policy status lists, then REVIEW. Rank 1-5 qualifies; rank above 5
-    does not. Winner qualifies without inventing a place. Policy status lists
-    do not override an explicit rank.
+    then policy status lists, then REVIEW. An explicit rank qualifies at or
+    below max_qualifying_rank and does not otherwise. Winner qualifies without
+    inventing a place. Policy status lists do not override an explicit rank.
     """
     if policy is not None:
         _ensure_policy_applies(result, policy)
+    cutoff = _require_max_qualifying_rank(max_qualifying_rank)
 
     if result.rank is not None:
-        if 1 <= result.rank <= 5:
+        if result.rank <= cutoff:
             return QualificationResult(
                 QualificationDecision.QUALIFIES,
-                'Source establishes an ordinal rank within the top five.',
+                'Source establishes an ordinal rank within the configured '
+                f'cutoff ({cutoff}).',
             )
-        if result.rank > 5:
-            return QualificationResult(
-                QualificationDecision.DOES_NOT_QUALIFY,
-                'Source establishes an ordinal rank outside the top five.',
-            )
+        return QualificationResult(
+            QualificationDecision.DOES_NOT_QUALIFY,
+            'Source establishes an ordinal rank outside the configured '
+            f'cutoff ({cutoff}).',
+        )
 
     status = result.status.strip().casefold()
     if status in _WINNER_STATUSES:

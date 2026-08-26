@@ -6,9 +6,11 @@ import unittest
 
 from awards.presentation import (
     CITED_WORK_SCOPE_NOTE,
+    default_award_row_checked,
     format_author_award_caption,
     format_book_line,
     format_cited_work_caption,
+    format_possible_author_match_warning,
     format_series_line,
     format_work_identity,
     is_cited_work_result,
@@ -485,6 +487,108 @@ class CitedWorkPresentationTests(unittest.TestCase):
         self.assertEqual(
             match_row_scope_lines(result, 'Beloved', 'Toni Morrison'),
             (),
+        )
+
+
+class PossibleAuthorMatchPresentationTests(unittest.TestCase):
+    def test_warning_appears_when_confirmation_required(self):
+        from types import SimpleNamespace
+
+        result = SimpleNamespace(
+            identity_kind='work',
+            work_title='Clarke County, Space',
+            work_author='Allen Steele',
+            identity_confirmation_required=True,
+            source_identity_note='unrelated note text must not drive the warning',
+        )
+        warning = format_possible_author_match_warning(
+            result,
+            'Allen M. Steele',
+        )
+        self.assertIsNotNone(warning)
+        self.assertIn('Allen Steele', warning)
+        self.assertIn('Allen M. Steele', warning)
+        self.assertNotIn('unrelated note text must not drive the warning', warning)
+        lines = match_row_scope_lines(
+            result,
+            'Clarke County, Space',
+            'Allen M. Steele',
+        )
+        self.assertEqual(lines[0], warning)
+
+    def test_exact_result_gets_no_warning(self):
+        from types import SimpleNamespace
+
+        result = SimpleNamespace(
+            identity_kind='work',
+            work_title='Clarke County, Space',
+            work_author='Allen Steele',
+            identity_confirmation_required=False,
+            source_identity_note=None,
+        )
+        self.assertIsNone(
+            format_possible_author_match_warning(result, 'Allen Steele')
+        )
+        self.assertEqual(
+            match_row_scope_lines(
+                result,
+                'Clarke County, Space',
+                'Allen Steele',
+            ),
+            (),
+        )
+
+    def test_flag_false_with_differing_author_is_not_a_possible_match(self):
+        from types import SimpleNamespace
+
+        result = SimpleNamespace(
+            identity_kind='work',
+            work_title='Clarke County, Space',
+            work_author='Allen Steele',
+            identity_confirmation_required=False,
+        )
+        self.assertIsNone(
+            format_possible_author_match_warning(result, 'Allen M. Steele')
+        )
+        lines = match_row_scope_lines(
+            result,
+            'Clarke County, Space',
+            'Allen M. Steele',
+        )
+        self.assertFalse(any('POSSIBLE AUTHOR MATCH' in line for line in lines))
+
+
+class DefaultAwardRowCheckedTests(unittest.TestCase):
+    def test_qualifies_exact_identity_is_checked(self):
+        self.assertTrue(
+            default_award_row_checked(
+                qualifies=True,
+                identity_confirmation_required=False,
+            )
+        )
+
+    def test_qualifies_identity_confirmation_is_unchecked(self):
+        self.assertFalse(
+            default_award_row_checked(
+                qualifies=True,
+                identity_confirmation_required=True,
+            )
+        )
+
+    def test_review_identity_confirmation_is_unchecked(self):
+        self.assertFalse(
+            default_award_row_checked(
+                qualifies=False,
+                identity_confirmation_required=True,
+            )
+        )
+
+    def test_does_not_qualify_identity_confirmation_is_unchecked(self):
+        self.assertFalse(
+            default_award_row_checked(
+                qualifies=False,
+                identity_confirmation_required=True,
+            )
         )
 
 

@@ -79,7 +79,7 @@ class QualifyAwardResultPolicyApplicabilityTests(unittest.TestCase):
         self.assertEqual(assessment.decision, QualificationDecision.QUALIFIES)
         self.assertEqual(
             assessment.reason,
-            'Source establishes an ordinal rank within the top five.',
+            'Source establishes an ordinal rank within the configured cutoff (5).',
         )
 
     def test_matching_policy_still_qualifies_pulitzer_finalist(self):
@@ -102,8 +102,22 @@ class QualifyAwardResultPolicyApplicabilityTests(unittest.TestCase):
         self.assertEqual(assessment.decision, QualificationDecision.QUALIFIES)
         self.assertEqual(
             assessment.reason,
-            'Source establishes an ordinal rank within the top five.',
+            'Source establishes an ordinal rank within the configured cutoff (5).',
         )
+
+    def test_no_policy_rank_1_qualifies_by_default(self):
+        result = _hugo_result(status='Finalist', rank=1)
+        assessment = qualify_award_result(result)
+        self.assertEqual(assessment.decision, QualificationDecision.QUALIFIES)
+        self.assertEqual(
+            assessment.reason,
+            'Source establishes an ordinal rank within the configured cutoff (5).',
+        )
+
+    def test_no_policy_rank_5_qualifies_by_default(self):
+        result = _hugo_result(status='Finalist', rank=5)
+        assessment = qualify_award_result(result)
+        self.assertEqual(assessment.decision, QualificationDecision.QUALIFIES)
 
     def test_no_policy_rank_above_five_still_does_not_qualify(self):
         result = _hugo_result(status='Finalist', rank=6)
@@ -112,11 +126,115 @@ class QualifyAwardResultPolicyApplicabilityTests(unittest.TestCase):
             assessment.decision,
             QualificationDecision.DOES_NOT_QUALIFY,
         )
+        self.assertEqual(
+            assessment.reason,
+            'Source establishes an ordinal rank outside the configured cutoff (5).',
+        )
 
     def test_no_policy_review_status_still_reviews(self):
         result = _hugo_result(status='Nominee', rank=None)
         assessment = qualify_award_result(result, policy=None)
         self.assertEqual(assessment.decision, QualificationDecision.REVIEW)
+
+
+class QualifyAwardResultCutoffTests(unittest.TestCase):
+    def test_cutoff_10_qualifies_rank_6_and_10(self):
+        rank_6 = qualify_award_result(
+            _hugo_result(status='Finalist', rank=6),
+            max_qualifying_rank=10,
+        )
+        rank_10 = qualify_award_result(
+            _hugo_result(status='Finalist', rank=10),
+            max_qualifying_rank=10,
+        )
+        self.assertEqual(rank_6.decision, QualificationDecision.QUALIFIES)
+        self.assertEqual(
+            rank_6.reason,
+            'Source establishes an ordinal rank within the configured cutoff (10).',
+        )
+        self.assertEqual(rank_10.decision, QualificationDecision.QUALIFIES)
+        self.assertEqual(
+            rank_10.reason,
+            'Source establishes an ordinal rank within the configured cutoff (10).',
+        )
+
+    def test_cutoff_10_rejects_rank_11(self):
+        assessment = qualify_award_result(
+            _hugo_result(status='Finalist', rank=11),
+            max_qualifying_rank=10,
+        )
+        self.assertEqual(
+            assessment.decision,
+            QualificationDecision.DOES_NOT_QUALIFY,
+        )
+        self.assertEqual(
+            assessment.reason,
+            'Source establishes an ordinal rank outside the configured cutoff (10).',
+        )
+
+    def test_cutoff_1_qualifies_rank_1_and_rejects_rank_2(self):
+        rank_1 = qualify_award_result(
+            _hugo_result(status='Finalist', rank=1),
+            max_qualifying_rank=1,
+        )
+        rank_2 = qualify_award_result(
+            _hugo_result(status='Finalist', rank=2),
+            max_qualifying_rank=1,
+        )
+        self.assertEqual(rank_1.decision, QualificationDecision.QUALIFIES)
+        self.assertEqual(
+            rank_2.decision,
+            QualificationDecision.DOES_NOT_QUALIFY,
+        )
+
+    def test_cutoff_1_does_not_change_unranked_winner(self):
+        assessment = qualify_award_result(
+            _hugo_result(status='Winner', rank=None),
+            max_qualifying_rank=1,
+        )
+        self.assertEqual(assessment.decision, QualificationDecision.QUALIFIES)
+        self.assertEqual(
+            assessment.reason,
+            'Status indicates a win without an established ordinal rank.',
+        )
+
+    def test_cutoff_1_does_not_change_unranked_pulitzer_finalist(self):
+        assessment = qualify_award_result(
+            _result(status='Finalist', rank=None),
+            PULITZER_FICTION_POLICY,
+            max_qualifying_rank=1,
+        )
+        self.assertEqual(assessment.decision, QualificationDecision.QUALIFIES)
+
+    def test_invalid_cutoff_raises_value_error(self):
+        result = _hugo_result(status='Finalist', rank=1)
+        for cutoff in (0, 101, '5', True, None):
+            with self.subTest(cutoff=cutoff):
+                with self.assertRaises(ValueError):
+                    qualify_award_result(result, max_qualifying_rank=cutoff)
+
+
+class QualifyAwardResultIdentityConfirmationTests(unittest.TestCase):
+    def test_identity_confirmation_does_not_change_qualification(self):
+        note = (
+            'Source lists the author as Allen Steele; '
+            'Calibre lists Allen M. Steele.'
+        )
+        result = _hugo_result(
+            work_title='Clarke County, Space',
+            work_author='Allen Steele',
+            status='19th place',
+            rank=19,
+            identity_confirmation_required=True,
+            source_identity_note=note,
+        )
+        at_12 = qualify_award_result(result, max_qualifying_rank=12)
+        at_20 = qualify_award_result(result, max_qualifying_rank=20)
+        self.assertEqual(at_12.decision, QualificationDecision.DOES_NOT_QUALIFY)
+        self.assertEqual(at_20.decision, QualificationDecision.QUALIFIES)
+        self.assertIsNot(at_12.decision, QualificationDecision.REVIEW)
+        self.assertIsNot(at_20.decision, QualificationDecision.REVIEW)
+        self.assertIs(result.identity_confirmation_required, True)
 
 
 if __name__ == '__main__':

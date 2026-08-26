@@ -32,6 +32,10 @@ from calibre_plugins.calibre_awards.awards.writeback import (
     prepare_replace_award_values,
 )
 from calibre_plugins.calibre_awards.config import prefs
+from calibre_plugins.calibre_awards.awards.rank_cutoff import (
+    DEFAULT_MAX_QUALIFYING_RANK,
+    normalize_max_qualifying_rank,
+)
 from qt.core import (
     QDialog,
     QDialogButtonBox,
@@ -72,13 +76,21 @@ class _AwardLookupThread(QThread):
     failed = pyqtSignal(str)
     progress = pyqtSignal(int, int, str)
 
-    def __init__(self, title, author, series='', enabled_source_keys=()):
+    def __init__(
+        self,
+        title,
+        author,
+        series='',
+        enabled_source_keys=(),
+        max_qualifying_rank=DEFAULT_MAX_QUALIFYING_RANK,
+    ):
         # Intentionally unparented: must outlive the Edit Metadata dialog.
         super().__init__(None)
         self._title = title
         self._author = author
         self._series = series
         self.enabled_source_keys = enabled_source_keys
+        self.max_qualifying_rank = max_qualifying_rank
 
     def run(self):
         try:
@@ -88,6 +100,7 @@ class _AwardLookupThread(QThread):
                 series=self._series,
                 on_progress=self._emit_progress,
                 enabled_source_keys=self.enabled_source_keys,
+                max_qualifying_rank=self.max_qualifying_rank,
             )
         except Exception as exc:
             self.failed.emit(f'{type(exc).__name__}: {exc}')
@@ -651,6 +664,9 @@ def _start_award_lookup(dialog, button):
         lookup_author,
         lookup_series,
         enabled_source_keys=enabled_keys,
+        max_qualifying_rank=normalize_max_qualifying_rank(
+            prefs['max_qualifying_rank']
+        ),
     )
     receiver = _LookupUiReceiver(
         button,

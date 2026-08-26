@@ -14,6 +14,12 @@ from calibre.utils.config import JSONConfig
 from calibre_plugins.calibre_awards.awards.formatter import (
     DEFAULT_AWARD_OUTPUT_TEMPLATE,
 )
+from calibre_plugins.calibre_awards.awards.rank_cutoff import (
+    DEFAULT_MAX_QUALIFYING_RANK,
+    MAX_MAX_QUALIFYING_RANK,
+    MIN_MAX_QUALIFYING_RANK,
+    normalize_max_qualifying_rank,
+)
 from calibre_plugins.calibre_awards.awards.source_info import SOURCE_INFOS
 from calibre_plugins.calibre_awards.awards.source_settings import (
     normalize_disabled_source_keys,
@@ -27,6 +33,7 @@ from qt.core import (
     QLineEdit,
     QPushButton,
     QRadioButton,
+    QSpinBox,
     Qt,
     QVBoxLayout,
     QWidget,
@@ -42,6 +49,7 @@ prefs.defaults['award_output_template'] = DEFAULT_AWARD_OUTPUT_TEMPLATE
 prefs.defaults['writeback_enabled'] = False
 prefs.defaults['writeback_field'] = ''
 prefs.defaults['writeback_mode'] = WRITEBACK_MODE_APPEND
+prefs.defaults['max_qualifying_rank'] = DEFAULT_MAX_QUALIFYING_RANK
 # Opt-out list: a source added in a later release starts enabled.
 prefs.defaults['disabled_source_keys'] = []
 
@@ -140,6 +148,31 @@ class ConfigWidget(QWidget):
         buttons_layout.addStretch(1)
         sources_layout.addWidget(buttons)
         layout.addWidget(sources_group)
+
+        qualification_group = QGroupBox('Qualification', self)
+        qualification_layout = QVBoxLayout(qualification_group)
+        self.max_rank_label = QLabel(
+            'Highest explicit ordinal rank to include:',
+            qualification_group,
+        )
+        self.max_rank_spin = QSpinBox(qualification_group)
+        self.max_rank_spin.setMinimum(MIN_MAX_QUALIFYING_RANK)
+        self.max_rank_spin.setMaximum(MAX_MAX_QUALIFYING_RANK)
+        self.max_rank_spin.setValue(
+            normalize_max_qualifying_rank(prefs['max_qualifying_rank'])
+        )
+        self.max_rank_label.setBuddy(self.max_rank_spin)
+        qualification_layout.addWidget(self.max_rank_label)
+        qualification_layout.addWidget(self.max_rank_spin)
+        rank_hint = QLabel(
+            'Applies only when an award source provides an explicit '
+            'numerical rank. Unranked winners, finalists, and nominees '
+            'keep their normal award-specific treatment.',
+            qualification_group,
+        )
+        rank_hint.setWordWrap(True)
+        qualification_layout.addWidget(rank_hint)
+        layout.addWidget(qualification_group)
 
         intro = QLabel(
             'This setting controls the format of each award result.'
@@ -333,6 +366,7 @@ class ConfigWidget(QWidget):
         prefs['writeback_enabled'] = enabled
         prefs['writeback_field'] = lookup_name
         prefs['writeback_mode'] = self._selected_mode()
+        prefs['max_qualifying_rank'] = int(self.max_rank_spin.value())
         # Rebuild from current SOURCE_INFOS; stale stored keys are dropped.
         prefs['disabled_source_keys'] = [
             info.key

@@ -76,6 +76,36 @@ def is_cited_work_result(result) -> bool:
     return getattr(result, 'is_specifically_cited_work', False) is True
 
 
+def format_possible_author_match_warning(result, lookup_author: str) -> str | None:
+    """Return a GUI warning when identity confirmation is required.
+
+    Driven by identity_confirmation_required, not by matching note text.
+    """
+    if getattr(result, 'identity_confirmation_required', False) is not True:
+        return None
+    source_author = (getattr(result, 'work_author', '') or '').strip()
+    calibre_author = lookup_author.strip()
+    return (
+        f'POSSIBLE AUTHOR MATCH - Source lists "{source_author}"; '
+        f'Calibre lists "{calibre_author}". Confirm this result before including it.'
+    )
+
+
+def default_award_row_checked(
+    *,
+    qualifies: bool,
+    identity_confirmation_required: bool,
+) -> bool:
+    """Return whether an award row should start checked.
+
+    Qualification recommends a row. Identity confirmation withholds
+    automatic selection even when the result QUALIFIES.
+    """
+    if identity_confirmation_required:
+        return False
+    return bool(qualifies)
+
+
 def source_author_identity_if_different(
     lookup_author: str,
     source_author: str,
@@ -98,6 +128,8 @@ def match_row_scope_lines(
     Author awards never compare the Calibre book title to work_title.
     Series awards compare Calibre series identity, not the book title.
     """
+    warning = format_possible_author_match_warning(result, lookup_author)
+    prefix = (warning,) if warning is not None else ()
     kind = result_identity_kind(result)
     work_title = getattr(result, 'work_title', '') or ''
     work_author = getattr(result, 'work_author', '') or ''
@@ -109,7 +141,7 @@ def match_row_scope_lines(
         )
         if source_author is not None:
             lines.append(f'Source author: {source_author}')
-        return tuple(lines)
+        return prefix + tuple(lines)
     if kind == 'series':
         source_identity = source_identity_if_different(
             lookup_series,
@@ -118,8 +150,8 @@ def match_row_scope_lines(
             work_author,
         )
         if source_identity is None:
-            return ()
-        return (f'Source series: {source_identity}',)
+            return prefix
+        return prefix + (f'Source series: {source_identity}',)
     lines: list[str] = []
     if is_cited_work_result(result):
         lines.append(format_cited_work_caption())
@@ -131,7 +163,7 @@ def match_row_scope_lines(
     )
     if source_identity is not None:
         lines.append(f'Source: {source_identity}')
-    return tuple(lines)
+    return prefix + tuple(lines)
 
 
 def source_identity_if_different(

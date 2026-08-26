@@ -310,6 +310,18 @@ class HugoRankEnrichmentTests(unittest.TestCase):
             '5th - 2024 Hugo Award - Best Novel',
         )
 
+    def test_starter_villain_rank_six_respects_cutoff(self):
+        starter = _lookup_year('Starter Villain', 'John Scalzi', 2024)[0]
+        self.assertEqual(starter.rank, 6)
+        self.assertEqual(
+            qualify_award_result(starter).decision,
+            QualificationDecision.DOES_NOT_QUALIFY,
+        )
+        self.assertEqual(
+            qualify_award_result(starter, max_qualifying_rank=10).decision,
+            QualificationDecision.QUALIFIES,
+        )
+
     def test_goblin_emperor_matches_plain_katherine_addison_query(self):
         goblin = _lookup_year('The Goblin Emperor', 'Katherine Addison', 2015)[0]
         self.assertEqual(goblin.status, 'Finalist')

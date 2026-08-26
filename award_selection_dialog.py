@@ -1,6 +1,8 @@
 from calibre_plugins.calibre_awards.awards.formatter import format_award_result
 from calibre_plugins.calibre_awards.awards.presentation import (
+    default_award_row_checked,
     format_book_line,
+    format_possible_author_match_warning,
     format_series_line,
     lookup_has_series_award,
     match_row_scope_lines,
@@ -8,10 +10,12 @@ from calibre_plugins.calibre_awards.awards.presentation import (
 from calibre_plugins.calibre_awards.awards.qualifier import QualificationDecision
 from qt.core import (
     QCheckBox,
+    QColor,
     QDialog,
     QDialogButtonBox,
     QFrame,
     QLabel,
+    QPalette,
     QScrollArea,
     Qt,
     QVBoxLayout,
@@ -160,21 +164,41 @@ class _AwardMatchRow(QWidget):
         layout.setContentsMargins(0, 0, 0, 8)
         self.setLayout(layout)
 
-        formatted = format_award_result(assessment.result, template)
+        result = assessment.result
+        formatted = format_award_result(result, template)
         self.checkbox = QCheckBox(formatted, self)
-        # QUALIFIES is the default checked recommendation. When write-back
-        # selection is enabled, REVIEW / DOES_NOT_QUALIFY rows are not
-        # forbidden; disabled write-back disables the checkboxes.
+        # QUALIFIES is the default checked recommendation unless identity
+        # confirmation is required. When write-back selection is enabled,
+        # REVIEW / DOES_NOT_QUALIFY rows are not forbidden; disabled
+        # write-back disables the checkboxes.
+        confirmation_required = (
+            getattr(result, 'identity_confirmation_required', False) is True
+        )
         self.checkbox.setChecked(
-            assessment.qualification.decision is QualificationDecision.QUALIFIES
+            default_award_row_checked(
+                qualifies=(
+                    assessment.qualification.decision
+                    is QualificationDecision.QUALIFIES
+                ),
+                identity_confirmation_required=confirmation_required,
+            )
         )
         self.checkbox.setEnabled(selectable)
-        result = assessment.result
         tooltip = f'Source: {result.source_name}'
         if result.source_url:
             tooltip += f'\n{result.source_url}'
         self.checkbox.setToolTip(tooltip)
         layout.addWidget(self.checkbox)
+
+        warning = format_possible_author_match_warning(result, lookup_author)
+        if confirmation_required:
+            _apply_possible_author_match_style(self)
+        if warning is not None:
+            warn = QLabel(warning, self)
+            warn.setWordWrap(True)
+            warn.setTextFormat(Qt.PlainText)
+            _apply_possible_author_match_style(warn)
+            layout.addWidget(warn)
 
         for line in match_row_scope_lines(
             result,
@@ -182,6 +206,8 @@ class _AwardMatchRow(QWidget):
             lookup_author,
             lookup_series,
         ):
+            if warning is not None and line == warning:
+                continue
             # Presentation helpers mark author- and series-level awards.
             scope = QLabel(line, self)
             scope.setWordWrap(True)
@@ -200,3 +226,21 @@ class _AwardMatchRow(QWidget):
 
     def is_checked(self):
         return self.checkbox.isChecked()
+
+
+def _apply_possible_author_match_style(widget):
+    """Amber treatment that stays readable on light and dark palettes."""
+    window = widget.palette().color(QPalette.ColorRole.Window)
+    if window.lightness() >= 128:
+        foreground = QColor(122, 62, 0)
+        background = QColor(255, 232, 186)
+    else:
+        foreground = QColor(255, 196, 110)
+        background = QColor(74, 48, 12)
+    palette = widget.palette()
+    palette.setColor(QPalette.ColorRole.WindowText, foreground)
+    palette.setColor(QPalette.ColorRole.Window, background)
+    palette.setColor(QPalette.ColorRole.Text, foreground)
+    palette.setColor(QPalette.ColorRole.Base, background)
+    widget.setAutoFillBackground(True)
+    widget.setPalette(palette)

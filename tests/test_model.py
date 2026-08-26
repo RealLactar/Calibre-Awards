@@ -108,5 +108,62 @@ class AwardResultCitedWorkFlagTests(unittest.TestCase):
             _result(is_specifically_cited_work=1)
 
 
+class AwardResultIdentityConfirmationTests(unittest.TestCase):
+    def test_default_identity_confirmation_required_is_false(self):
+        result = _result()
+        self.assertIs(result.identity_confirmation_required, False)
+        self.assertIsNone(result.source_identity_note)
+
+    def test_candidate_result_can_require_confirmation(self):
+        note = (
+            'Source lists the author as Allen Steele; '
+            'Calibre lists Allen M. Steele.'
+        )
+        result = _result(
+            work_title='Clarke County, Space',
+            work_author='Allen Steele',
+            award_name='Locus Award',
+            award_year=1991,
+            category='Sf Novel',
+            status='19th place',
+            rank=19,
+            source_name='Science Fiction Awards Database',
+            identity_confirmation_required=True,
+            source_identity_note=note,
+        )
+        self.assertIs(result.identity_confirmation_required, True)
+        self.assertEqual(result.source_identity_note, note)
+        self.assertEqual(result.work_author, 'Allen Steele')
+        self.assertEqual(result.rank, 19)
+
+    def test_true_without_note_is_rejected(self):
+        with self.assertRaises(ValueError):
+            _result(identity_confirmation_required=True)
+        with self.assertRaises(ValueError):
+            _result(
+                identity_confirmation_required=True,
+                source_identity_note='   ',
+            )
+
+    def test_note_without_confirmation_flag_is_rejected(self):
+        with self.assertRaises(ValueError):
+            _result(source_identity_note='Source lists the author as Allen Steele.')
+
+    def test_non_bool_confirmation_flag_is_rejected(self):
+        with self.assertRaises(ValueError):
+            _result(
+                identity_confirmation_required=1,
+                source_identity_note='Source lists the author as Allen Steele.',
+            )
+
+    def test_note_is_ordinary_factual_data_not_a_control_marker(self):
+        result = _result(
+            identity_confirmation_required=True,
+            source_identity_note='arbitrary factual mismatch text',
+        )
+        self.assertIs(result.identity_confirmation_required, True)
+        self.assertEqual(result.source_identity_note, 'arbitrary factual mismatch text')
+
+
 if __name__ == '__main__':
     unittest.main()

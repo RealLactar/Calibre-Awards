@@ -15,8 +15,8 @@ PULITZER_FICTION_POLICY = AwardPolicy(
     qualifying_statuses=frozenset({'Finalist'}),
     notes=(
         'Pulitzer recognized finalists beginning in 1980. '
-        'For Fiction, published finalists fall within the project top-five '
-        'inclusion threshold. Finalist does not imply an ordinal rank.'
+        'For Fiction, published finalists are included by this '
+        'award-specific policy. Finalist does not imply an ordinal rank.'
     ),
 )
 
