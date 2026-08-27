@@ -20,6 +20,7 @@ The plugin currently checks:
 - Locus Awards via the Science Fiction Awards Database (SFADB)
 - World Fantasy Awards
 - Nobel Prize in Literature / NobelPrize.org
+- John Newbery Medal (Children's Literature, 1930-2023, Winner and Honor Books)
 
 Category coverage is limited to the literary work awards each source
 currently advertises in the plugin. Anthology, editor, artist, and publisher

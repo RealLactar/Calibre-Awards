@@ -2,7 +2,6 @@
 
 Listing pages cover 1930-2023. Author confirmation is lazy: only title
 candidates fetch a /winner/... page. 1922-1929 and 2024+ are out of scope.
-This module does not register an engine source.
 """
 
 from __future__ import annotations
@@ -24,7 +23,9 @@ TIMEOUT_SECONDS = 30
 AWARD_NAME = 'Newbery Medal'
 CATEGORY = "Children's Literature"
 SOURCE_NAME = 'John Newbery Medal'
-SOURCE_HOME_URL = 'https://www.ala.org/'
+SOURCE_HOME_URL = (
+    'https://www.ala.org/alsc/awardsgrants/bookmedia/newbery'
+)
 DETAIL_ORIGIN = 'https://www.ala.org'
 
 ARCHIVE_URL_2004_2023 = (

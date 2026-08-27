@@ -13,7 +13,7 @@ from awards.source_info import (
     format_source_info,
 )
 from awards.source_registry import AWARD_SOURCES
-from awards.sources import hugo, locus, nebula, nobel, pulitzer, world_fantasy
+from awards.sources import hugo, locus, nebula, newbery, nobel, pulitzer, world_fantasy
 
 
 def _info(key: str) -> SourceInfo:
@@ -111,7 +111,7 @@ class SourceInfoRegistryConsistencyTests(unittest.TestCase):
             tuple(source.display_name for source in AWARD_SOURCES),
         )
         self.assertEqual(len(SOURCE_INFOS), len(AWARD_SOURCES))
-        self.assertEqual(len(SOURCE_INFOS), 6)
+        self.assertEqual(len(SOURCE_INFOS), 7)
 
     def test_keys_are_unique(self):
         keys = [info.key for info in SOURCE_INFOS]
@@ -190,6 +190,11 @@ class SourceInfoCategoryTests(unittest.TestCase):
         self.assertEqual(info.categories, (nobel.CATEGORY_LITERATURE,))
         self.assertEqual(info.categories, ('Literature',))
 
+    def test_newbery_childrens_literature_only(self):
+        info = _info('newbery')
+        self.assertEqual(info.categories, (newbery.CATEGORY,))
+        self.assertEqual(info.categories, ("Children's Literature",))
+
 
 class SourceInfoScopeAndHomepageTests(unittest.TestCase):
     def test_identity_scopes(self):
@@ -200,6 +205,7 @@ class SourceInfoScopeAndHomepageTests(unittest.TestCase):
             'locus': ('work',),
             'world_fantasy': ('work',),
             'nobel': ('author', 'work'),
+            'newbery': ('work',),
         }
         self.assertEqual(
             {info.key: info.identity_scopes for info in SOURCE_INFOS},
@@ -217,6 +223,7 @@ class SourceInfoScopeAndHomepageTests(unittest.TestCase):
         self.assertEqual(hosts['locus'], 'www.sfadb.com')
         self.assertEqual(hosts['world_fantasy'], 'worldfantasy.org')
         self.assertEqual(hosts['nobel'], 'www.nobelprize.org')
+        self.assertEqual(hosts['newbery'], 'www.ala.org')
         self.assertEqual(_info('pulitzer').homepage_url, pulitzer.SOURCE_HOME_URL)
         self.assertEqual(_info('nebula').homepage_url, nebula.SOURCE_HOME_URL)
         self.assertEqual(_info('hugo').homepage_url, hugo.SOURCE_HOME_URL)
@@ -226,10 +233,11 @@ class SourceInfoScopeAndHomepageTests(unittest.TestCase):
             world_fantasy.SOURCE_HOME_URL,
         )
         self.assertEqual(_info('nobel').homepage_url, nobel.SOURCE_HOME_URL)
+        self.assertEqual(_info('newbery').homepage_url, newbery.SOURCE_HOME_URL)
 
-    def test_only_pulitzer_has_a_limitation(self):
+    def test_only_pulitzer_and_newbery_have_limitations(self):
         for info in SOURCE_INFOS:
-            if info.key == 'pulitzer':
+            if info.key in {'pulitzer', 'newbery'}:
                 self.assertIsNotNone(info.limitation)
             else:
                 self.assertIsNone(info.limitation)
@@ -240,6 +248,22 @@ class SourceInfoScopeAndHomepageTests(unittest.TestCase):
         self.assertIn('[author: name]', text)
         self.assertIn('work', text)
         self.assertNotIn('sholokhov', text)
+
+    def test_newbery_description_and_limitation_cover_1930_2023(self):
+        info = _info('newbery')
+        description = info.description.casefold()
+        self.assertIn('newbery medal', description)
+        self.assertIn('honor', description)
+        self.assertIn('ala', description)
+        self.assertNotIn('1922', description)
+        self.assertNotIn('2024', description)
+        self.assertNotIn('2026', description)
+        limitation = info.limitation.casefold()
+        self.assertIn('1930', limitation)
+        self.assertIn('2023', limitation)
+        self.assertNotIn('1922', limitation)
+        self.assertNotIn('2024', limitation)
+        self.assertNotIn('2026', limitation)
 
 
 class SourceInfoImportAndFormatTests(unittest.TestCase):
@@ -252,9 +276,9 @@ class SourceInfoImportAndFormatTests(unittest.TestCase):
         with patch.object(urllib.request, 'urlopen') as mocked_open:
             reloaded = importlib.reload(source_info)
             infos = reloaded.SOURCE_INFOS
-            self.assertEqual(len(infos), 6)
+            self.assertEqual(len(infos), 7)
             self.assertEqual(infos[0].key, 'pulitzer')
-            self.assertEqual(infos[-1].key, 'nobel')
+            self.assertEqual(infos[-1].key, 'newbery')
             mocked_open.assert_not_called()
 
     def test_format_identity_scopes_uses_user_facing_labels(self):

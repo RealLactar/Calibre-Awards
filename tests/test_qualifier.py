@@ -10,7 +10,7 @@ import unittest
 
 from awards.model import AwardResult
 from awards.qualifier import QualificationDecision, qualify_award_result
-from awards.registry import PULITZER_FICTION_POLICY
+from awards.registry import NEWBERY_POLICY, PULITZER_FICTION_POLICY
 
 
 def _result(**overrides) -> AwardResult:
@@ -235,6 +235,79 @@ class QualifyAwardResultIdentityConfirmationTests(unittest.TestCase):
         self.assertIsNot(at_12.decision, QualificationDecision.REVIEW)
         self.assertIsNot(at_20.decision, QualificationDecision.REVIEW)
         self.assertIs(result.identity_confirmation_required, True)
+
+
+class QualifyNewberyHonorPolicyTests(unittest.TestCase):
+    def _newbery(self, **overrides) -> AwardResult:
+        values = {
+            'work_title': 'The Tombs of Atuan',
+            'work_author': 'Ursula K. LeGuin',
+            'award_name': 'Newbery Medal',
+            'award_year': 1972,
+            'category': "Children's Literature",
+            'status': 'Honor',
+            'rank': None,
+            'source_name': 'John Newbery Medal',
+            'source_url': 'https://www.ala.org/winner/tombs-atuan',
+        }
+        values.update(overrides)
+        return AwardResult(**values)
+
+    def test_newbery_winner_qualifies_without_inventing_rank(self):
+        result = self._newbery(
+            work_title='A Wrinkle in Time',
+            work_author="Madeleine L'Engle",
+            award_year=1963,
+            status='Winner',
+            rank=None,
+        )
+        assessment = qualify_award_result(result, NEWBERY_POLICY)
+        self.assertEqual(assessment.decision, QualificationDecision.QUALIFIES)
+        self.assertEqual(
+            assessment.reason,
+            'Status indicates a win without an established ordinal rank.',
+        )
+        self.assertIsNone(result.rank)
+
+    def test_newbery_honor_qualifies_without_inventing_rank(self):
+        result = self._newbery()
+        assessment = qualify_award_result(result, NEWBERY_POLICY)
+        self.assertEqual(assessment.decision, QualificationDecision.QUALIFIES)
+        self.assertEqual(
+            assessment.reason,
+            'Award-specific policy identifies this status as satisfying '
+            'the inclusion rule.',
+        )
+        self.assertIsNone(result.rank)
+
+    def test_generic_honor_without_policy_remains_review(self):
+        result = self._newbery()
+        assessment = qualify_award_result(result, policy=None)
+        self.assertEqual(assessment.decision, QualificationDecision.REVIEW)
+        self.assertEqual(
+            assessment.reason,
+            'Status meaning depends on the structure of the specific award.',
+        )
+
+    def test_unrelated_award_honor_remains_review(self):
+        hugo_honor = _hugo_result(status='Honor', rank=None)
+        assessment = qualify_award_result(hugo_honor, policy=None)
+        self.assertEqual(assessment.decision, QualificationDecision.REVIEW)
+        caldecott = self._newbery(award_name='Caldecott Medal')
+        self.assertEqual(
+            qualify_award_result(caldecott).decision,
+            QualificationDecision.REVIEW,
+        )
+
+    def test_newbery_policy_does_not_apply_to_other_award_or_category(self):
+        hugo_honor = _hugo_result(status='Honor', rank=None)
+        with self.assertRaises(ValueError) as caught_award:
+            qualify_award_result(hugo_honor, NEWBERY_POLICY)
+        self.assertIn('does not apply', str(caught_award.exception))
+        wrong_category = self._newbery(category='Fiction')
+        with self.assertRaises(ValueError) as caught_category:
+            qualify_award_result(wrong_category, NEWBERY_POLICY)
+        self.assertIn('does not apply', str(caught_category.exception))
 
 
 if __name__ == '__main__':

@@ -13,7 +13,7 @@ from awards.engine import (
 )
 from awards.model import AwardResult
 from awards.qualifier import QualificationDecision
-from awards.source_registry import AwardSource
+from awards.source_registry import AWARD_SOURCES, AwardSource
 
 
 def _result(**overrides) -> AwardResult:
@@ -621,6 +621,115 @@ class EngineRankCutoffTests(unittest.TestCase):
             report.assessments[0].qualification.reason,
             'Status indicates a win without an established ordinal rank.',
         )
+
+
+class EngineNewberyParticipationTests(unittest.TestCase):
+    def _newbery_result(self, **overrides) -> AwardResult:
+        values = {
+            'work_title': 'The Tombs of Atuan',
+            'work_author': 'Ursula K. LeGuin',
+            'award_name': 'Newbery Medal',
+            'award_year': 1972,
+            'category': "Children's Literature",
+            'status': 'Honor',
+            'rank': None,
+            'source_name': 'John Newbery Medal',
+            'source_url': 'https://www.ala.org/winner/tombs-atuan',
+            'identity_kind': 'work',
+        }
+        values.update(overrides)
+        return AwardResult(**values)
+
+    def test_newbery_honor_result_qualifies_in_lookup_report(self):
+        def _newbery(title: str, author: str, series=None):
+            return [self._newbery_result()]
+
+        sources = (
+            _source('newbery', 'John Newbery Medal', _newbery),
+        )
+        report = _lookup_awards_from_sources(
+            'The Tombs of Atuan',
+            'Ursula K. Le Guin',
+            sources,
+        )
+        self.assertEqual(len(report.assessments), 1)
+        assessment = report.assessments[0]
+        self.assertEqual(assessment.result.source_name, 'John Newbery Medal')
+        self.assertEqual(assessment.result.status, 'Honor')
+        self.assertIsNone(assessment.result.rank)
+        self.assertEqual(
+            assessment.qualification.decision,
+            QualificationDecision.QUALIFIES,
+        )
+        self.assertEqual(report.failures, ())
+
+    def test_newbery_failure_does_not_suppress_other_source_results(self):
+        def _pulitzer(title: str, author: str, series=None):
+            return [_result()]
+
+        def _newbery(title: str, author: str, series=None):
+            raise RuntimeError('ala archive unavailable')
+
+        def _nobel(title: str, author: str, series=None):
+            return [_result(source_name='NobelPrize.org', award_name='Nobel Prize')]
+
+        sources = (
+            _source('pulitzer', 'Pulitzer Prizes', _pulitzer),
+            _source('newbery', 'John Newbery Medal', _newbery),
+            _source('nobel', 'NobelPrize.org', _nobel),
+        )
+        report = _lookup_awards_from_sources(
+            'Beloved',
+            'Toni Morrison',
+            sources,
+        )
+        self.assertEqual(
+            [item.result.source_name for item in report.assessments],
+            ['Pulitzer Prizes', 'NobelPrize.org'],
+        )
+        self.assertEqual(len(report.failures), 1)
+        failure = report.failures[0]
+        self.assertEqual(failure.source_name, 'John Newbery Medal')
+        self.assertEqual(failure.error_type, 'RuntimeError')
+        self.assertEqual(failure.message, 'ala archive unavailable')
+
+    def test_registered_newbery_is_scheduled_and_keeps_registry_order(self):
+        attempted: list[str] = []
+        lock = threading.Lock()
+
+        def _lookup_for(key: str):
+            def _lookup(title: str, author: str, series=None):
+                with lock:
+                    attempted.append(key)
+                if key == 'newbery':
+                    raise RuntimeError('ala archive unavailable')
+                if key == 'pulitzer':
+                    return [_result()]
+                return []
+
+            return _lookup
+
+        stubs = tuple(
+            AwardSource(
+                key=source.key,
+                display_name=source.display_name,
+                lookup=_lookup_for(source.key),
+            )
+            for source in AWARD_SOURCES
+        )
+        self.assertEqual(stubs[-1].key, 'newbery')
+        with patch('awards.engine.AWARD_SOURCES', stubs):
+            report = lookup_awards('Beloved', 'Toni Morrison')
+        self.assertEqual(
+            set(attempted),
+            {source.key for source in AWARD_SOURCES},
+        )
+        self.assertEqual(
+            [item.result.source_name for item in report.assessments],
+            ['Pulitzer Prizes'],
+        )
+        self.assertEqual(len(report.failures), 1)
+        self.assertEqual(report.failures[0].source_name, 'John Newbery Medal')
 
 
 if __name__ == '__main__':

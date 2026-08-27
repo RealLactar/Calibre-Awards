@@ -20,8 +20,20 @@ PULITZER_FICTION_POLICY = AwardPolicy(
     ),
 )
 
+NEWBERY_POLICY = AwardPolicy(
+    award_name='Newbery Medal',
+    category="Children's Literature",
+    qualifying_statuses=frozenset({'Honor'}),
+    notes=(
+        'ALA Newbery Honor Books are an official award distinction. '
+        'Historical runner-up terminology was made retroactive to Honor. '
+        'Honor does not imply an ordinal rank.'
+    ),
+)
+
 AWARD_POLICIES: tuple[AwardPolicy, ...] = (
     PULITZER_FICTION_POLICY,
+    NEWBERY_POLICY,
 )
 
 

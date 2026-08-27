@@ -10,7 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from urllib.parse import urlparse
 
-from .sources import hugo, locus, nebula, nobel, pulitzer, world_fantasy
+from .sources import hugo, locus, nebula, newbery, nobel, pulitzer, world_fantasy
 
 _IDENTITY_SCOPES = frozenset({'work', 'series', 'author'})
 _SCOPE_LABELS = {
@@ -96,6 +96,10 @@ def _nobel_categories() -> tuple[str, ...]:
     return (nobel.CATEGORY_LITERATURE,)
 
 
+def _newbery_categories() -> tuple[str, ...]:
+    return (newbery.CATEGORY,)
+
+
 def format_identity_scopes(scopes: tuple[str, ...]) -> str:
     """Return comma-separated user-facing labels for identity scopes."""
     return ', '.join(_SCOPE_LABELS[scope] for scope in scopes)
@@ -177,6 +181,20 @@ SOURCE_INFOS: tuple[SourceInfo, ...] = (
             'Nobel Prize in Literature results, normally awarded to the '
             'author and shown as [Author: Name]; a small set of specifically '
             'cited works is recognized separately as work awards.'
+        ),
+    ),
+    SourceInfo(
+        key='newbery',
+        display_name='John Newbery Medal',
+        categories=_newbery_categories(),
+        identity_scopes=('work',),
+        homepage_url=newbery.SOURCE_HOME_URL,
+        description=(
+            'Newbery Medal winners and Honor Books from the official ALA '
+            'HTML archive.'
+        ),
+        limitation=(
+            'Current plugin coverage begins in 1930 and ends in 2023.'
         ),
     ),
 )
