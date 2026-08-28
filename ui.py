@@ -28,6 +28,20 @@ class CalibreAwardsAction(InterfaceAction):
     def initialization_complete(self):
         # Install after Calibre's GUI exists; the wrapper is idempotent.
         install_edit_metadata_hook()
+        self._configure_award_cache()
+
+    def _configure_award_cache(self):
+        # Persistent archives live beside plugin prefs, not in the plugin ZIP.
+        # Failure here must not prevent Check Awards (RAM-only fallback).
+        try:
+            from calibre.utils.config import config_dir
+            from calibre_plugins.calibre_awards.awards.cache import (
+                configure_from_config_dir,
+            )
+
+            configure_from_config_dir(config_dir)
+        except Exception:
+            pass
 
     def show_supported_sources(self):
         dialog = SupportedSourcesDialog(self.gui)

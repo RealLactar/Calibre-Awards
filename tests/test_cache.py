@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import threading
 import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -83,6 +84,23 @@ class CacheConfigurationTests(CacheTestCase):
     def test_relative_directory_is_rejected(self):
         with self.assertRaises(ValueError):
             cache.set_cache_directory('relative-cache-dir')
+
+    def test_source_cache_directory_joins_config_dir(self):
+        path = cache.source_cache_directory(self.cache_dir)
+        self.assertEqual(
+            path,
+            self.cache_dir / 'plugins' / 'calibre_awards' / 'source_cache',
+        )
+        self.assertTrue(path.is_absolute())
+
+    def test_configure_from_config_dir_sets_injected_directory(self):
+        cache.configure_from_config_dir(self.cache_dir)
+        _save()
+        expected = (
+            self.cache_dir / 'plugins' / 'calibre_awards' / 'source_cache' / 'nebula.json'
+        )
+        self.assertTrue(expected.is_file())
+        self.assertFalse((self.cache_dir / 'nebula.json').exists())
 
 
 class CacheRoundTripTests(CacheTestCase):
@@ -390,6 +408,62 @@ class CacheRuntimeResetTests(CacheTestCase):
             [name for name in os.listdir(self.cache_dir) if name.endswith('.json')],
             ['nebula.json'],
         )
+
+
+class LookupRefreshBudgetTests(CacheTestCase):
+    def test_standalone_always_allows_refresh(self):
+        self.assertTrue(cache.try_claim_stale_refresh())
+        self.assertTrue(cache.try_claim_stale_refresh())
+
+    def test_first_claim_wins_second_loses_within_lookup(self):
+        with cache.lookup_refresh_budget():
+            self.assertTrue(cache.try_claim_stale_refresh())
+            self.assertFalse(cache.try_claim_stale_refresh())
+
+    def test_next_lookup_gets_a_fresh_budget(self):
+        with cache.lookup_refresh_budget():
+            self.assertTrue(cache.try_claim_stale_refresh())
+            self.assertFalse(cache.try_claim_stale_refresh())
+        with cache.lookup_refresh_budget():
+            self.assertTrue(cache.try_claim_stale_refresh())
+
+    def test_nested_budget_restores_outer_claim_state(self):
+        with cache.lookup_refresh_budget():
+            self.assertTrue(cache.try_claim_stale_refresh())
+            with cache.lookup_refresh_budget():
+                self.assertTrue(cache.try_claim_stale_refresh())
+                self.assertFalse(cache.try_claim_stale_refresh())
+            self.assertFalse(cache.try_claim_stale_refresh())
+
+    def test_concurrent_workers_only_one_wins(self):
+        worker_count = 8
+        with cache.lookup_refresh_budget():
+            barrier = threading.Barrier(worker_count)
+            results: list[bool] = []
+            lock = threading.Lock()
+
+            def _worker():
+                barrier.wait()
+                won = cache.try_claim_stale_refresh()
+                with lock:
+                    results.append(won)
+
+            threads = [
+                threading.Thread(target=_worker) for _ in range(worker_count)
+            ]
+            for thread in threads:
+                thread.start()
+            for thread in threads:
+                thread.join()
+            self.assertEqual(results.count(True), 1)
+            self.assertEqual(results.count(False), worker_count - 1)
+
+    def test_reset_clears_active_budget(self):
+        with cache.lookup_refresh_budget():
+            self.assertTrue(cache.try_claim_stale_refresh())
+            cache._reset_runtime_state()
+            self.assertTrue(cache.try_claim_stale_refresh())
+            self.assertTrue(cache.try_claim_stale_refresh())
 
 
 if __name__ == '__main__':

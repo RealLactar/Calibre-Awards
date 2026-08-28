@@ -6,6 +6,7 @@ import threading
 import unittest
 from unittest.mock import patch
 
+from awards import cache
 from awards.engine import (
     LookupProgress,
     _lookup_awards_from_sources,
@@ -730,6 +731,71 @@ class EngineNewberyParticipationTests(unittest.TestCase):
         )
         self.assertEqual(len(report.failures), 1)
         self.assertEqual(report.failures[0].source_name, 'John Newbery Medal')
+
+
+class EngineLookupRefreshBudgetTests(unittest.TestCase):
+    def tearDown(self):
+        cache._reset_runtime_state()
+
+    def test_concurrent_source_workers_cannot_both_claim_refresh(self):
+        worker_count = 2
+        barrier = threading.Barrier(worker_count)
+        claims: list[bool] = []
+        lock = threading.Lock()
+
+        def _claiming_lookup(title: str, author: str, series=None):
+            barrier.wait()
+            won = cache.try_claim_stale_refresh()
+            with lock:
+                claims.append(won)
+            return []
+
+        sources = tuple(
+            _source(f'source{index}', f'Source {index}', _claiming_lookup)
+            for index in range(worker_count)
+        )
+        _lookup_awards_from_sources('Beloved', 'Toni Morrison', sources)
+        self.assertEqual(claims.count(True), 1)
+        self.assertEqual(claims.count(False), 1)
+
+    def test_next_lookup_can_claim_refresh_again(self):
+        claims: list[bool] = []
+
+        def _claiming_lookup(title: str, author: str, series=None):
+            claims.append(cache.try_claim_stale_refresh())
+            return []
+
+        sources = (_source('one', 'Source One', _claiming_lookup),)
+        _lookup_awards_from_sources('Beloved', 'Toni Morrison', sources)
+        _lookup_awards_from_sources('Beloved', 'Toni Morrison', sources)
+        self.assertEqual(claims, [True, True])
+
+    def test_unscheduled_source_does_not_consume_refresh_budget(self):
+        claims: list[tuple[str, bool]] = []
+
+        def _enabled(title: str, author: str, series=None):
+            claims.append(('enabled', cache.try_claim_stale_refresh()))
+            return []
+
+        def _disabled(title: str, author: str, series=None):
+            claims.append(('disabled', cache.try_claim_stale_refresh()))
+            raise AssertionError('disabled source was submitted')
+
+        sources = (
+            _source('pulitzer', 'Pulitzer Prizes', _disabled),
+            _source('nobel', 'NobelPrize.org', _enabled),
+        )
+        with patch('awards.engine.AWARD_SOURCES', sources):
+            lookup_awards(
+                'Beloved',
+                'Toni Morrison',
+                enabled_source_keys=('nobel',),
+            )
+        self.assertEqual(claims, [('enabled', True)])
+
+    def test_standalone_source_lookup_is_unrestricted_without_engine(self):
+        self.assertTrue(cache.try_claim_stale_refresh())
+        self.assertTrue(cache.try_claim_stale_refresh())
 
 
 if __name__ == '__main__':

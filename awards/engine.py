@@ -11,6 +11,7 @@ from collections.abc import Callable, Iterable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 
+from . import cache
 from .model import AwardResult
 from .qualifier import QualificationResult, qualify_award_result
 from .rank_cutoff import DEFAULT_MAX_QUALIFYING_RANK
@@ -141,60 +142,64 @@ def _lookup_awards_from_sources(
     Progress totals count this iterable only. Results are assembled in the
     iterable's order, which for production is AWARD_SOURCES order, so network
     timing cannot reshuffle the report or later write-back.
+
+    One lookup_refresh_budget covers the whole concurrent pass: at most one
+    participating source may live-refresh a stale-but-valid archive cache.
     """
     source_list = tuple(sources)
     total = len(source_list)
-    if on_progress is not None:
-        on_progress(
-            LookupProgress(
-                completed_sources=0,
-                total_sources=total,
-                source_name=None,
-            )
-        )
-
-    # Index by source-list position; as_completed order is not report order.
-    slots: list[list[AwardResult] | SourceFailure | None] = [None] * total
-    if total:
-        max_workers = total
-        with ThreadPoolExecutor(max_workers=max_workers) as pool:
-            future_map = {
-                pool.submit(
-                    _lookup_one_source, source, title, author, series
-                ): index
-                for index, source in enumerate(source_list)
-            }
-            completed = 0
-            for future in as_completed(future_map):
-                index = future_map[future]
-                source = source_list[index]
-                slots[index] = future.result()
-                completed += 1
-                if on_progress is not None:
-                    on_progress(
-                        LookupProgress(
-                            completed_sources=completed,
-                            total_sources=total,
-                            source_name=source.display_name,
-                        )
-                    )
-
-    assessments: list[AwardAssessment] = []
-    failures: list[SourceFailure] = []
-    for slot in slots:
-        if isinstance(slot, SourceFailure):
-            failures.append(slot)
-            continue
-        if not slot:
-            continue
-        for result in slot:
-            assessments.append(
-                assess_award_result(
-                    result,
-                    max_qualifying_rank=max_qualifying_rank,
+    with cache.lookup_refresh_budget():
+        if on_progress is not None:
+            on_progress(
+                LookupProgress(
+                    completed_sources=0,
+                    total_sources=total,
+                    source_name=None,
                 )
             )
-    return AwardLookupReport(
-        assessments=tuple(assessments),
-        failures=tuple(failures),
-    )
+
+        # Index by source-list position; as_completed order is not report order.
+        slots: list[list[AwardResult] | SourceFailure | None] = [None] * total
+        if total:
+            max_workers = total
+            with ThreadPoolExecutor(max_workers=max_workers) as pool:
+                future_map = {
+                    pool.submit(
+                        _lookup_one_source, source, title, author, series
+                    ): index
+                    for index, source in enumerate(source_list)
+                }
+                completed = 0
+                for future in as_completed(future_map):
+                    index = future_map[future]
+                    source = source_list[index]
+                    slots[index] = future.result()
+                    completed += 1
+                    if on_progress is not None:
+                        on_progress(
+                            LookupProgress(
+                                completed_sources=completed,
+                                total_sources=total,
+                                source_name=source.display_name,
+                            )
+                        )
+
+        assessments: list[AwardAssessment] = []
+        failures: list[SourceFailure] = []
+        for slot in slots:
+            if isinstance(slot, SourceFailure):
+                failures.append(slot)
+                continue
+            if not slot:
+                continue
+            for result in slot:
+                assessments.append(
+                    assess_award_result(
+                        result,
+                        max_qualifying_rank=max_qualifying_rank,
+                    )
+                )
+        return AwardLookupReport(
+            assessments=tuple(assessments),
+            failures=tuple(failures),
+        )

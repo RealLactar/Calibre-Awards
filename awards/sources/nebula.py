@@ -2,8 +2,9 @@
 
 Categories are fetched independently, but a lookup treats the official archive
 as one unit: every configured category must parse, and one category failure
-fails the source. Pagination follows official rel=next links. Caches store
-validated pages and records only.
+fails the source. Pagination follows official rel=next links. Process caches
+store validated pages and records only. A validated parsed archive may also
+be loaded from the injected persistent cache.
 """
 
 from __future__ import annotations
@@ -19,11 +20,20 @@ from html.parser import HTMLParser
 from http.cookiejar import CookieJar
 from urllib.parse import urljoin
 
+from .. import cache
 from ..matching import normalize_title_conjunctions
 from ..model import AwardResult
 
 TIMEOUT_SECONDS = 30
 SOURCE_HOME_URL = 'https://nebulas.sfwa.org/'
+SOURCE_KEY = 'nebula'
+CACHE_VERSION = 1
+# 7-day base plus an explicit stagger. Do not derive from AWARD_SOURCES order.
+# Later archive sources: world_fantasy +1h, hugo +2h, newbery +3h, nobel +4h,
+# pulitzer +5h. Locus is not on this schedule yet.
+CACHE_BASE_TTL_SECONDS = 7 * 24 * 60 * 60
+CACHE_REFRESH_OFFSET_SECONDS = 0
+CACHE_TTL_SECONDS = CACHE_BASE_TTL_SECONDS + CACHE_REFRESH_OFFSET_SECONDS
 
 CATEGORY_BEST_NOVEL = 'Best Novel'
 CATEGORY_BEST_NOVELLA = 'Best Novella'
@@ -114,6 +124,18 @@ class _ParsedRecord:
     work_title: str
     work_author: str
     source_url: str | None
+
+
+_PARSED_STATUSES = frozenset({'Winner', 'Nominated'})
+_RECORD_CACHE_FIELDS = (
+    'award_year',
+    'award_name',
+    'category',
+    'status',
+    'work_title',
+    'work_author',
+    'source_url',
+)
 
 
 _BEST_NOVEL_CONFIG = _NebulaAwardConfig(
@@ -252,6 +274,7 @@ _pages_cache: dict[str, tuple[tuple[str, str], ...]] = {}
 _records_cache: dict[str, tuple[_ParsedRecord, ...]] = {}
 _category_locks: dict[str, threading.Lock] = {}
 _category_locks_guard = threading.Lock()
+_archive_lock = threading.Lock()
 # Intra-source bound: avoid opening every category archive at once.
 _MAX_CATEGORY_WORKERS = 2
 
@@ -673,18 +696,26 @@ def _validate_category_archive(
     records: list[_ParsedRecord],
 ) -> None:
     displayed = _displayed_years(pages)
-    if not displayed:
+    _validate_category_coverage(config, records, displayed)
+
+
+def _validate_category_coverage(
+    config: _NebulaAwardConfig,
+    records: list[_ParsedRecord] | tuple[_ParsedRecord, ...],
+    displayed_years: set[int],
+) -> None:
+    if not displayed_years:
         raise NebulaSourceError(
             f'Nebula {config.category} archive had no year headings'
         )
-    latest = max(displayed)
+    latest = max(displayed_years)
     if latest < config.first_year:
         raise NebulaSourceError(
             f'Nebula {config.category} archive latest year {latest} '
             f'is before first year {config.first_year}'
         )
     expected = set(range(config.first_year, latest + 1))
-    missing_headings = sorted(expected - displayed)
+    missing_headings = sorted(expected - displayed_years)
     if missing_headings:
         extra = (
             f' (+{len(missing_headings) - 1} more)'
@@ -696,7 +727,7 @@ def _validate_category_archive(
             f'{config.category} year heading(s) were missing: '
             f'{missing_headings[0]}{extra}'
         )
-    unexpected = sorted(year for year in displayed if year < config.first_year)
+    unexpected = sorted(year for year in displayed_years if year < config.first_year)
     if unexpected:
         raise NebulaSourceError(
             f'Nebula {config.category} archive included unexpected year '
@@ -709,6 +740,11 @@ def _validate_category_archive(
             raise NebulaSourceError(
                 'Nebula archive produced an unexpected category: '
                 f'{record.category!r}'
+            )
+        if record.award_name != config.award_name:
+            raise NebulaSourceError(
+                'Nebula archive produced an unexpected award name: '
+                f'{record.award_name!r}'
             )
         if record.award_year in by_year:
             by_year[record.award_year].append(record)
@@ -891,6 +927,262 @@ def _to_award_result(record: _ParsedRecord) -> AwardResult:
 
 
 # ---------------------------------------------------------------------------
+# Persistent archive cache
+# ---------------------------------------------------------------------------
+
+def _record_to_cache_dict(record: _ParsedRecord) -> dict:
+    return {
+        'award_year': record.award_year,
+        'award_name': record.award_name,
+        'category': record.category,
+        'status': record.status,
+        'work_title': record.work_title,
+        'work_author': record.work_author,
+        'source_url': record.source_url,
+    }
+
+
+def _record_from_cache_dict(data) -> _ParsedRecord | None:
+    if not isinstance(data, dict) or set(data) != set(_RECORD_CACHE_FIELDS):
+        return None
+    award_year = data.get('award_year')
+    if isinstance(award_year, bool) or not isinstance(award_year, int) or award_year <= 0:
+        return None
+    award_name = data.get('award_name')
+    category = data.get('category')
+    status = data.get('status')
+    work_title = data.get('work_title')
+    work_author = data.get('work_author')
+    source_url = data.get('source_url')
+    if not isinstance(award_name, str) or not award_name.strip() or award_name != award_name.strip():
+        return None
+    if not isinstance(category, str) or not category.strip() or category != category.strip():
+        return None
+    if status not in _PARSED_STATUSES:
+        return None
+    if not isinstance(work_title, str) or not work_title.strip() or work_title != work_title.strip():
+        return None
+    if not isinstance(work_author, str) or work_author != work_author.strip():
+        return None
+    if source_url is not None:
+        if (
+            not isinstance(source_url, str)
+            or not source_url.strip()
+            or source_url != source_url.strip()
+        ):
+            return None
+    return _ParsedRecord(
+        award_year=award_year,
+        award_name=award_name,
+        category=category,
+        status=status,
+        work_title=work_title,
+        work_author=work_author,
+        source_url=source_url,
+    )
+
+
+def _configs_by_category() -> dict[str, _NebulaAwardConfig]:
+    return {config.category: config for config in _AWARD_CONFIGS}
+
+
+def _archive_source_urls() -> tuple[str, ...]:
+    return tuple(config.archive_url for config in _AWARD_CONFIGS)
+
+
+def _coverage_from_records(
+    by_category: dict[str, tuple[_ParsedRecord, ...]],
+) -> dict:
+    categories = []
+    for config in _AWARD_CONFIGS:
+        records = by_category[config.key]
+        years = [record.award_year for record in records]
+        categories.append(
+            {
+                'key': config.key,
+                'award_name': config.award_name,
+                'category': config.category,
+                'first_year': config.first_year,
+                'min_year': min(years) if years else None,
+                'max_year': max(years) if years else None,
+                'record_count': len(records),
+            }
+        )
+    return {'categories': categories}
+
+
+def _ram_records_by_category() -> dict[str, tuple[_ParsedRecord, ...]] | None:
+    snapshot: dict[str, tuple[_ParsedRecord, ...]] = {}
+    for config in _AWARD_CONFIGS:
+        records = _records_cache.get(config.key)
+        if records is None:
+            return None
+        snapshot[config.key] = records
+    return snapshot
+
+
+def _install_ram_records(
+    by_category: dict[str, tuple[_ParsedRecord, ...]],
+) -> None:
+    for config in _AWARD_CONFIGS:
+        _records_cache[config.key] = by_category[config.key]
+
+
+def _validate_cached_archive(
+    by_category: dict[str, tuple[_ParsedRecord, ...]],
+) -> None:
+    known = _configs_by_category()
+    if set(by_category) != {config.key for config in _AWARD_CONFIGS}:
+        raise NebulaSourceError('Nebula persistent cache is missing a category')
+    for config in _AWARD_CONFIGS:
+        records = by_category[config.key]
+        for record in records:
+            if record.category != config.category:
+                raise NebulaSourceError(
+                    'Nebula archive produced an unexpected category: '
+                    f'{record.category!r}'
+                )
+            if record.award_name != config.award_name:
+                raise NebulaSourceError(
+                    'Nebula archive produced an unexpected award name: '
+                    f'{record.award_name!r}'
+                )
+            if record.category not in known:
+                raise NebulaSourceError(
+                    'Nebula archive produced an unexpected category: '
+                    f'{record.category!r}'
+                )
+            if record.status not in _PARSED_STATUSES:
+                raise NebulaSourceError(
+                    'Nebula archive produced an unexpected status: '
+                    f'{record.status!r}'
+                )
+        displayed = {record.award_year for record in records}
+        _validate_category_coverage(config, records, displayed)
+
+
+def _records_from_cache_payload(
+    payload: dict,
+) -> dict[str, tuple[_ParsedRecord, ...]] | None:
+    expected_urls = list(_archive_source_urls())
+    if payload.get('source_urls') != expected_urls:
+        return None
+    raw_records = payload.get('records')
+    if not isinstance(raw_records, list):
+        return None
+    known = _configs_by_category()
+    grouped: dict[str, list[_ParsedRecord]] = {
+        config.key: [] for config in _AWARD_CONFIGS
+    }
+    for item in raw_records:
+        record = _record_from_cache_dict(item)
+        if record is None:
+            return None
+        config = known.get(record.category)
+        if config is None or record.award_name != config.award_name:
+            return None
+        grouped[config.key].append(record)
+    by_category = {
+        key: tuple(records) for key, records in grouped.items()
+    }
+    try:
+        _validate_cached_archive(by_category)
+    except NebulaSourceError:
+        return None
+    return by_category
+
+
+def _load_persistent_archive() -> (
+    tuple[dict[str, tuple[_ParsedRecord, ...]], dict] | None
+):
+    payload = cache.load_source_cache(SOURCE_KEY, CACHE_VERSION)
+    if payload is None:
+        return None
+    records = _records_from_cache_payload(payload)
+    if records is None:
+        return None
+    return records, payload
+
+
+def _save_persistent_archive(
+    by_category: dict[str, tuple[_ParsedRecord, ...]],
+) -> None:
+    records = []
+    for config in _AWARD_CONFIGS:
+        records.extend(
+            _record_to_cache_dict(record) for record in by_category[config.key]
+        )
+    try:
+        cache.save_source_cache(
+            SOURCE_KEY,
+            CACHE_VERSION,
+            records=records,
+            source_urls=_archive_source_urls(),
+            coverage=_coverage_from_records(by_category),
+            ttl_seconds=CACHE_TTL_SECONDS,
+        )
+    except OSError:
+        pass
+
+
+def _load_live_archive() -> dict[str, tuple[_ParsedRecord, ...]]:
+    loaded: dict[str, tuple[_ParsedRecord, ...] | Exception] = {}
+    max_workers = min(_MAX_CATEGORY_WORKERS, len(_AWARD_CONFIGS))
+    with ThreadPoolExecutor(max_workers=max_workers) as pool:
+        future_map = {
+            pool.submit(_get_category_records, config): config
+            for config in _AWARD_CONFIGS
+        }
+        for future in as_completed(future_map):
+            config = future_map[future]
+            try:
+                loaded[config.key] = future.result()
+            except Exception as exc:
+                loaded[config.key] = exc
+    by_category: dict[str, tuple[_ParsedRecord, ...]] = {}
+    for config in _AWARD_CONFIGS:
+        value = loaded[config.key]
+        if isinstance(value, Exception):
+            raise value
+        by_category[config.key] = value
+    return by_category
+
+
+def _get_archive_records() -> dict[str, tuple[_ParsedRecord, ...]]:
+    """Return all category records: RAM, then disk, then live fetch.
+
+    A fresh disk cache is used immediately. A stale-but-valid disk cache
+    live-refreshes only if this lookup still has a stale-refresh slot;
+    otherwise the stale archive is used with no network. A missing or
+    invalid cache still live-fetches.
+    """
+    with _archive_lock:
+        ram = _ram_records_by_category()
+        if ram is not None:
+            return ram
+        disk = _load_persistent_archive()
+        if disk is not None:
+            records, payload = disk
+            if cache.cache_is_fresh(payload):
+                _install_ram_records(records)
+                return records
+            if not cache.try_claim_stale_refresh():
+                _install_ram_records(records)
+                return records
+        else:
+            records = None
+        try:
+            live = _load_live_archive()
+        except Exception:
+            if records is not None:
+                _install_ram_records(records)
+                return records
+            raise
+        _save_persistent_archive(live)
+        return live
+
+
+# ---------------------------------------------------------------------------
 # Public lookup
 # ---------------------------------------------------------------------------
 
@@ -905,25 +1197,9 @@ def lookup(title: str, author: str, series: str | None = None) -> list[AwardResu
 
     matches: list[AwardResult] = []
     seen_results: set[tuple[int, str, str, str, str, str, str | None]] = set()
-    loaded: dict[str, tuple[_ParsedRecord, ...] | Exception] = {}
-    max_workers = min(_MAX_CATEGORY_WORKERS, len(_AWARD_CONFIGS))
-    # Load categories concurrently, then raise any failure so the archive is all-or-nothing.
-    with ThreadPoolExecutor(max_workers=max_workers) as pool:
-        future_map = {
-            pool.submit(_get_category_records, config): config
-            for config in _AWARD_CONFIGS
-        }
-        for future in as_completed(future_map):
-            config = future_map[future]
-            try:
-                loaded[config.key] = future.result()
-            except Exception as exc:
-                loaded[config.key] = exc
+    loaded = _get_archive_records()
     for config in _AWARD_CONFIGS:
-        value = loaded[config.key]
-        if isinstance(value, Exception):
-            raise value
-        for record in value:
+        for record in loaded[config.key]:
             if not record.work_author:
                 continue
             if not _record_matches(record, cleaned_title, cleaned_author):

@@ -9,6 +9,12 @@ JSON files are one source per file. Writes serialize completely, then
 publish with os.replace so a failed save cannot destroy the last good file.
 I/O errors while saving are swallowed: persistent cache is an optimization,
 and a live lookup should still succeed.
+
+Archive sources assign their own TTL as a 7-day base plus an explicit
+per-source hour offset. This module does not know award-source order.
+
+A lookup refresh budget lets the engine allow at most one optional
+stale-but-valid archive refresh per top-level lookup_awards() call.
 """
 
 from __future__ import annotations
@@ -18,6 +24,7 @@ import os
 import re
 import tempfile
 import threading
+from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -37,6 +44,25 @@ _ENVELOPE_FIELDS = frozenset({
 
 _config_lock = threading.Lock()
 _cache_directory: Path | None = None
+_budget_lock = threading.Lock()
+_active_budget: _LookupRefreshBudget | None = None
+
+
+class _LookupRefreshBudget:
+    """One optional stale-refresh claim, held for an entire lookup."""
+
+    __slots__ = ('_claimed', '_lock')
+
+    def __init__(self) -> None:
+        self._claimed = False
+        self._lock = threading.Lock()
+
+    def try_claim(self) -> bool:
+        with self._lock:
+            if self._claimed:
+                return False
+            self._claimed = True
+            return True
 
 
 def set_cache_directory(path: str | os.PathLike[str] | None) -> None:
@@ -51,9 +77,70 @@ def set_cache_directory(path: str | os.PathLike[str] | None) -> None:
         _cache_directory = resolved
 
 
+def source_cache_directory(config_dir: str | os.PathLike[str]) -> Path:
+    """Return ``{config_dir}/plugins/calibre_awards/source_cache``.
+
+    The plugin layer supplies Calibre's config_dir. This helper does not
+    import Calibre or create the directory.
+    """
+    return _require_absolute_directory(
+        Path(os.fspath(config_dir)) / 'plugins' / 'calibre_awards' / 'source_cache'
+    )
+
+
+def configure_from_config_dir(config_dir: str | os.PathLike[str]) -> None:
+    """Point the cache at the standard plugin source-cache directory."""
+    set_cache_directory(source_cache_directory(config_dir))
+
+
 def _reset_runtime_state() -> None:
-    """Clear the injected directory. Tests only; not public plugin API."""
+    """Clear the injected directory and any lookup refresh budget.
+
+    Tests only; not public plugin API.
+    """
+    global _active_budget
     set_cache_directory(None)
+    with _budget_lock:
+        _active_budget = None
+
+
+@contextmanager
+def lookup_refresh_budget():
+    """Bind a one-claim stale-refresh budget to one top-level lookup.
+
+    The claim stays consumed until this context exits, not merely for one
+    network request. Concurrent source workers share the same budget object.
+    Nested contexts restore the previous budget on exit. Standalone source
+    lookups with no active budget are unrestricted.
+    """
+    global _active_budget
+    budget = _LookupRefreshBudget()
+    with _budget_lock:
+        previous = _active_budget
+        _active_budget = budget
+    try:
+        yield
+    finally:
+        with _budget_lock:
+            if _active_budget is budget:
+                _active_budget = previous
+
+
+def try_claim_stale_refresh() -> bool:
+    """Return True if this caller may live-refresh stale-but-valid cache.
+
+    At most one successful claim is granted per active lookup_refresh_budget.
+    With no active budget, always returns True so standalone source lookups
+    keep their existing refresh behavior.
+
+    Call this only for optional refresh of a usable stale archive. Fresh
+    caches and missing or invalid caches must not consume the slot.
+    """
+    with _budget_lock:
+        budget = _active_budget
+    if budget is None:
+        return True
+    return budget.try_claim()
 
 
 def load_source_cache(
