@@ -2,7 +2,8 @@
 
 The WordPress pages API is the archive. Ordinary year pages establish
 Winner/Finalist status, not ordinal placement. Curated statistics ranks are
-applied later only when they match that live record exactly.
+applied later only when they match that live record exactly. A validated
+parsed archive may also be loaded from the injected persistent cache.
 """
 
 from __future__ import annotations
@@ -19,6 +20,7 @@ from html.parser import HTMLParser
 from http.cookiejar import CookieJar
 from urllib.parse import urlencode
 
+from .. import cache
 from ..matching import normalize_title_conjunctions
 from ..model import AwardResult
 from .hugo_rankings import HugoRanking, HUGO_BEST_NOVEL_RANKINGS
@@ -30,6 +32,13 @@ HISTORY_PARENT_PAGE_ID = 6
 # One complete API page is required. Extra WP pages must fail, not drop history.
 ARCHIVE_PER_PAGE = 100
 ARCHIVE_FIELDS = 'title,link,slug,content'
+
+SOURCE_KEY = 'hugo'
+CACHE_VERSION = 1
+# 7-day base plus an explicit stagger. Do not derive from AWARD_SOURCES order.
+CACHE_BASE_TTL_SECONDS = 7 * 24 * 60 * 60
+CACHE_REFRESH_OFFSET_SECONDS = 2 * 60 * 60
+CACHE_TTL_SECONDS = CACHE_BASE_TTL_SECONDS + CACHE_REFRESH_OFFSET_SECONDS
 
 _BROWSER_HEADERS = {
     'User-Agent': (
@@ -187,6 +196,21 @@ class _ParsedRecord:
     work_author: str
     source_url: str
     match_titles: tuple[str, ...]
+
+
+_PARSED_STATUSES = frozenset({'Winner', 'Finalist'})
+_RECORD_CACHE_FIELDS = (
+    'award_year',
+    'category',
+    'match_titles',
+    'source_url',
+    'status',
+    'work_author',
+    'work_title',
+)
+# Regular Worldcon years with no "YYYY Hugo Awards" page (1954 was Retro only).
+_ARCHIVE_FIRST_REGULAR_YEAR = 1953
+_ARCHIVE_SKIPPED_REGULAR_YEARS = frozenset({1954})
 
 
 # ---------------------------------------------------------------------------
@@ -992,6 +1016,38 @@ def _year_requires_best_related_book(year: int) -> bool:
     return year in _BEST_RELATED_BOOK_YEARS
 
 
+def _year_has_required_category(year: int) -> bool:
+    return (
+        _year_requires_best_novel(year)
+        or year >= _NOVELLA_REQUIRED_FROM_YEAR
+        or _year_requires_novelette(year)
+        or _year_requires_short_story(year)
+        or _year_requires_short_fiction(year)
+        or _year_requires_novel_or_novelette(year)
+        or _year_requires_best_series(year)
+        or _year_requires_best_all_time_series(year)
+        or _year_requires_best_poem(year)
+        or _year_requires_best_related_non_fiction_book(year)
+        or _year_requires_best_related_book(year)
+    )
+
+
+def _required_cached_regular_years() -> set[int]:
+    """Regular years current category rules require a complete archive to cover.
+
+    Live validation uses API year pages. Disk has no WP payload, so this
+    span is the equivalent historical floor (through the latest year named
+    by current category constants).
+    """
+    latest = max(_BEST_POEM_YEARS)
+    return {
+        year
+        for year in range(_ARCHIVE_FIRST_REGULAR_YEAR, latest + 1)
+        if year not in _ARCHIVE_SKIPPED_REGULAR_YEARS
+        and _year_has_required_category(year)
+    }
+
+
 def _fail_if_expected_years_missing(
     category: str,
     records: list[_ParsedRecord],
@@ -1121,18 +1177,46 @@ _archive_records_cache: tuple[_ParsedRecord, ...] | None = None
 _cache_lock = threading.Lock()
 
 
+def _reset_runtime_state() -> None:
+    """Clear in-process caches. Used by tests. Does not delete disk cache."""
+    global _archive_records_cache
+    with _cache_lock:
+        _archive_records_cache = None
+
+
 def _get_archive_records() -> tuple[_ParsedRecord, ...]:
-    """Return cached Hugo work records after archive and category validation."""
+    """Return records: RAM, then disk, then live fetch/parse/validate.
+
+    A fresh disk cache is used immediately. A stale-but-valid disk cache
+    live-refreshes only if this lookup still has a stale-refresh slot;
+    otherwise the stale archive is used with no network. A missing or
+    invalid cache still live-fetches.
+    """
     global _archive_records_cache
     with _cache_lock:
         if _archive_records_cache is not None:
             return _archive_records_cache
-        status, headers, body = _fetch_archive_response()
-        items = _validate_archive_payload(status, headers, body)
-        records = _records_from_archive_items(items)
-        _validate_supported_category_records(records, _regular_years_from_items(items))
-        _archive_records_cache = records
-        return _archive_records_cache
+        disk = _load_persistent_archive()
+        if disk is not None:
+            records, payload = disk
+            if cache.cache_is_fresh(payload):
+                _archive_records_cache = records
+                return records
+            if not cache.try_claim_stale_refresh():
+                _archive_records_cache = records
+                return records
+        else:
+            records = None
+        try:
+            live = _load_live_archive()
+        except Exception:
+            if records is not None:
+                _archive_records_cache = records
+                return records
+            raise
+        _save_persistent_archive(live)
+        _archive_records_cache = live
+        return live
 
 
 # ---------------------------------------------------------------------------
@@ -1431,6 +1515,202 @@ def _to_award_result(record: _ParsedRecord) -> AwardResult:
         source_url=ranking.source_url,
         notes='tie' if ranking.tied else None,
     )
+
+
+# ---------------------------------------------------------------------------
+# Persistent archive cache
+# ---------------------------------------------------------------------------
+
+def _record_to_cache_dict(record: _ParsedRecord) -> dict:
+    return {
+        'award_year': record.award_year,
+        'category': record.category,
+        'match_titles': list(record.match_titles),
+        'source_url': record.source_url,
+        'status': record.status,
+        'work_author': record.work_author,
+        'work_title': record.work_title,
+    }
+
+
+def _record_from_cache_dict(data) -> _ParsedRecord | None:
+    if not isinstance(data, dict) or set(data) != set(_RECORD_CACHE_FIELDS):
+        return None
+    award_year = data.get('award_year')
+    if isinstance(award_year, bool) or not isinstance(award_year, int) or award_year <= 0:
+        return None
+    category = data.get('category')
+    status = data.get('status')
+    work_title = data.get('work_title')
+    work_author = data.get('work_author')
+    source_url = data.get('source_url')
+    if not isinstance(category, str) or not category.strip() or category != category.strip():
+        return None
+    if status not in _PARSED_STATUSES:
+        return None
+    if not isinstance(work_title, str) or not work_title.strip() or work_title != work_title.strip():
+        return None
+    if not isinstance(work_author, str) or work_author != work_author.strip():
+        return None
+    if (
+        not isinstance(source_url, str)
+        or not source_url.strip()
+        or source_url != source_url.strip()
+    ):
+        return None
+    match_titles = _match_titles_from_cache(data.get('match_titles'))
+    if match_titles is None:
+        return None
+    return _ParsedRecord(
+        award_year=award_year,
+        category=category,
+        status=status,
+        work_title=work_title,
+        work_author=work_author,
+        source_url=source_url,
+        match_titles=match_titles,
+    )
+
+
+def _match_titles_from_cache(value) -> tuple[str, ...] | None:
+    if isinstance(value, (str, bytes, bytearray)):
+        return None
+    if not isinstance(value, (list, tuple)) or not value:
+        return None
+    titles: list[str] = []
+    for item in value:
+        if not isinstance(item, str) or not item.strip() or item != item.strip():
+            return None
+        titles.append(item)
+    return tuple(titles)
+
+
+def _archive_source_urls() -> tuple[str, ...]:
+    return (_archive_url(),)
+
+
+def _coverage_from_records(records: tuple[_ParsedRecord, ...]) -> dict:
+    categories = []
+    for category in _PARSED_CATEGORIES:
+        subset = [record for record in records if record.category == category]
+        years = [record.award_year for record in subset]
+        categories.append(
+            {
+                'category': category,
+                'min_year': min(years) if years else None,
+                'max_year': max(years) if years else None,
+                'record_count': len(subset),
+                'winner_count': sum(
+                    1 for record in subset if record.status == 'Winner'
+                ),
+                'finalist_count': sum(
+                    1 for record in subset if record.status == 'Finalist'
+                ),
+            }
+        )
+    years = [record.award_year for record in records]
+    return {
+        'categories': categories,
+        'max_year': max(years) if years else None,
+        'min_year': min(years) if years else None,
+        'record_count': len(records),
+        'regular_years': sorted({record.award_year for record in records}),
+    }
+
+
+def _validate_cached_archive(records: tuple[_ParsedRecord, ...]) -> None:
+    """Fail closed if reconstructed records are not a usable full archive."""
+    if not records:
+        raise HugoSourceError('Hugo persistent cache contained no records')
+    for record in records:
+        if record.category not in _PARSED_CATEGORIES:
+            raise HugoSourceError(
+                f'Hugo archive produced an unsupported category: {record.category!r}'
+            )
+        if record.status not in _PARSED_STATUSES:
+            raise HugoSourceError(
+                'Hugo archive produced an unexpected status: '
+                f'{record.status!r}'
+            )
+        if not record.source_url.startswith(SOURCE_HOME_URL):
+            raise HugoSourceError(
+                'Hugo archive produced an unexpected source URL: '
+                f'{record.source_url!r}'
+            )
+        if record.award_year < _ARCHIVE_FIRST_REGULAR_YEAR:
+            raise HugoSourceError(
+                f'Hugo archive year {record.award_year} is before first '
+                f'regular year {_ARCHIVE_FIRST_REGULAR_YEAR}'
+            )
+        if not record.match_titles:
+            raise HugoSourceError('Hugo archive record is missing match_titles')
+
+    present_years = {record.award_year for record in records}
+    missing = sorted(_required_cached_regular_years() - present_years)
+    if missing:
+        extra = f' (+{len(missing) - 1} more)' if len(missing) > 1 else ''
+        raise HugoSourceError(
+            'Hugo persistent cache is missing required year(s): '
+            f'{missing[0]}{extra}'
+        )
+    _validate_supported_category_records(records, present_years)
+
+
+def _records_from_cache_payload(
+    payload: dict,
+) -> tuple[_ParsedRecord, ...] | None:
+    expected_urls = list(_archive_source_urls())
+    if payload.get('source_urls') != expected_urls:
+        return None
+    raw_records = payload.get('records')
+    if not isinstance(raw_records, list):
+        return None
+    records: list[_ParsedRecord] = []
+    for item in raw_records:
+        record = _record_from_cache_dict(item)
+        if record is None:
+            return None
+        records.append(record)
+    restored = tuple(records)
+    try:
+        _validate_cached_archive(restored)
+    except HugoSourceError:
+        return None
+    return restored
+
+
+def _load_persistent_archive() -> (
+    tuple[tuple[_ParsedRecord, ...], dict] | None
+):
+    payload = cache.load_source_cache(SOURCE_KEY, CACHE_VERSION)
+    if payload is None:
+        return None
+    records = _records_from_cache_payload(payload)
+    if records is None:
+        return None
+    return records, payload
+
+
+def _save_persistent_archive(records: tuple[_ParsedRecord, ...]) -> None:
+    try:
+        cache.save_source_cache(
+            SOURCE_KEY,
+            CACHE_VERSION,
+            records=[_record_to_cache_dict(record) for record in records],
+            source_urls=_archive_source_urls(),
+            coverage=_coverage_from_records(records),
+            ttl_seconds=CACHE_TTL_SECONDS,
+        )
+    except OSError:
+        pass
+
+
+def _load_live_archive() -> tuple[_ParsedRecord, ...]:
+    status, headers, body = _fetch_archive_response()
+    items = _validate_archive_payload(status, headers, body)
+    records = _records_from_archive_items(items)
+    _validate_supported_category_records(records, _regular_years_from_items(items))
+    return records
 
 
 # ---------------------------------------------------------------------------
