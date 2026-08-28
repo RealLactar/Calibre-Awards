@@ -3,7 +3,8 @@
 The official archive is assembled from multiple official pages because no
 single page is historically complete. Convention and later annual pages
 repair gaps or bad rows in the master tables. Validation against known
-baselines fails loudly if the site silently loses decades.
+baselines fails loudly if the site silently loses decades. A validated
+parsed archive may also be loaded from the injected persistent cache.
 """
 
 from __future__ import annotations
@@ -17,6 +18,7 @@ from dataclasses import dataclass
 from html.parser import HTMLParser
 from http.cookiejar import CookieJar
 
+from .. import cache
 from ..matching import normalize_title_conjunctions
 from ..model import AwardResult
 
@@ -38,6 +40,13 @@ ANNUAL_2024_URL = (
     'https://worldfantasy.org/2024-world-fantasy-nominations-and-winners/'
 )
 ANNUAL_2025_URL = 'https://worldfantasy.org/2025-wfc-nominations-and-winners/'
+
+SOURCE_KEY = 'world_fantasy'
+CACHE_VERSION = 1
+# 7-day base plus an explicit stagger. Do not derive from AWARD_SOURCES order.
+CACHE_BASE_TTL_SECONDS = 7 * 24 * 60 * 60
+CACHE_REFRESH_OFFSET_SECONDS = 1 * 60 * 60
+CACHE_TTL_SECONDS = CACHE_BASE_TTL_SECONDS + CACHE_REFRESH_OFFSET_SECONDS
 
 # Master tables plus convention/annual repairs. Order is fetch order only.
 SOURCE_PAGE_URLS = (
@@ -144,6 +153,19 @@ class _ParsedRecord:
     work_author: str
     source_url: str
     match_authors: tuple[str, ...]
+
+
+_PARSED_STATUSES = frozenset({'Winner', 'Nominee'})
+_RECORD_CACHE_FIELDS = (
+    'award_year',
+    'category',
+    'status',
+    'work_title',
+    'work_author',
+    'source_url',
+    'match_authors',
+)
+_ANNUAL_ARCHIVE_YEARS = (2013, 2024, 2025)
 
 
 @dataclass(frozen=True, slots=True)
@@ -282,28 +304,45 @@ _cache_lock = threading.Lock()
 
 
 def _reset_runtime_state() -> None:
-    """Clear in-process caches. Used by tests."""
+    """Clear in-process caches. Used by tests. Does not delete disk cache."""
     global _records_cache
     with _cache_lock:
         _records_cache = None
 
 
 def _get_records() -> tuple[_ParsedRecord, ...]:
-    """Return cached records after fetch, parse, merge, and archive validation."""
+    """Return records: RAM, then disk, then live fetch/parse/validate.
+
+    A fresh disk cache is used immediately. A stale-but-valid disk cache
+    live-refreshes only if this lookup still has a stale-refresh slot;
+    otherwise the stale archive is used with no network. A missing or
+    invalid cache still live-fetches.
+    """
     global _records_cache
     with _cache_lock:
         if _records_cache is not None:
             return _records_cache
-        opener = _build_opener()
-        pages = _fetch_source_pages(opener)
-        records = _build_records_from_pages(pages, validate_full_archive=True)
-        if not records:
-            raise WorldFantasySourceError(
-                'World Fantasy pages were retrieved but no records '
-                'could be parsed'
-            )
-        _records_cache = records
-        return _records_cache
+        disk = _load_persistent_archive()
+        if disk is not None:
+            records, payload = disk
+            if cache.cache_is_fresh(payload):
+                _records_cache = records
+                return records
+            if not cache.try_claim_stale_refresh():
+                _records_cache = records
+                return records
+        else:
+            records = None
+        try:
+            live = _load_live_archive()
+        except Exception:
+            if records is not None:
+                _records_cache = records
+                return records
+            raise
+        _save_persistent_archive(live)
+        _records_cache = live
+        return live
 
 
 # ---------------------------------------------------------------------------
@@ -1435,6 +1474,259 @@ def _to_award_result(record: _ParsedRecord) -> AwardResult:
         source_url=record.source_url,
         notes=None,
     )
+
+
+# ---------------------------------------------------------------------------
+# Persistent archive cache
+# ---------------------------------------------------------------------------
+
+def _record_to_cache_dict(record: _ParsedRecord) -> dict:
+    return {
+        'award_year': record.award_year,
+        'category': record.category,
+        'match_authors': list(record.match_authors),
+        'source_url': record.source_url,
+        'status': record.status,
+        'work_author': record.work_author,
+        'work_title': record.work_title,
+    }
+
+
+def _record_from_cache_dict(data) -> _ParsedRecord | None:
+    if not isinstance(data, dict) or set(data) != set(_RECORD_CACHE_FIELDS):
+        return None
+    award_year = data.get('award_year')
+    if isinstance(award_year, bool) or not isinstance(award_year, int) or award_year <= 0:
+        return None
+    category = data.get('category')
+    status = data.get('status')
+    work_title = data.get('work_title')
+    work_author = data.get('work_author')
+    source_url = data.get('source_url')
+    if not isinstance(category, str) or not category.strip() or category != category.strip():
+        return None
+    if status not in _PARSED_STATUSES:
+        return None
+    if not isinstance(work_title, str) or not work_title.strip() or work_title != work_title.strip():
+        return None
+    if not isinstance(work_author, str) or work_author != work_author.strip():
+        return None
+    if (
+        not isinstance(source_url, str)
+        or not source_url.strip()
+        or source_url != source_url.strip()
+    ):
+        return None
+    match_authors = _match_authors_from_cache(data.get('match_authors'))
+    if match_authors is None:
+        return None
+    return _ParsedRecord(
+        award_year=award_year,
+        category=category,
+        status=status,
+        work_title=work_title,
+        work_author=work_author,
+        source_url=source_url,
+        match_authors=match_authors,
+    )
+
+
+def _match_authors_from_cache(value) -> tuple[str, ...] | None:
+    if isinstance(value, (str, bytes, bytearray)):
+        return None
+    if not isinstance(value, (list, tuple)) or not value:
+        return None
+    authors: list[str] = []
+    for item in value:
+        if not isinstance(item, str) or not item.strip() or item != item.strip():
+            return None
+        authors.append(item)
+    return tuple(authors)
+
+
+def _archive_source_urls() -> tuple[str, ...]:
+    return SOURCE_PAGE_URLS
+
+
+def _coverage_from_records(records: tuple[_ParsedRecord, ...]) -> dict:
+    categories = []
+    for category in _CANONICAL_CATEGORIES:
+        subset = [record for record in records if record.category == category]
+        years = [record.award_year for record in subset]
+        categories.append(
+            {
+                'category': category,
+                'first_year': _CATEGORY_FIRST_YEAR[category],
+                'min_year': min(years) if years else None,
+                'max_year': max(years) if years else None,
+                'nominee_count': sum(
+                    1 for record in subset if record.status == 'Nominee'
+                ),
+                'record_count': len(subset),
+                'winner_count': sum(
+                    1 for record in subset if record.status == 'Winner'
+                ),
+            }
+        )
+    years = [record.award_year for record in records]
+    pages = [
+        {
+            'record_count': sum(
+                1 for record in records if record.source_url == url
+            ),
+            'url': url,
+        }
+        for url in SOURCE_PAGE_URLS
+    ]
+    return {
+        'categories': categories,
+        'max_year': max(years) if years else None,
+        'min_year': min(years) if years else None,
+        'pages': pages,
+    }
+
+
+def _validate_cached_archive(records: tuple[_ParsedRecord, ...]) -> None:
+    """Fail closed if reconstructed records are not a usable full archive."""
+    if not records:
+        raise WorldFantasySourceError(
+            'World Fantasy persistent cache contained no records'
+        )
+    allowed_urls = frozenset(SOURCE_PAGE_URLS)
+    seen_identities: set[tuple[int, str, str, str]] = set()
+    for record in records:
+        if record.category not in _CANONICAL_CATEGORIES:
+            raise WorldFantasySourceError(
+                'World Fantasy archive produced an unexpected category: '
+                f'{record.category!r}'
+            )
+        if record.status not in _PARSED_STATUSES:
+            raise WorldFantasySourceError(
+                'World Fantasy archive produced an unexpected status: '
+                f'{record.status!r}'
+            )
+        if record.source_url not in allowed_urls:
+            raise WorldFantasySourceError(
+                'World Fantasy archive produced an unexpected source URL: '
+                f'{record.source_url!r}'
+            )
+        first_year = _CATEGORY_FIRST_YEAR[record.category]
+        if record.award_year < first_year:
+            raise WorldFantasySourceError(
+                f'World Fantasy {record.category} year {record.award_year} '
+                f'is before first awarded year {first_year}'
+            )
+        identities = _identities_for_record(record)
+        if identities & seen_identities:
+            raise WorldFantasySourceError(
+                'World Fantasy persistent cache contained duplicate records'
+            )
+        seen_identities.update(identities)
+
+    _validate_cached_winner_history(records)
+    annual_2013 = [
+        record for record in records if record.award_year == 2013
+    ]
+    _validate_merged_records(records, annual_2013)
+    for year in _ANNUAL_ARCHIVE_YEARS:
+        for category in _CANONICAL_CATEGORIES:
+            winners, nominees = _annual_status_counts(
+                [
+                    record
+                    for record in records
+                    if record.award_year == year and record.category == category
+                ]
+            )
+            if winners < 1 or nominees < 1:
+                raise WorldFantasySourceError(
+                    'World Fantasy persistent cache is missing a complete '
+                    f'{category} {year} Winner and Nominee slate '
+                    f'(winners={winners}, nominees={nominees})'
+                )
+
+
+def _validate_cached_winner_history(records: tuple[_ParsedRecord, ...]) -> None:
+    """Require master-table winner years to be present in reconstructed records."""
+    requirements = (
+        (CATEGORY_NOVEL, NOVEL_MASTER_WINNER_YEARS, 'Novel'),
+        (CATEGORY_NOVELLA, NOVELLA_MASTER_WINNER_YEARS, 'Novella'),
+        (CATEGORY_SHORT_FICTION, SHORT_FICTION_MASTER_WINNER_YEARS, 'Short Fiction'),
+        (CATEGORY_COLLECTION, COLLECTION_MASTER_WINNER_YEARS, 'Collection'),
+    )
+    for category, required_years, label in requirements:
+        winner_years = {
+            record.award_year
+            for record in records
+            if record.category == category and record.status == 'Winner'
+        }
+        missing = sorted(required_years - winner_years)
+        if missing:
+            raise WorldFantasySourceError(
+                f'World Fantasy {label} winners are missing required '
+                'master-table years: '
+                + ', '.join(str(year) for year in missing)
+            )
+
+
+def _records_from_cache_payload(
+    payload: dict,
+) -> tuple[_ParsedRecord, ...] | None:
+    expected_urls = list(_archive_source_urls())
+    if payload.get('source_urls') != expected_urls:
+        return None
+    raw_records = payload.get('records')
+    if not isinstance(raw_records, list):
+        return None
+    records: list[_ParsedRecord] = []
+    for item in raw_records:
+        record = _record_from_cache_dict(item)
+        if record is None:
+            return None
+        records.append(record)
+    restored = tuple(records)
+    try:
+        _validate_cached_archive(restored)
+    except WorldFantasySourceError:
+        return None
+    return restored
+
+
+def _load_persistent_archive() -> (
+    tuple[tuple[_ParsedRecord, ...], dict] | None
+):
+    payload = cache.load_source_cache(SOURCE_KEY, CACHE_VERSION)
+    if payload is None:
+        return None
+    records = _records_from_cache_payload(payload)
+    if records is None:
+        return None
+    return records, payload
+
+
+def _save_persistent_archive(records: tuple[_ParsedRecord, ...]) -> None:
+    try:
+        cache.save_source_cache(
+            SOURCE_KEY,
+            CACHE_VERSION,
+            records=[_record_to_cache_dict(record) for record in records],
+            source_urls=_archive_source_urls(),
+            coverage=_coverage_from_records(records),
+            ttl_seconds=CACHE_TTL_SECONDS,
+        )
+    except OSError:
+        pass
+
+
+def _load_live_archive() -> tuple[_ParsedRecord, ...]:
+    opener = _build_opener()
+    pages = _fetch_source_pages(opener)
+    records = _build_records_from_pages(pages, validate_full_archive=True)
+    if not records:
+        raise WorldFantasySourceError(
+            'World Fantasy pages were retrieved but no records '
+            'could be parsed'
+        )
+    return records
 
 
 # ---------------------------------------------------------------------------
