@@ -279,10 +279,15 @@ _archive_lock = threading.Lock()
 _MAX_CATEGORY_WORKERS = 2
 
 
-def _clear_caches_for_tests() -> None:
-    """Reset process caches. Tests only; not public plugin API."""
+def _reset_runtime_state() -> None:
+    """Clear in-process caches. Does not delete disk cache."""
     _pages_cache.clear()
     _records_cache.clear()
+
+
+def _clear_caches_for_tests() -> None:
+    """Reset process caches. Tests only; not public plugin API."""
+    _reset_runtime_state()
 
 
 def _lock_for_category(key: str) -> threading.Lock:

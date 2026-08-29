@@ -344,22 +344,27 @@ def invalidate_cache_entry(
         pass
 
 
-def invalidate_source_cache(source_key: str) -> None:
+def invalidate_source_cache(source_key: str) -> bool:
     """Remove one source's archive file and any keyed-entry subtree.
 
-    Missing files, missing directories, and unsafe keys are no-ops. Other
-    sources and unrelated cache-directory files are left in place.
+    Returns True when all managed cache data for that source is absent
+    afterwards, including when there was nothing to remove. Returns False
+    if at least one managed archive or keyed file remains. Ordinary
+    filesystem errors are swallowed and do not raise.
+
+    Missing files, missing directories, an unconfigured cache directory,
+    and unsafe keys are treated as success. Other sources and unrelated
+    cache-directory files are left in place and do not count as failure.
     """
     if not _is_safe_source_key(source_key):
-        return
+        return True
     directory = _configured_directory()
     if directory is None:
-        return
-    try:
-        _cache_path(directory, source_key).unlink()
-    except OSError:
-        pass
-    _invalidate_keyed_source_tree(directory / source_key)
+        return True
+    archive_path = _cache_path(directory, source_key)
+    _unlink_quietly(archive_path)
+    keyed_cleared = _invalidate_keyed_source_tree(directory / source_key)
+    return (not _is_existing_file(archive_path)) and keyed_cleared
 
 
 def invalidate_all_source_caches() -> None:
@@ -621,19 +626,64 @@ def _is_managed_entry_filename(name: str) -> bool:
     return bool(_ENTRY_FILENAME_RE.fullmatch(name))
 
 
-def _invalidate_keyed_source_tree(source_dir: Path) -> None:
+def _unlink_quietly(path: Path) -> None:
+    try:
+        path.unlink()
+    except OSError:
+        pass
+
+
+def _is_existing_file(path: Path) -> bool:
+    try:
+        return path.is_file()
+    except OSError:
+        return True
+
+
+def _managed_keyed_files_remain(source_dir: Path) -> bool:
+    """Return True if any managed keyed JSON file is still present.
+
+    Unrelated names are ignored. If the tree cannot be listed, treat managed
+    files as still present so callers cannot claim a successful wipe.
+    """
+    if not source_dir.is_dir():
+        return False
+    try:
+        names = os.listdir(source_dir)
+    except OSError:
+        return True
+    for name in names:
+        kind_dir = source_dir / name
+        if not kind_dir.is_dir() or not _is_safe_entry_kind(name):
+            continue
+        try:
+            filenames = os.listdir(kind_dir)
+        except OSError:
+            return True
+        for filename in filenames:
+            if not _is_managed_entry_filename(filename):
+                continue
+            if _is_existing_file(kind_dir / filename):
+                return True
+    return False
+
+
+def _invalidate_keyed_source_tree(source_dir: Path) -> bool:
     """Remove managed hashed entry files under one source directory.
 
     Only ``<safe-kind>/<64-hex>.json`` files are deleted. Unrelated files and
     directories are left in place. Empty managed kind directories, and then an
     empty source directory, are removed when possible.
+
+    Returns True when no managed keyed files remain. Remaining unrelated
+    files do not count as failure.
     """
     if not source_dir.is_dir():
-        return
+        return True
     try:
         names = os.listdir(source_dir)
     except OSError:
-        return
+        return not _managed_keyed_files_remain(source_dir)
     for name in names:
         kind_dir = source_dir / name
         if not kind_dir.is_dir() or not _is_safe_entry_kind(name):
@@ -648,10 +698,7 @@ def _invalidate_keyed_source_tree(source_dir: Path) -> None:
             path = kind_dir / filename
             if not path.is_file():
                 continue
-            try:
-                path.unlink()
-            except OSError:
-                pass
+            _unlink_quietly(path)
         try:
             os.rmdir(kind_dir)
         except OSError:
@@ -660,6 +707,7 @@ def _invalidate_keyed_source_tree(source_dir: Path) -> None:
         os.rmdir(source_dir)
     except OSError:
         pass
+    return not _managed_keyed_files_remain(source_dir)
 
 
 def _validated_payload(

@@ -353,6 +353,108 @@ class CacheInvalidationTests(CacheTestCase):
         self.assertTrue(leftover_tmp.is_file())
 
 
+class SourceInvalidationResultTests(CacheTestCase):
+    def test_archive_successful_delete_returns_true(self):
+        self._configure()
+        _save('nebula')
+        self.assertTrue(cache.invalidate_source_cache('nebula'))
+        self.assertFalse((self.cache_dir / 'nebula.json').exists())
+
+    def test_archive_missing_file_returns_true(self):
+        self._configure()
+        self.assertTrue(cache.invalidate_source_cache('nebula'))
+
+    def test_unconfigured_directory_returns_true(self):
+        self.assertTrue(cache.invalidate_source_cache('nebula'))
+
+    def test_archive_unlink_failure_returns_false(self):
+        self._configure()
+        _save('nebula')
+        original = Path.unlink
+
+        def _unlink(self, *args, **kwargs):
+            if self.name == 'nebula.json':
+                raise OSError('permission denied')
+            return original(self, *args, **kwargs)
+
+        with patch.object(Path, 'unlink', _unlink):
+            self.assertFalse(cache.invalidate_source_cache('nebula'))
+        self.assertTrue((self.cache_dir / 'nebula.json').is_file())
+
+    def test_locus_keyed_removal_returns_true(self):
+        self._configure()
+        _save_entry()
+        _save_entry(
+            entry_kind='annuals',
+            entry_key=ANNUAL_URL,
+            records=_annual_records(),
+            source_urls=[ANNUAL_URL],
+            coverage={'award_year': 1990},
+        )
+        self.assertTrue(cache.invalidate_source_cache('locus'))
+        self.assertFalse((self.cache_dir / 'locus').exists())
+
+    def test_one_locked_locus_keyed_file_returns_false(self):
+        self._configure()
+        _save_entry()
+        _save_entry(
+            entry_kind='annuals',
+            entry_key=ANNUAL_URL,
+            records=_annual_records(),
+            source_urls=[ANNUAL_URL],
+            coverage={'award_year': 1990},
+        )
+        blocked = _entry_filename(AUTHOR_URL)
+        original = Path.unlink
+
+        def _unlink(self, *args, **kwargs):
+            if self.name == blocked:
+                raise OSError('permission denied')
+            return original(self, *args, **kwargs)
+
+        with patch.object(Path, 'unlink', _unlink):
+            self.assertFalse(cache.invalidate_source_cache('locus'))
+        self.assertTrue(
+            (
+                self.cache_dir / 'locus' / 'authors' / blocked
+            ).is_file()
+        )
+        self.assertFalse(
+            (
+                self.cache_dir / 'locus' / 'annuals' / _entry_filename(ANNUAL_URL)
+            ).exists()
+        )
+
+    def test_unrelated_files_do_not_cause_invalidation_failure(self):
+        self._configure()
+        _save('nebula')
+        _save_entry()
+        notes = self.cache_dir / 'notes.txt'
+        notes.write_text('keep me', encoding='utf-8')
+        stray = self.cache_dir / 'locus' / 'notes.txt'
+        stray.write_text('keep', encoding='utf-8')
+        kind_stray = self.cache_dir / 'locus' / 'authors' / 'readme.txt'
+        kind_stray.write_text('keep', encoding='utf-8')
+        self.assertTrue(cache.invalidate_source_cache('nebula'))
+        self.assertTrue(cache.invalidate_source_cache('locus'))
+        self.assertTrue(notes.is_file())
+        self.assertTrue(stray.is_file())
+        self.assertTrue(kind_stray.is_file())
+        self.assertFalse((self.cache_dir / 'nebula.json').exists())
+        self.assertFalse(
+            (
+                self.cache_dir / 'locus' / 'authors' / _entry_filename(AUTHOR_URL)
+            ).exists()
+        )
+
+    def test_existing_callers_may_ignore_the_boolean_result(self):
+        self._configure()
+        _save('nebula')
+        cache.invalidate_source_cache('nebula')
+        cache.invalidate_source_cache('nebula')
+        self.assertFalse((self.cache_dir / 'nebula.json').exists())
+
+
 class CacheAtomicReplacementTests(CacheTestCase):
     def test_successful_save_replaces_previous_file(self):
         self._configure()

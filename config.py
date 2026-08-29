@@ -9,9 +9,21 @@ change only this widget; Apply/OK in Calibre's preference dialog is what
 persists.
 """
 
-from calibre.gui2 import error_dialog
+from calibre.gui2 import error_dialog, question_dialog
 from calibre.gui2.ui import get_gui
 from calibre.utils.config import JSONConfig
+from calibre_plugins.calibre_awards.awards.cache_control import (
+    CACHE_GROUP_HINT,
+    CACHE_GROUP_TITLE,
+    CACHE_REFRESH_BUTTON_LABEL,
+    bind_source_refresh_callback,
+    cache_refresh_source_rows,
+    run_source_cache_refresh_if_confirmed,
+    source_cache_refresh_confirm_body,
+    source_cache_refresh_confirm_title,
+    source_cache_refresh_failure_text,
+    source_cache_refresh_status_text,
+)
 from calibre_plugins.calibre_awards.awards.formatter import (
     DEFAULT_AWARD_OUTPUT_TEMPLATE,
 )
@@ -149,6 +161,39 @@ class ConfigWidget(QWidget):
         buttons_layout.addStretch(1)
         sources_layout.addWidget(buttons)
         layout.addWidget(sources_group)
+
+        cache_group = QGroupBox(CACHE_GROUP_TITLE, self)
+        cache_layout = QVBoxLayout(cache_group)
+        cache_hint = QLabel(CACHE_GROUP_HINT, cache_group)
+        cache_hint.setWordWrap(True)
+        cache_layout.addWidget(cache_hint)
+        self.cache_refresh_buttons = {}
+        for source_key, display_name in cache_refresh_source_rows():
+            # One Refresh per registered source, including currently disabled
+            # sources. Enablement only affects Check Awards scheduling.
+            row = QWidget(cache_group)
+            row_layout = QHBoxLayout(row)
+            row_layout.setContentsMargins(0, 0, 0, 0)
+            name_label = QLabel(display_name, row)
+            refresh_btn = QPushButton(CACHE_REFRESH_BUTTON_LABEL, row)
+            refresh_btn.setObjectName(f'cache_refresh_{source_key}')
+            refresh_btn.clicked.connect(
+                bind_source_refresh_callback(
+                    self._on_refresh_cached_source,
+                    source_key,
+                    display_name,
+                )
+            )
+            self.cache_refresh_buttons[source_key] = refresh_btn
+            row_layout.addWidget(name_label)
+            row_layout.addStretch(1)
+            row_layout.addWidget(refresh_btn)
+            cache_layout.addWidget(row)
+        self.cache_status = QLabel('', cache_group)
+        self.cache_status.setWordWrap(True)
+        self.cache_status.setTextFormat(Qt.PlainText)
+        cache_layout.addWidget(self.cache_status)
+        layout.addWidget(cache_group)
 
         rank_and_output = QGroupBox('Qualification and award output', self)
         rank_and_output_layout = QVBoxLayout(rank_and_output)
@@ -363,6 +408,45 @@ class ConfigWidget(QWidget):
         # so Calibre's Apply/OK/Cancel behavior remains intact.
         self.max_rank_spin.setValue(DEFAULT_MAX_QUALIFYING_RANK)
         self.template_edit.setText(DEFAULT_AWARD_OUTPUT_TEMPLATE)
+
+    def _on_refresh_cached_source(self, source_key: str, display_name: str):
+        # Immediate maintenance: does not wait for Apply/OK and is not undone
+        # by Cancel. No network request is made here.
+        confirmed = question_dialog(
+            self,
+            source_cache_refresh_confirm_title(display_name),
+            source_cache_refresh_confirm_body(display_name),
+            skip_dialog_name=None,
+        )
+        try:
+            persistent_ok = run_source_cache_refresh_if_confirmed(
+                source_key,
+                display_name,
+                confirmed=bool(confirmed),
+            )
+        except Exception:
+            error_dialog(
+                self,
+                'Calibre Awards',
+                f'{display_name} cached data could not be fully cleared. '
+                'In-memory data was reset if possible. The next Check Awards '
+                'search may still use remaining saved data.',
+                show=True,
+            )
+            return
+        if persistent_ok is None:
+            return
+        if persistent_ok:
+            self.cache_status.setText(
+                source_cache_refresh_status_text(display_name)
+            )
+            return
+        error_dialog(
+            self,
+            'Calibre Awards',
+            source_cache_refresh_failure_text(display_name),
+            show=True,
+        )
 
     def validate(self):
         if (
