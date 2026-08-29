@@ -3,8 +3,8 @@
 The SFADB author page is discovery only. The annual Locus_Awards_YYYY page
 establishes the authoritative rank from explicit ``li value`` attributes;
 visual list order is not placement. Discovery and annual results are
-cross-checked. Qualification is not applied here. A validated annual page
-may also be loaded from the injected persistent cache.
+cross-checked. Qualification is not applied here. Validated author discovery pages and
+annual pages may also be loaded from the injected persistent cache.
 """
 
 from __future__ import annotations
@@ -17,7 +17,7 @@ import urllib.request
 from dataclasses import dataclass
 from html.parser import HTMLParser
 from http.cookiejar import CookieJar
-from urllib.parse import quote, urljoin, urlparse
+from urllib.parse import quote, unquote, urljoin, urlparse
 
 from .. import cache
 from ..matching import normalize_title_conjunctions
@@ -35,6 +35,11 @@ ANNUAL_CACHE_VERSION = 1
 # Temporary uniform annual TTL for Phase L2. Historical vs current-year
 # policy and refresh-budget interaction belong to Phase L4.
 ANNUAL_CACHE_TTL_SECONDS = 7 * 24 * 60 * 60
+AUTHOR_ENTRY_KIND = 'authors'
+AUTHOR_CACHE_VERSION = 1
+# Temporary uniform author TTL for Phase L3. Stale-refresh policy belongs
+# to Phase L4.
+AUTHOR_CACHE_TTL_SECONDS = 7 * 24 * 60 * 60
 
 _BROWSER_HEADERS = {
     'User-Agent': (
@@ -167,6 +172,19 @@ _ANNUAL_RECORD_CACHE_FIELDS = (
     'work_author',
     'work_title',
 )
+_DISCOVERY_ENTRY_CACHE_FIELDS = (
+    'annual_url',
+    'award_year',
+    'category_text',
+    'rank',
+    'winner',
+    'work_title',
+)
+_AUTHOR_PAGE_CACHE_FIELDS = (
+    'entries',
+    'page_name',
+    'page_url',
+)
 
 
 _cache_lock = threading.Lock()
@@ -280,6 +298,40 @@ def _canonical_annual_url(url: str) -> str | None:
     if year <= 0:
         return None
     return f'https://{CANONICAL_SFADB_HOST}/Locus_Awards_{year}'
+
+
+def _canonical_author_url(url: str) -> str | None:
+    """Return https://www.sfadb.com/<slug>, or None if unusable.
+
+    The slug's case and Unicode are preserved. Annual Locus_Awards_YYYY
+    paths are not author-page identities.
+    """
+    if not isinstance(url, str) or not url.strip():
+        return None
+    parsed = urlparse(url.strip())
+    if parsed.scheme not in {'http', 'https'}:
+        return None
+    host = (parsed.hostname or '').casefold().rstrip('.')
+    if host not in OFFICIAL_HOSTS:
+        return None
+    path = parsed.path.rstrip('/')
+    if not path.startswith('/'):
+        path = '/' + path
+    if path.count('/') != 1:
+        return None
+    raw_slug = path[1:]
+    if not raw_slug:
+        return None
+    slug = unquote(raw_slug)
+    if not slug or slug in {'.', '..'}:
+        return None
+    if '/' in slug or '\\' in slug or '\x00' in slug:
+        return None
+    if any(char.isspace() for char in slug):
+        return None
+    if _CANONICAL_ANNUAL_PATH_RE.fullmatch('/' + slug):
+        return None
+    return urljoin(SFADB_ORIGIN, quote(slug, safe='_-'))
 
 
 # ---------------------------------------------------------------------------
@@ -787,37 +839,80 @@ def _author_page_matches_query(page: _AuthorPage, author: str) -> bool:
     return _omitted_middle_initial_candidate(author, page.page_name)
 
 
+def _candidate_author_urls(author: str) -> tuple[str, ...]:
+    urls: list[str] = []
+    for slug in _author_slug_candidates(author):
+        canonical = _canonical_author_url(_author_page_url(slug))
+        if canonical is None or canonical in urls:
+            continue
+        urls.append(canonical)
+    return tuple(urls)
+
+
 def _resolve_author_page(
     opener: urllib.request.OpenerDirector,
     author: str,
 ) -> _AuthorPage | None:
-    candidates = _author_slug_candidates(author)
-    if not candidates:
+    """Return a matching author page from RAM, disk, then live slug probing.
+
+    Persistent candidates for every slug are examined before any live HTTP
+    so a later successful slug is reused without repeating an earlier 404.
+    404s, wrong-person pages, and malformed Locus sections are not stored.
+    Fresh and stale-valid author disk are both used immediately in Phase L3,
+    without claiming the shared stale-refresh budget.
+    """
+    candidate_urls = _candidate_author_urls(author)
+    if not candidate_urls:
         return None
-    for slug in candidates:
+    for canonical_url in candidate_urls:
         with _cache_lock:
-            cached = _author_page_cache.get(slug)
+            cached = _author_page_cache.get(canonical_url)
+        if cached is None:
+            continue
+        if _author_page_matches_query(cached, author):
+            return cached
+    for canonical_url in candidate_urls:
+        disk = _load_persistent_author(canonical_url)
+        if disk is None:
+            continue
+        if not _author_page_matches_query(disk, author):
+            continue
+        with _cache_lock:
+            _author_page_cache[canonical_url] = disk
+        return disk
+    for canonical_url in candidate_urls:
+        with _cache_lock:
+            cached = _author_page_cache.get(canonical_url)
         if cached is not None:
-            if _author_page_matches_query(cached, author):
-                return cached
             continue
-        url = _author_page_url(slug)
-        status, body = _request_html(opener, url)
-        if status == 404:
+        page = _load_live_author_page(opener, canonical_url)
+        if page is None:
             continue
-        if status != 200 or not body.strip():
-            raise LocusSourceError(
-                f'Locus author page request failed with HTTP {status} for {url}'
-            )
-        page = _parse_author_page(body, url)
         if not _author_page_matches_query(page, author):
-            # Slug collision: pagetitle must match exactly or as an
-            # omitted-middle-initial candidate. A hit is not enough.
             continue
+        persistable = _author_page_for_cache(page, canonical_url)
+        stored = persistable if persistable is not None else page
         with _cache_lock:
-            _author_page_cache[slug] = page
-        return page
+            _author_page_cache[canonical_url] = stored
+        if persistable is not None:
+            _save_persistent_author(canonical_url, persistable)
+        return stored
     return None
+
+
+def _load_live_author_page(
+    opener: urllib.request.OpenerDirector,
+    canonical_url: str,
+) -> _AuthorPage | None:
+    status, body = _request_html(opener, canonical_url)
+    if status == 404:
+        return None
+    if status != 200 or not body.strip():
+        raise LocusSourceError(
+            f'Locus author page request failed with HTTP {status} for '
+            f'{canonical_url}'
+        )
+    return _parse_author_page(body, canonical_url)
 
 
 # ---------------------------------------------------------------------------
@@ -1359,6 +1454,202 @@ def _get_annual_records(
         _annual_page_cache[canonical_url] = records
     _save_persistent_annual(canonical_url, records)
     return records
+
+
+def _discovery_identity(entry: _DiscoveryEntry) -> tuple:
+    return (
+        entry.award_year,
+        entry.annual_url,
+        entry.work_title.casefold(),
+        entry.category_text.casefold(),
+        entry.rank,
+        entry.winner,
+    )
+
+
+def _discovery_entry_to_cache_dict(entry: _DiscoveryEntry) -> dict:
+    return {
+        'annual_url': entry.annual_url,
+        'award_year': entry.award_year,
+        'category_text': entry.category_text,
+        'rank': entry.rank,
+        'winner': entry.winner,
+        'work_title': entry.work_title,
+    }
+
+
+def _discovery_entry_from_cache_dict(data) -> _DiscoveryEntry | None:
+    if not isinstance(data, dict) or set(data) != set(_DISCOVERY_ENTRY_CACHE_FIELDS):
+        return None
+    award_year = data.get('award_year')
+    if not _is_positive_int(award_year):
+        return None
+    annual_url = _stripped_nonempty_str(data.get('annual_url'))
+    if annual_url is None:
+        return None
+    canonical_annual = _canonical_annual_url(annual_url)
+    if canonical_annual is None or canonical_annual != annual_url:
+        return None
+    annual_year = _award_year_from_canonical_annual_url(canonical_annual)
+    if annual_year != award_year:
+        return None
+    work_title = _stripped_nonempty_str(data.get('work_title'))
+    if work_title is None:
+        return None
+    category_text = data.get('category_text')
+    if not isinstance(category_text, str) or category_text != category_text.strip():
+        return None
+    rank = data.get('rank')
+    if rank is not None and not _is_positive_int(rank):
+        return None
+    winner = data.get('winner')
+    if not isinstance(winner, bool):
+        return None
+    if winner and rank != 1:
+        return None
+    return _DiscoveryEntry(
+        award_year=award_year,
+        annual_url=canonical_annual,
+        work_title=work_title,
+        category_text=category_text,
+        rank=rank,
+        winner=winner,
+    )
+
+
+def _author_page_to_cache_dict(page: _AuthorPage) -> dict:
+    return {
+        'entries': [
+            _discovery_entry_to_cache_dict(entry) for entry in page.entries
+        ],
+        'page_name': page.page_name,
+        'page_url': page.page_url,
+    }
+
+
+def _author_page_from_cache_dict(
+    data, canonical_url: str
+) -> _AuthorPage | None:
+    if not isinstance(data, dict) or set(data) != set(_AUTHOR_PAGE_CACHE_FIELDS):
+        return None
+    page_url = _stripped_nonempty_str(data.get('page_url'))
+    page_name = _stripped_nonempty_str(data.get('page_name'))
+    if page_url is None or page_name is None:
+        return None
+    if _canonical_author_url(page_url) != page_url or page_url != canonical_url:
+        return None
+    raw_entries = data.get('entries')
+    if not isinstance(raw_entries, list):
+        return None
+    entries: list[_DiscoveryEntry] = []
+    seen: set[tuple] = set()
+    for item in raw_entries:
+        entry = _discovery_entry_from_cache_dict(item)
+        if entry is None:
+            return None
+        key = _discovery_identity(entry)
+        if key in seen:
+            return None
+        seen.add(key)
+        entries.append(entry)
+    return _AuthorPage(
+        page_url=page_url,
+        page_name=page_name,
+        entries=tuple(entries),
+    )
+
+
+def _author_page_for_cache(
+    page: _AuthorPage, canonical_url: str
+) -> _AuthorPage | None:
+    """Return a persistable author page with canonical URLs, or None."""
+    if _canonical_author_url(canonical_url) != canonical_url:
+        return None
+    page_name = _stripped_nonempty_str(page.page_name)
+    if page_name is None:
+        return None
+    entries: list[_DiscoveryEntry] = []
+    seen: set[tuple] = set()
+    for entry in page.entries:
+        canonical_annual = _canonical_annual_url(entry.annual_url)
+        if canonical_annual is None:
+            return None
+        rebuilt = _DiscoveryEntry(
+            award_year=entry.award_year,
+            annual_url=canonical_annual,
+            work_title=entry.work_title,
+            category_text=entry.category_text,
+            rank=entry.rank,
+            winner=entry.winner,
+        )
+        if _discovery_entry_from_cache_dict(
+            _discovery_entry_to_cache_dict(rebuilt)
+        ) is None:
+            return None
+        key = _discovery_identity(rebuilt)
+        if key in seen:
+            return None
+        seen.add(key)
+        entries.append(rebuilt)
+    return _AuthorPage(
+        page_url=canonical_url,
+        page_name=page_name,
+        entries=tuple(entries),
+    )
+
+
+def _author_coverage(page: _AuthorPage) -> dict:
+    years = [entry.award_year for entry in page.entries]
+    annuals = {entry.annual_url for entry in page.entries}
+    return {
+        'annual_url_count': len(annuals),
+        'entry_count': len(page.entries),
+        'max_year': max(years) if years else None,
+        'min_year': min(years) if years else None,
+        'page_name': page.page_name,
+    }
+
+
+def _page_from_author_cache_payload(
+    payload: dict, canonical_url: str
+) -> _AuthorPage | None:
+    if payload.get('source_urls') != [canonical_url]:
+        return None
+    raw_records = payload.get('records')
+    if not isinstance(raw_records, list) or len(raw_records) != 1:
+        return None
+    return _author_page_from_cache_dict(raw_records[0], canonical_url)
+
+
+def _load_persistent_author(canonical_url: str) -> _AuthorPage | None:
+    payload = cache.load_cache_entry(
+        SOURCE_KEY,
+        AUTHOR_ENTRY_KIND,
+        canonical_url,
+        AUTHOR_CACHE_VERSION,
+    )
+    if payload is None:
+        return None
+    return _page_from_author_cache_payload(payload, canonical_url)
+
+
+def _save_persistent_author(canonical_url: str, page: _AuthorPage) -> None:
+    persistable = _author_page_for_cache(page, canonical_url)
+    if persistable is None:
+        return
+    try:
+        cache.save_cache_entry(
+            SOURCE_KEY,
+            AUTHOR_ENTRY_KIND,
+            canonical_url,
+            AUTHOR_CACHE_VERSION,
+            records=[_author_page_to_cache_dict(persistable)],
+            source_urls=[canonical_url],
+            coverage=_author_coverage(persistable),
+            ttl_seconds=AUTHOR_CACHE_TTL_SECONDS,
+        )
+    except OSError:
+        pass
 
 
 def _to_award_result(
