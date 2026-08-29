@@ -14,14 +14,12 @@ from . import cache
 from .source_info import SOURCE_INFOS
 from .sources import hugo, locus, nebula, newbery, nobel, pulitzer, world_fantasy
 
-CACHE_GROUP_TITLE = 'Award data cache'
-CACHE_GROUP_HINT = (
-    'Award source data is cached to make repeated searches faster. '
-    'Refreshing a source clears its saved and in-memory data. '
-    'The next Check Awards search will retrieve fresh data for that '
-    'source as needed and may take longer.'
-)
 CACHE_REFRESH_BUTTON_LABEL = 'Refresh'
+SOURCES_GROUP_HINT = (
+    'Select the award sources used by Check Awards. '
+    'Refresh clears cached data for an enabled source; fresh data will be '
+    'retrieved the next time that source is checked.'
+)
 
 # One reset callable per registered source key. Adding a source to
 # AWARD_SOURCES without a mapping here is caught by tests.
@@ -88,6 +86,15 @@ def bind_source_refresh_callback(handler, source_key: str, display_name: str):
         handler(key, name)
 
     return _clicked
+
+
+def bind_refresh_enabled_to_checkbox(refresh_button):
+    """Return a toggled(checked) handler that enables Refresh with the checkbox."""
+
+    def _toggled(checked=False, button=refresh_button):
+        button.setEnabled(bool(checked))
+
+    return _toggled
 
 
 def run_source_cache_refresh_if_confirmed(

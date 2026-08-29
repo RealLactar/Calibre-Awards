@@ -13,11 +13,10 @@ from calibre.gui2 import error_dialog, question_dialog
 from calibre.gui2.ui import get_gui
 from calibre.utils.config import JSONConfig
 from calibre_plugins.calibre_awards.awards.cache_control import (
-    CACHE_GROUP_HINT,
-    CACHE_GROUP_TITLE,
     CACHE_REFRESH_BUTTON_LABEL,
+    SOURCES_GROUP_HINT,
+    bind_refresh_enabled_to_checkbox,
     bind_source_refresh_callback,
-    cache_refresh_source_rows,
     run_source_cache_refresh_if_confirmed,
     source_cache_refresh_confirm_body,
     source_cache_refresh_confirm_title,
@@ -133,22 +132,44 @@ class ConfigWidget(QWidget):
 
         sources_group = QGroupBox('Award sources', self)
         sources_layout = QVBoxLayout(sources_group)
-        hint = QLabel(
-            'Disabled sources are skipped during Check Awards.',
-            sources_group,
-        )
+        hint = QLabel(SOURCES_GROUP_HINT, sources_group)
         hint.setWordWrap(True)
         sources_layout.addWidget(hint)
         disabled_keys = set(
             normalize_disabled_source_keys(prefs['disabled_source_keys'])
         )
         self.source_checkboxes = {}
+        self.source_refresh_buttons = {}
         for info in SOURCE_INFOS:
             # Current capabilities only; stale disabled keys have no checkbox.
-            checkbox = QCheckBox(info.display_name, sources_group)
-            checkbox.setChecked(info.key not in disabled_keys)
+            # Refresh is enabled from the open checkbox, not stored prefs.
+            row = QWidget(sources_group)
+            row_layout = QHBoxLayout(row)
+            row_layout.setContentsMargins(0, 0, 0, 0)
+            checkbox = QCheckBox(info.display_name, row)
+            enabled = info.key not in disabled_keys
+            checkbox.setChecked(enabled)
+            refresh_btn = QPushButton(CACHE_REFRESH_BUTTON_LABEL, row)
+            refresh_btn.setObjectName(f'cache_refresh_{info.key}')
+            refresh_btn.setAutoDefault(False)
+            refresh_btn.setDefault(False)
+            refresh_btn.setEnabled(enabled)
+            refresh_btn.clicked.connect(
+                bind_source_refresh_callback(
+                    self._on_refresh_cached_source,
+                    info.key,
+                    info.display_name,
+                )
+            )
+            checkbox.toggled.connect(
+                bind_refresh_enabled_to_checkbox(refresh_btn)
+            )
             self.source_checkboxes[info.key] = checkbox
-            sources_layout.addWidget(checkbox)
+            self.source_refresh_buttons[info.key] = refresh_btn
+            row_layout.addWidget(checkbox)
+            row_layout.addStretch(1)
+            row_layout.addWidget(refresh_btn)
+            sources_layout.addWidget(row)
         buttons = QWidget(sources_group)
         buttons_layout = QHBoxLayout(buttons)
         buttons_layout.setContentsMargins(0, 0, 0, 0)
@@ -160,40 +181,11 @@ class ConfigWidget(QWidget):
         buttons_layout.addWidget(select_none)
         buttons_layout.addStretch(1)
         sources_layout.addWidget(buttons)
-        layout.addWidget(sources_group)
-
-        cache_group = QGroupBox(CACHE_GROUP_TITLE, self)
-        cache_layout = QVBoxLayout(cache_group)
-        cache_hint = QLabel(CACHE_GROUP_HINT, cache_group)
-        cache_hint.setWordWrap(True)
-        cache_layout.addWidget(cache_hint)
-        self.cache_refresh_buttons = {}
-        for source_key, display_name in cache_refresh_source_rows():
-            # One Refresh per registered source, including currently disabled
-            # sources. Enablement only affects Check Awards scheduling.
-            row = QWidget(cache_group)
-            row_layout = QHBoxLayout(row)
-            row_layout.setContentsMargins(0, 0, 0, 0)
-            name_label = QLabel(display_name, row)
-            refresh_btn = QPushButton(CACHE_REFRESH_BUTTON_LABEL, row)
-            refresh_btn.setObjectName(f'cache_refresh_{source_key}')
-            refresh_btn.clicked.connect(
-                bind_source_refresh_callback(
-                    self._on_refresh_cached_source,
-                    source_key,
-                    display_name,
-                )
-            )
-            self.cache_refresh_buttons[source_key] = refresh_btn
-            row_layout.addWidget(name_label)
-            row_layout.addStretch(1)
-            row_layout.addWidget(refresh_btn)
-            cache_layout.addWidget(row)
-        self.cache_status = QLabel('', cache_group)
+        self.cache_status = QLabel('', sources_group)
         self.cache_status.setWordWrap(True)
         self.cache_status.setTextFormat(Qt.PlainText)
-        cache_layout.addWidget(self.cache_status)
-        layout.addWidget(cache_group)
+        sources_layout.addWidget(self.cache_status)
+        layout.addWidget(sources_group)
 
         rank_and_output = QGroupBox('Qualification and award output', self)
         rank_and_output_layout = QVBoxLayout(rank_and_output)
@@ -411,7 +403,8 @@ class ConfigWidget(QWidget):
 
     def _on_refresh_cached_source(self, source_key: str, display_name: str):
         # Immediate maintenance: does not wait for Apply/OK and is not undone
-        # by Cancel. No network request is made here.
+        # by Canceling Preferences. Checkbox enablement is a separate
+        # preference persisted only from save_settings(). No network here.
         confirmed = question_dialog(
             self,
             source_cache_refresh_confirm_title(display_name),
