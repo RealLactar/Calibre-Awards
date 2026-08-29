@@ -2,6 +2,8 @@
 
 Listing pages cover 1930-2023. Author confirmation is lazy: only title
 candidates fetch a /winner/... page. 1922-1929 and 2024+ are out of scope.
+A validated listing archive may also be loaded from the injected persistent
+cache. Winner-page authors stay RAM-only.
 """
 
 from __future__ import annotations
@@ -16,6 +18,7 @@ from html.parser import HTMLParser
 from http.cookiejar import CookieJar
 from urllib.parse import urljoin, urlparse
 
+from .. import cache
 from ..matching import normalize_title_conjunctions
 from ..model import AwardResult
 
@@ -51,6 +54,13 @@ _ARCHIVE_PAGE_SPECS: tuple[tuple[str, int, int], ...] = (
     (ARCHIVE_URL_1992_2003, 1992, 2003),
     (ARCHIVE_URL_2004_2023, 2004, 2023),
 )
+
+SOURCE_KEY = 'newbery'
+CACHE_VERSION = 1
+# 7-day base plus an explicit stagger. Do not derive from AWARD_SOURCES order.
+CACHE_BASE_TTL_SECONDS = 7 * 24 * 60 * 60
+CACHE_REFRESH_OFFSET_SECONDS = 3 * 60 * 60
+CACHE_TTL_SECONDS = CACHE_BASE_TTL_SECONDS + CACHE_REFRESH_OFFSET_SECONDS
 
 _BROWSER_HEADERS = {
     'User-Agent': (
@@ -107,6 +117,16 @@ class _ListingRecord:
     status: str
     detail_url: str
     source_url: str
+
+
+_PARSED_STATUSES = frozenset({'Winner', 'Honor'})
+_RECORD_CACHE_FIELDS = (
+    'award_year',
+    'detail_url',
+    'source_url',
+    'status',
+    'work_title',
+)
 
 
 def _collapse_ws(text: str) -> str:
@@ -527,7 +547,7 @@ _cache_lock = threading.Lock()
 
 
 def _reset_runtime_state() -> None:
-    """Clear in-process caches. Used by tests."""
+    """Clear in-process listing and detail-author caches. Does not delete disk."""
     global _listing_records_cache
     with _cache_lock:
         _listing_records_cache = None
@@ -635,15 +655,207 @@ def _load_listing_records() -> tuple[_ListingRecord, ...]:
     return usable
 
 
+def _load_live_archive() -> tuple[_ListingRecord, ...]:
+    return _load_listing_records()
+
+
+# ---------------------------------------------------------------------------
+# Persistent listing cache
+# ---------------------------------------------------------------------------
+
+def _record_to_cache_dict(record: _ListingRecord) -> dict:
+    return {
+        'award_year': record.award_year,
+        'detail_url': record.detail_url,
+        'source_url': record.source_url,
+        'status': record.status,
+        'work_title': record.work_title,
+    }
+
+
+def _record_from_cache_dict(data) -> _ListingRecord | None:
+    if not isinstance(data, dict) or set(data) != set(_RECORD_CACHE_FIELDS):
+        return None
+    award_year = data.get('award_year')
+    if (
+        isinstance(award_year, bool)
+        or not isinstance(award_year, int)
+        or not _in_phase_range(award_year)
+    ):
+        return None
+    work_title = data.get('work_title')
+    status = data.get('status')
+    detail_url = data.get('detail_url')
+    source_url = data.get('source_url')
+    if not isinstance(work_title, str) or not work_title.strip() or work_title != work_title.strip():
+        return None
+    if status not in _PARSED_STATUSES:
+        return None
+    if (
+        not isinstance(detail_url, str)
+        or _safe_detail_url(detail_url) != detail_url
+    ):
+        return None
+    if source_url not in _listing_source_url_set():
+        return None
+    return _ListingRecord(
+        work_title=work_title,
+        award_year=award_year,
+        status=status,
+        detail_url=detail_url,
+        source_url=source_url,
+    )
+
+
+def _listing_source_url_set() -> frozenset[str]:
+    return frozenset(url for url, _start, _end in _ARCHIVE_PAGE_SPECS)
+
+
+def _archive_source_urls() -> tuple[str, ...]:
+    return tuple(url for url, _start, _end in _ARCHIVE_PAGE_SPECS)
+
+
+def _coverage_from_records(records: tuple[_ListingRecord, ...]) -> dict:
+    pages = []
+    for url, start_year, end_year in _ARCHIVE_PAGE_SPECS:
+        subset = [record for record in records if record.source_url == url]
+        pages.append(
+            {
+                'end_year': end_year,
+                'record_count': len(subset),
+                'start_year': start_year,
+                'url': url,
+            }
+        )
+    return {
+        'honor_count': sum(1 for record in records if record.status == 'Honor'),
+        'max_year': ARCHIVE_MAX_YEAR,
+        'min_year': ARCHIVE_MIN_YEAR,
+        'pages': pages,
+        'record_count': len(records),
+        'winner_count': sum(1 for record in records if record.status == 'Winner'),
+    }
+
+
+def _validate_cached_archive(records: tuple[_ListingRecord, ...]) -> None:
+    """Fail closed if reconstructed listings are not a usable 1930-2023 archive."""
+    if not records:
+        raise NewberySourceError(
+            'Newbery persistent cache contained no listing records'
+        )
+    by_url: dict[str, list[_ListingRecord]] = {
+        url: [] for url, _start, _end in _ARCHIVE_PAGE_SPECS
+    }
+    for record in records:
+        if record.status not in _PARSED_STATUSES:
+            raise NewberySourceError(
+                'Newbery archive produced an unexpected status: '
+                f'{record.status!r}'
+            )
+        if not _in_phase_range(record.award_year):
+            raise NewberySourceError(
+                f'Newbery archive year {record.award_year} is outside '
+                f'{ARCHIVE_MIN_YEAR}-{ARCHIVE_MAX_YEAR}'
+            )
+        if _safe_detail_url(record.detail_url) != record.detail_url:
+            raise NewberySourceError(
+                'Newbery archive produced an unexpected detail URL: '
+                f'{record.detail_url!r}'
+            )
+        if record.source_url not in by_url:
+            raise NewberySourceError(
+                'Newbery archive produced an unexpected listing URL: '
+                f'{record.source_url!r}'
+            )
+        by_url[record.source_url].append(record)
+    for url, start_year, end_year in _ARCHIVE_PAGE_SPECS:
+        _validate_page_records(by_url[url], url, start_year, end_year)
+    _validate_combined_archive(records)
+
+
+def _records_from_cache_payload(
+    payload: dict,
+) -> tuple[_ListingRecord, ...] | None:
+    expected_urls = list(_archive_source_urls())
+    if payload.get('source_urls') != expected_urls:
+        return None
+    raw_records = payload.get('records')
+    if not isinstance(raw_records, list):
+        return None
+    records: list[_ListingRecord] = []
+    for item in raw_records:
+        record = _record_from_cache_dict(item)
+        if record is None:
+            return None
+        records.append(record)
+    restored = tuple(records)
+    try:
+        _validate_cached_archive(restored)
+    except NewberySourceError:
+        return None
+    return restored
+
+
+def _load_persistent_archive() -> (
+    tuple[tuple[_ListingRecord, ...], dict] | None
+):
+    payload = cache.load_source_cache(SOURCE_KEY, CACHE_VERSION)
+    if payload is None:
+        return None
+    records = _records_from_cache_payload(payload)
+    if records is None:
+        return None
+    return records, payload
+
+
+def _save_persistent_archive(records: tuple[_ListingRecord, ...]) -> None:
+    try:
+        cache.save_source_cache(
+            SOURCE_KEY,
+            CACHE_VERSION,
+            records=[_record_to_cache_dict(record) for record in records],
+            source_urls=_archive_source_urls(),
+            coverage=_coverage_from_records(records),
+            ttl_seconds=CACHE_TTL_SECONDS,
+        )
+    except OSError:
+        pass
+
+
 def _get_listing_records() -> tuple[_ListingRecord, ...]:
-    """Return cached 1930-2023 listing records after a successful load."""
+    """Return listing records: RAM, then disk, then live three-page fetch.
+
+    A fresh disk cache is used immediately. A stale-but-valid disk cache
+    live-refreshes only if this lookup still has a stale-refresh slot;
+    otherwise the stale listing is used with no listing HTTP. A missing or
+    invalid cache still live-fetches. Winner-page authors are never loaded
+    here.
+    """
     global _listing_records_cache
     with _cache_lock:
         if _listing_records_cache is not None:
             return _listing_records_cache
-        records = _load_listing_records()
-        _listing_records_cache = records
-        return records
+        disk = _load_persistent_archive()
+        if disk is not None:
+            records, payload = disk
+            if cache.cache_is_fresh(payload):
+                _listing_records_cache = records
+                return records
+            if not cache.try_claim_stale_refresh():
+                _listing_records_cache = records
+                return records
+        else:
+            records = None
+        try:
+            live = _load_live_archive()
+        except Exception:
+            if records is not None:
+                _listing_records_cache = records
+                return records
+            raise
+        _save_persistent_archive(live)
+        _listing_records_cache = live
+        return live
 
 
 def _get_detail_author(
