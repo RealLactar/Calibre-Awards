@@ -445,8 +445,11 @@ class PulitzerNetworkTests(unittest.TestCase):
             NOVEL_URL: (200, self.novel_html),
         }
         self._lookup_with(mapping)
-        self.assertIsNotNone(pulitzer._category_pages_cache)
-        self.assertEqual(len(pulitzer._category_pages_cache), 2)
+        self.assertIsNotNone(pulitzer._archive_records_cache)
+        self.assertEqual(
+            {record.category for record in pulitzer._archive_records_cache},
+            {'Fiction', 'Novel'},
+        )
 
     def test_fiction_403_raises_and_caches_nothing(self):
         mapping = {
@@ -457,7 +460,7 @@ class PulitzerNetworkTests(unittest.TestCase):
             self._lookup_with(mapping)
         self.assertIn('HTTP 403', str(raised.exception))
         self.assertIn(FICTION_URL, str(raised.exception))
-        self.assertIsNone(pulitzer._category_pages_cache)
+        self.assertIsNone(pulitzer._archive_records_cache)
         self.assertEqual(
             [request.full_url for request in self.requests],
             [FICTION_URL],
@@ -472,7 +475,7 @@ class PulitzerNetworkTests(unittest.TestCase):
             self._lookup_with(mapping)
         self.assertIn('HTTP 403', str(raised.exception))
         self.assertIn(NOVEL_URL, str(raised.exception))
-        self.assertIsNone(pulitzer._category_pages_cache)
+        self.assertIsNone(pulitzer._archive_records_cache)
         self.assertEqual(
             [request.full_url for request in self.requests],
             [FICTION_URL, NOVEL_URL],
@@ -486,7 +489,7 @@ class PulitzerNetworkTests(unittest.TestCase):
         with self.assertRaises(PulitzerSourceError) as raised:
             self._lookup_with(mapping)
         self.assertIn('HTTP 200', str(raised.exception))
-        self.assertIsNone(pulitzer._category_pages_cache)
+        self.assertIsNone(pulitzer._archive_records_cache)
 
     def test_invalid_fiction_page_is_not_cached(self):
         mapping = {
@@ -495,7 +498,7 @@ class PulitzerNetworkTests(unittest.TestCase):
         }
         with self.assertRaises(PulitzerSourceError):
             self._lookup_with(mapping)
-        self.assertIsNone(pulitzer._category_pages_cache)
+        self.assertIsNone(pulitzer._archive_records_cache)
 
     def test_invalid_novel_page_is_not_cached(self):
         mapping = {
@@ -504,13 +507,13 @@ class PulitzerNetworkTests(unittest.TestCase):
         }
         with self.assertRaises(PulitzerSourceError):
             self._lookup_with(mapping)
-        self.assertIsNone(pulitzer._category_pages_cache)
+        self.assertIsNone(pulitzer._archive_records_cache)
 
     def test_failed_lookup_can_succeed_on_later_retry(self):
         mapping = {FICTION_URL: (403, CHALLENGE_HTML)}
         with self.assertRaises(PulitzerSourceError):
             self._lookup_with(mapping)
-        self.assertIsNone(pulitzer._category_pages_cache)
+        self.assertIsNone(pulitzer._archive_records_cache)
         self.requests.clear()
         mapping = {
             FICTION_URL: (200, self.fiction_html),
@@ -519,7 +522,7 @@ class PulitzerNetworkTests(unittest.TestCase):
         results = self._lookup_with(mapping)
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0].work_title, 'Beloved')
-        self.assertIsNotNone(pulitzer._category_pages_cache)
+        self.assertIsNotNone(pulitzer._archive_records_cache)
 
     def test_cached_pages_prevent_subsequent_network_requests(self):
         mapping = {

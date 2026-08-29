@@ -2,7 +2,8 @@
 
 HTTP 200 is not proof of a usable page: Pulitzer.org can return a browser
 challenge with a success status. This source does not attempt to bypass that
-block. Only structurally validated category pages are cached.
+block. Only a fully validated parsed Fiction/Novel archive is cached, never
+raw HTML, challenge pages, or HTTP error bodies.
 """
 
 from __future__ import annotations
@@ -17,6 +18,7 @@ from html.parser import HTMLParser
 from http.cookiejar import CookieJar
 from urllib.parse import urljoin, urlparse
 
+from .. import cache
 from ..matching import normalize_title_conjunctions
 from ..model import AwardResult
 
@@ -30,6 +32,13 @@ _CATEGORY_URLS = (
     ('Fiction', FICTION_URL),
     ('Novel', NOVEL_URL),
 )
+
+SOURCE_KEY = 'pulitzer'
+CACHE_VERSION = 1
+# 7-day base plus an explicit stagger. Do not derive from AWARD_SOURCES order.
+CACHE_BASE_TTL_SECONDS = 7 * 24 * 60 * 60
+CACHE_REFRESH_OFFSET_SECONDS = 5 * 60 * 60
+CACHE_TTL_SECONDS = CACHE_BASE_TTL_SECONDS + CACHE_REFRESH_OFFSET_SECONDS
 
 _BROWSER_HEADERS = {
     'User-Agent': (
@@ -71,6 +80,18 @@ class _ParsedRecord:
     work_title: str
     work_author: str
     source_url: str
+
+
+_PARSED_CATEGORIES = frozenset({'Fiction', 'Novel'})
+_PARSED_STATUSES = frozenset({'Winner', 'Finalist'})
+_RECORD_CACHE_FIELDS = (
+    'award_year',
+    'category',
+    'source_url',
+    'status',
+    'work_author',
+    'work_title',
+)
 
 
 # ---------------------------------------------------------------------------
@@ -134,14 +155,15 @@ def _fetch_html(opener: urllib.request.OpenerDirector, url: str) -> str:
     return html
 
 
-_category_pages_cache: tuple[tuple[str, str, str], ...] | None = None
+_archive_records_cache: tuple[_ParsedRecord, ...] | None = None
 _cache_lock = threading.Lock()
 
 
 def _reset_runtime_state() -> None:
-    global _category_pages_cache
+    """Clear in-process caches. Used by tests. Does not delete disk cache."""
+    global _archive_records_cache
     with _cache_lock:
-        _category_pages_cache = None
+        _archive_records_cache = None
 
 
 def _validate_category_records(
@@ -181,34 +203,54 @@ def _validate_category_records(
         )
 
 
-def _fetch_category_pages(
-    opener: urllib.request.OpenerDirector,
-) -> tuple[tuple[str, str, str], ...]:
-    """Fetch and structurally validate Fiction then Novel pages."""
-    pages: list[tuple[str, str, str]] = []
+def _load_live_archive() -> tuple[_ParsedRecord, ...]:
+    """Fetch Fiction then Novel HTML, parse, and validate. HTML is not kept."""
+    opener = _build_opener()
+    combined: list[_ParsedRecord] = []
     for category, url in _CATEGORY_URLS:
         html = _fetch_html(opener, url)
         records = _parse_category_html(html, category, url)
         _validate_category_records(category, url, records)
-        pages.append((category, url, html))
-    return tuple(pages)
+        combined.extend(records)
+    archive = tuple(combined)
+    _validate_cached_archive(archive)
+    return archive
 
 
-def _get_category_pages() -> tuple[tuple[str, str, str], ...]:
-    """Return cached category pages, fetching once per process on success.
+def _get_archive_records() -> tuple[_ParsedRecord, ...]:
+    """Return records: RAM, then disk, then live fetch/parse/validate.
 
-    A blocked or invalid retrieval is not stored. A temporary upstream block
-    should cost a later request, not poison every lookup for the rest of the
-    Calibre session.
+    A fresh disk cache is used immediately. A stale-but-valid disk cache
+    live-refreshes only if this lookup still has a stale-refresh slot;
+    otherwise the stale archive is used with no network. A missing or
+    invalid cache still live-fetches. Challenge/403 responses are never
+    stored; a failed optional refresh leaves a good snapshot in place.
     """
-    global _category_pages_cache
+    global _archive_records_cache
     with _cache_lock:
-        if _category_pages_cache is not None:
-            return _category_pages_cache
-        opener = _build_opener()
-        pages = _fetch_category_pages(opener)
-        _category_pages_cache = pages
-        return pages
+        if _archive_records_cache is not None:
+            return _archive_records_cache
+        disk = _load_persistent_archive()
+        if disk is not None:
+            records, payload = disk
+            if cache.cache_is_fresh(payload):
+                _archive_records_cache = records
+                return records
+            if not cache.try_claim_stale_refresh():
+                _archive_records_cache = records
+                return records
+        else:
+            records = None
+        try:
+            live = _load_live_archive()
+        except Exception:
+            if records is not None:
+                _archive_records_cache = records
+                return records
+            raise
+        _save_persistent_archive(live)
+        _archive_records_cache = live
+        return live
 
 
 # ---------------------------------------------------------------------------
@@ -415,6 +457,212 @@ def _parse_category_html(
 
 
 # ---------------------------------------------------------------------------
+# Persistent parsed-archive cache
+# ---------------------------------------------------------------------------
+
+def _record_to_cache_dict(record: _ParsedRecord) -> dict:
+    return {
+        'award_year': record.award_year,
+        'category': record.category,
+        'source_url': record.source_url,
+        'status': record.status,
+        'work_author': record.work_author,
+        'work_title': record.work_title,
+    }
+
+
+def _record_from_cache_dict(data) -> _ParsedRecord | None:
+    if not isinstance(data, dict) or set(data) != set(_RECORD_CACHE_FIELDS):
+        return None
+    award_year = data.get('award_year')
+    if isinstance(award_year, bool) or not isinstance(award_year, int) or award_year <= 0:
+        return None
+    category = data.get('category')
+    status = data.get('status')
+    work_title = data.get('work_title')
+    work_author = data.get('work_author')
+    source_url = data.get('source_url')
+    if category not in _PARSED_CATEGORIES:
+        return None
+    if status not in _PARSED_STATUSES:
+        return None
+    if not isinstance(work_title, str) or not work_title.strip() or work_title != work_title.strip():
+        return None
+    if not isinstance(work_author, str) or not work_author.strip() or work_author != work_author.strip():
+        return None
+    if (
+        not isinstance(source_url, str)
+        or not source_url.strip()
+        or source_url != source_url.strip()
+    ):
+        return None
+    return _ParsedRecord(
+        award_year=award_year,
+        category=category,
+        status=status,
+        work_title=work_title,
+        work_author=work_author,
+        source_url=source_url,
+    )
+
+
+def _archive_source_urls() -> tuple[str, ...]:
+    return tuple(url for _category, url in _CATEGORY_URLS)
+
+
+def _category_url(category: str) -> str:
+    for name, url in _CATEGORY_URLS:
+        if name == category:
+            return url
+    raise PulitzerSourceError(
+        f'Pulitzer retrieval received an unexpected category {category!r}'
+    )
+
+
+def _source_url_is_usable(record: _ParsedRecord) -> bool:
+    fallback = _category_url(record.category)
+    if record.source_url == fallback:
+        return True
+    reconstructed = _safe_detail_url(
+        record.source_url,
+        status=record.status,
+        fallback=fallback,
+    )
+    return reconstructed == record.source_url
+
+
+def _coverage_from_records(records: tuple[_ParsedRecord, ...]) -> dict:
+    categories = []
+    for category, _url in _CATEGORY_URLS:
+        subset = [record for record in records if record.category == category]
+        years = [record.award_year for record in subset]
+        categories.append(
+            {
+                'category': category,
+                'finalist_count': sum(
+                    1 for record in subset if record.status == 'Finalist'
+                ),
+                'max_year': max(years) if years else None,
+                'min_year': min(years) if years else None,
+                'record_count': len(subset),
+                'winner_count': sum(
+                    1 for record in subset if record.status == 'Winner'
+                ),
+            }
+        )
+    years = [record.award_year for record in records]
+    return {
+        'categories': categories,
+        'finalist_count': sum(
+            1 for record in records if record.status == 'Finalist'
+        ),
+        'max_year': max(years) if years else None,
+        'min_year': min(years) if years else None,
+        'record_count': len(records),
+        'winner_count': sum(
+            1 for record in records if record.status == 'Winner'
+        ),
+    }
+
+
+def _validate_cached_archive(records: tuple[_ParsedRecord, ...]) -> None:
+    """Fail closed if reconstructed records are not a usable Fiction/Novel archive.
+
+    Live-only checks that cannot be replayed from parsed records: HTTP status,
+    Cloudflare/challenge markup, and raw category-page HTML structure.
+    """
+    if not records:
+        raise PulitzerSourceError(
+            'Pulitzer persistent cache contained no prize records'
+        )
+    by_category: dict[str, list[_ParsedRecord]] = {
+        category: [] for category, _url in _CATEGORY_URLS
+    }
+    for record in records:
+        if record.category not in _PARSED_CATEGORIES:
+            raise PulitzerSourceError(
+                f'Pulitzer archive produced an unsupported category: '
+                f'{record.category!r}'
+            )
+        if record.status not in _PARSED_STATUSES:
+            raise PulitzerSourceError(
+                'Pulitzer archive produced an unexpected status: '
+                f'{record.status!r}'
+            )
+        if not _source_url_is_usable(record):
+            raise PulitzerSourceError(
+                'Pulitzer archive produced an unexpected source URL: '
+                f'{record.source_url!r}'
+            )
+        by_category[record.category].append(record)
+    for category, url in _CATEGORY_URLS:
+        subset = by_category[category]
+        keys = [
+            (
+                item.award_year,
+                item.status,
+                item.work_title.casefold(),
+                item.work_author.casefold(),
+            )
+            for item in subset
+        ]
+        if len(keys) != len(set(keys)):
+            raise PulitzerSourceError(
+                f'Pulitzer {category} archive contained duplicate prize records'
+            )
+        _validate_category_records(category, url, subset)
+
+
+def _records_from_cache_payload(
+    payload: dict,
+) -> tuple[_ParsedRecord, ...] | None:
+    expected_urls = list(_archive_source_urls())
+    if payload.get('source_urls') != expected_urls:
+        return None
+    raw_records = payload.get('records')
+    if not isinstance(raw_records, list):
+        return None
+    records: list[_ParsedRecord] = []
+    for item in raw_records:
+        record = _record_from_cache_dict(item)
+        if record is None:
+            return None
+        records.append(record)
+    restored = tuple(records)
+    try:
+        _validate_cached_archive(restored)
+    except PulitzerSourceError:
+        return None
+    return restored
+
+
+def _load_persistent_archive() -> (
+    tuple[tuple[_ParsedRecord, ...], dict] | None
+):
+    payload = cache.load_source_cache(SOURCE_KEY, CACHE_VERSION)
+    if payload is None:
+        return None
+    records = _records_from_cache_payload(payload)
+    if records is None:
+        return None
+    return records, payload
+
+
+def _save_persistent_archive(records: tuple[_ParsedRecord, ...]) -> None:
+    try:
+        cache.save_source_cache(
+            SOURCE_KEY,
+            CACHE_VERSION,
+            records=[_record_to_cache_dict(record) for record in records],
+            source_urls=_archive_source_urls(),
+            coverage=_coverage_from_records(records),
+            ttl_seconds=CACHE_TTL_SECONDS,
+        )
+    except OSError:
+        pass
+
+
+# ---------------------------------------------------------------------------
 # Normalization / matching
 # ---------------------------------------------------------------------------
 
@@ -494,11 +742,8 @@ def lookup(title: str, author: str, series: str | None = None) -> list[AwardResu
     if not cleaned_author:
         raise ValueError('author must be a non-empty string')
 
-    pages = _get_category_pages()
-
     matches: list[AwardResult] = []
-    for category, url, html in pages:
-        for record in _parse_category_html(html, category, url):
-            if _record_matches(record, cleaned_title, cleaned_author):
-                matches.append(_to_award_result(record))
+    for record in _get_archive_records():
+        if _record_matches(record, cleaned_title, cleaned_author):
+            matches.append(_to_award_result(record))
     return matches
