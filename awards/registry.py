@@ -42,10 +42,23 @@ BOOKER_POLICY = AwardPolicy(
     ),
 )
 
+GERMAN_BOOK_PRIZE_POLICY = AwardPolicy(
+    award_name='Deutscher Buchpreis',
+    category='Fiction',
+    qualifying_statuses=frozenset({'Shortlisted'}),
+    notes=(
+        'The Deutscher Buchpreis Shortlist is an official finalist distinction. '
+        'Shortlisted authors are formally recognized by the prize. '
+        'Shortlisted qualifies under this award-specific policy. '
+        'Shortlisted does not imply ordinal placement.'
+    ),
+)
+
 AWARD_POLICIES: tuple[AwardPolicy, ...] = (
     PULITZER_FICTION_POLICY,
     NEWBERY_POLICY,
     BOOKER_POLICY,
+    GERMAN_BOOK_PRIZE_POLICY,
 )
 
 

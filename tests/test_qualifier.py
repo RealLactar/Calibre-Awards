@@ -10,7 +10,12 @@ import unittest
 
 from awards.model import AwardResult
 from awards.qualifier import QualificationDecision, qualify_award_result
-from awards.registry import BOOKER_POLICY, NEWBERY_POLICY, PULITZER_FICTION_POLICY
+from awards.registry import (
+    BOOKER_POLICY,
+    GERMAN_BOOK_PRIZE_POLICY,
+    NEWBERY_POLICY,
+    PULITZER_FICTION_POLICY,
+)
 
 
 def _result(**overrides) -> AwardResult:
@@ -387,6 +392,88 @@ class QualifyBookerShortlistedPolicyTests(unittest.TestCase):
     def test_booker_policy_does_not_include_longlisted(self):
         self.assertNotIn('longlisted', BOOKER_POLICY.qualifying_statuses)
         self.assertEqual(BOOKER_POLICY.qualifying_statuses, frozenset({'shortlisted'}))
+
+
+class QualifyGermanBookPrizeShortlistedPolicyTests(unittest.TestCase):
+    def _german(self, **overrides) -> AwardResult:
+        values = {
+            'work_title': 'Die Vermessung der Welt',
+            'work_author': 'Daniel Kehlmann',
+            'award_name': 'Deutscher Buchpreis',
+            'award_year': 2005,
+            'category': 'Fiction',
+            'status': 'Shortlisted',
+            'rank': None,
+            'source_name': 'Deutscher Buchpreis',
+            'source_url': 'https://www.deutscher-buchpreis.de/archiv/jahr/2005/',
+        }
+        values.update(overrides)
+        return AwardResult(**values)
+
+    def test_german_winner_qualifies_without_inventing_rank(self):
+        result = self._german(
+            work_title='Es geht uns gut',
+            work_author='Arno Geiger',
+            status='Winner',
+            rank=None,
+        )
+        assessment = qualify_award_result(result, GERMAN_BOOK_PRIZE_POLICY)
+        self.assertEqual(assessment.decision, QualificationDecision.QUALIFIES)
+        self.assertEqual(
+            assessment.reason,
+            'Status indicates a win without an established ordinal rank.',
+        )
+        self.assertIsNone(result.rank)
+
+    def test_german_shortlisted_qualifies_via_policy_without_inventing_rank(self):
+        result = self._german()
+        assessment = qualify_award_result(result, GERMAN_BOOK_PRIZE_POLICY)
+        self.assertEqual(assessment.decision, QualificationDecision.QUALIFIES)
+        self.assertEqual(
+            assessment.reason,
+            'Award-specific policy identifies this status as satisfying '
+            'the inclusion rule.',
+        )
+        self.assertIsNone(result.rank)
+
+    def test_unrelated_award_shortlisted_remains_review(self):
+        hugo_shortlisted = _hugo_result(status='Shortlisted', rank=None)
+        assessment = qualify_award_result(hugo_shortlisted, policy=None)
+        self.assertEqual(assessment.decision, QualificationDecision.REVIEW)
+
+    def test_booker_and_german_policies_do_not_cross_match(self):
+        german = self._german()
+        booker = AwardResult(
+            work_title='Empire of the Sun',
+            work_author='J. G. Ballard',
+            award_name='Booker Prize',
+            award_year=1984,
+            category='Fiction',
+            status='Shortlisted',
+            rank=None,
+            source_name='The Booker Prize',
+            source_url=(
+                'https://thebookerprizes.com/the-booker-library/books/'
+                'empire-of-the-sun'
+            ),
+        )
+        with self.assertRaises(ValueError) as caught_booker:
+            qualify_award_result(german, BOOKER_POLICY)
+        self.assertIn('does not apply', str(caught_booker.exception))
+        with self.assertRaises(ValueError) as caught_german:
+            qualify_award_result(booker, GERMAN_BOOK_PRIZE_POLICY)
+        self.assertIn('does not apply', str(caught_german.exception))
+        wrong_category = self._german(category='Poetry')
+        with self.assertRaises(ValueError) as caught_category:
+            qualify_award_result(wrong_category, GERMAN_BOOK_PRIZE_POLICY)
+        self.assertIn('does not apply', str(caught_category.exception))
+
+    def test_german_policy_does_not_include_longlisted(self):
+        self.assertNotIn('longlisted', GERMAN_BOOK_PRIZE_POLICY.qualifying_statuses)
+        self.assertEqual(
+            GERMAN_BOOK_PRIZE_POLICY.qualifying_statuses,
+            frozenset({'shortlisted'}),
+        )
 
 
 if __name__ == '__main__':

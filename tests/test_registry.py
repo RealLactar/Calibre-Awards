@@ -1,7 +1,7 @@
 """Offline coverage for the award-policy registry.
 
-Pulitzer Fiction, Newbery Honor, and Booker Shortlisted are the registered
-policies.
+Pulitzer Fiction, Newbery Honor, Booker Shortlisted, and Deutscher
+Buchpreis Shortlisted are the registered policies.
 """
 
 from __future__ import annotations
@@ -12,6 +12,7 @@ from awards.model import AwardResult
 from awards.registry import (
     AWARD_POLICIES,
     BOOKER_POLICY,
+    GERMAN_BOOK_PRIZE_POLICY,
     NEWBERY_POLICY,
     PULITZER_FICTION_POLICY,
     find_award_policy,
@@ -50,6 +51,22 @@ def _newbery_result(**overrides) -> AwardResult:
     return AwardResult(**values)
 
 
+def _german_result(**overrides) -> AwardResult:
+    values = {
+        'work_title': 'Es geht uns gut',
+        'work_author': 'Arno Geiger',
+        'award_name': 'Deutscher Buchpreis',
+        'award_year': 2005,
+        'category': 'Fiction',
+        'status': 'Winner',
+        'rank': None,
+        'source_name': 'Deutscher Buchpreis',
+        'source_url': 'https://www.deutscher-buchpreis.de/archiv/jahr/2005/',
+    }
+    values.update(overrides)
+    return AwardResult(**values)
+
+
 def _booker_result(**overrides) -> AwardResult:
     values = {
         'work_title': 'Midnight’s Children',
@@ -67,10 +84,15 @@ def _booker_result(**overrides) -> AwardResult:
 
 
 class AwardPolicyRegistryTests(unittest.TestCase):
-    def test_registered_policies_are_pulitzer_newbery_then_booker(self):
+    def test_registered_policies_are_pulitzer_newbery_booker_then_german(self):
         self.assertEqual(
             AWARD_POLICIES,
-            (PULITZER_FICTION_POLICY, NEWBERY_POLICY, BOOKER_POLICY),
+            (
+                PULITZER_FICTION_POLICY,
+                NEWBERY_POLICY,
+                BOOKER_POLICY,
+                GERMAN_BOOK_PRIZE_POLICY,
+            ),
         )
 
     def test_pulitzer_fiction_result_finds_the_active_policy(self):
@@ -125,6 +147,37 @@ class AwardPolicyRegistryTests(unittest.TestCase):
         )
         self.assertIsNone(find_award_policy(_booker_result(category='Poetry')))
         self.assertIsNone(find_award_policy(_booker_result(category=None)))
+
+    def test_german_book_prize_result_finds_the_shortlisted_policy(self):
+        winner = _german_result()
+        shortlisted = _german_result(
+            work_title='Die Vermessung der Welt',
+            work_author='Daniel Kehlmann',
+            status='Shortlisted',
+        )
+        self.assertIs(find_award_policy(winner), GERMAN_BOOK_PRIZE_POLICY)
+        self.assertIs(find_award_policy(shortlisted), GERMAN_BOOK_PRIZE_POLICY)
+
+    def test_german_and_booker_policies_do_not_cross_match(self):
+        self.assertIs(find_award_policy(_booker_result()), BOOKER_POLICY)
+        self.assertIs(find_award_policy(_german_result()), GERMAN_BOOK_PRIZE_POLICY)
+        self.assertIsNot(
+            find_award_policy(_german_result()),
+            BOOKER_POLICY,
+        )
+        self.assertIsNot(
+            find_award_policy(_booker_result()),
+            GERMAN_BOOK_PRIZE_POLICY,
+        )
+        self.assertIsNone(find_award_policy(_german_result(category='Poetry')))
+        self.assertIsNone(find_award_policy(_german_result(category=None)))
+
+    def test_german_book_prize_policy_does_not_include_longlisted(self):
+        self.assertNotIn('longlisted', GERMAN_BOOK_PRIZE_POLICY.qualifying_statuses)
+        self.assertEqual(
+            GERMAN_BOOK_PRIZE_POLICY.qualifying_statuses,
+            frozenset({'shortlisted'}),
+        )
 
     def test_longlisted_booker_name_without_fiction_category_has_no_policy(self):
         result = _result(
