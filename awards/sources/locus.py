@@ -3,7 +3,8 @@
 The SFADB author page is discovery only. The annual Locus_Awards_YYYY page
 establishes the authoritative rank from explicit ``li value`` attributes;
 visual list order is not placement. Discovery and annual results are
-cross-checked. Qualification is not applied here.
+cross-checked. Qualification is not applied here. A validated annual page
+may also be loaded from the injected persistent cache.
 """
 
 from __future__ import annotations
@@ -18,6 +19,7 @@ from html.parser import HTMLParser
 from http.cookiejar import CookieJar
 from urllib.parse import quote, urljoin, urlparse
 
+from .. import cache
 from ..matching import normalize_title_conjunctions
 from ..model import AwardResult
 
@@ -25,6 +27,14 @@ TIMEOUT_SECONDS = 30
 SFADB_ORIGIN = 'https://www.sfadb.com/'
 SOURCE_NAME = 'Science Fiction Awards Database'
 OFFICIAL_HOSTS = frozenset({'sfadb.com', 'www.sfadb.com'})
+CANONICAL_SFADB_HOST = 'www.sfadb.com'
+
+SOURCE_KEY = 'locus'
+ANNUAL_ENTRY_KIND = 'annuals'
+ANNUAL_CACHE_VERSION = 1
+# Temporary uniform annual TTL for Phase L2. Historical vs current-year
+# policy and refresh-budget interaction belong to Phase L4.
+ANNUAL_CACHE_TTL_SECONDS = 7 * 24 * 60 * 60
 
 _BROWSER_HEADERS = {
     'User-Agent': (
@@ -42,6 +52,9 @@ _BROWSER_HEADERS = {
 _INITIALS_SPACE_RE = re.compile(r'\b([A-Za-z])\.\s+')
 _INITIAL_TOKEN_RE = re.compile(r'^[a-z]\.?$')
 _YEAR_HREF_RE = re.compile(r'Locus_Awards_(\d{4})/?$', re.IGNORECASE)
+_CANONICAL_ANNUAL_PATH_RE = re.compile(
+    r'^/Locus_Awards_(\d{4})$', re.IGNORECASE
+)
 _PLACE_RE = re.compile(
     r'(\d+)(?:st|nd|rd|th)\s+place(?:\s*\(\s*tie\s*\))?',
     re.IGNORECASE,
@@ -143,13 +156,26 @@ class _AnnualRecord:
     source_url: str
 
 
+_ANNUAL_RECORD_CACHE_FIELDS = (
+    'award_year',
+    'category',
+    'linked_authors',
+    'rank',
+    'source_url',
+    'tied',
+    'winner',
+    'work_author',
+    'work_title',
+)
+
+
 _cache_lock = threading.Lock()
 _author_page_cache: dict[str, _AuthorPage] = {}
 _annual_page_cache: dict[str, tuple[_AnnualRecord, ...]] = {}
 
 
 def _reset_runtime_state() -> None:
-    """Clear in-process caches. Used by tests."""
+    """Clear in-process caches. Used by tests. Does not delete disk cache."""
     with _cache_lock:
         _author_page_cache.clear()
         _annual_page_cache.clear()
@@ -232,6 +258,28 @@ def _year_from_locus_href(href: str) -> int | None:
     if match is None:
         return None
     return int(match.group(1))
+
+
+def _canonical_annual_url(url: str) -> str | None:
+    """Return https://www.sfadb.com/Locus_Awards_YYYY, or None if unusable."""
+    if not isinstance(url, str) or not url.strip():
+        return None
+    parsed = urlparse(url.strip())
+    if parsed.scheme not in {'http', 'https'}:
+        return None
+    host = (parsed.hostname or '').casefold().rstrip('.')
+    if host not in OFFICIAL_HOSTS:
+        return None
+    path = parsed.path.rstrip('/')
+    if not path.startswith('/'):
+        path = '/' + path
+    match = _CANONICAL_ANNUAL_PATH_RE.fullmatch(path)
+    if match is None:
+        return None
+    year = int(match.group(1))
+    if year <= 0:
+        return None
+    return f'https://{CANONICAL_SFADB_HOST}/Locus_Awards_{year}'
 
 
 # ---------------------------------------------------------------------------
@@ -1063,28 +1111,253 @@ def _parse_annual_page(
     return tuple(unique)
 
 
+# ---------------------------------------------------------------------------
+# Persistent annual-page cache (Phase L2)
+# ---------------------------------------------------------------------------
+
+def _award_year_from_canonical_annual_url(url: str) -> int | None:
+    canonical = _canonical_annual_url(url)
+    if canonical is None:
+        return None
+    return int(canonical.rsplit('_', 1)[-1])
+
+
+def _is_positive_int(value) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool) and value > 0
+
+
+def _stripped_nonempty_str(value) -> str | None:
+    if not isinstance(value, str) or not value.strip() or value != value.strip():
+        return None
+    return value
+
+
+def _annual_record_to_cache_dict(record: _AnnualRecord) -> dict:
+    return {
+        'award_year': record.award_year,
+        'category': record.category,
+        'linked_authors': list(record.linked_authors),
+        'rank': record.rank,
+        'source_url': record.source_url,
+        'tied': record.tied,
+        'winner': record.winner,
+        'work_author': record.work_author,
+        'work_title': record.work_title,
+    }
+
+
+def _linked_authors_from_cache(value) -> tuple[str, ...] | None:
+    if isinstance(value, (str, bytes, bytearray)):
+        return None
+    if not isinstance(value, (list, tuple)) or not value:
+        return None
+    names: list[str] = []
+    for item in value:
+        name = _stripped_nonempty_str(item)
+        if name is None:
+            return None
+        names.append(name)
+    return tuple(names)
+
+
+def _annual_record_from_cache_dict(data) -> _AnnualRecord | None:
+    if not isinstance(data, dict) or set(data) != set(_ANNUAL_RECORD_CACHE_FIELDS):
+        return None
+    award_year = data.get('award_year')
+    if not _is_positive_int(award_year):
+        return None
+    category = data.get('category')
+    if category not in _SUPPORTED_CATEGORY_LABELS:
+        return None
+    work_title = _stripped_nonempty_str(data.get('work_title'))
+    work_author = _stripped_nonempty_str(data.get('work_author'))
+    if work_title is None or work_author is None:
+        return None
+    linked_authors = _linked_authors_from_cache(data.get('linked_authors'))
+    if linked_authors is None:
+        return None
+    if work_author != ' & '.join(linked_authors):
+        return None
+    rank = data.get('rank')
+    if not _is_positive_int(rank):
+        return None
+    winner = data.get('winner')
+    tied = data.get('tied')
+    if not isinstance(winner, bool) or not isinstance(tied, bool):
+        return None
+    if winner and rank != 1:
+        return None
+    if rank == 1 and not winner:
+        return None
+    source_url = _stripped_nonempty_str(data.get('source_url'))
+    if source_url is None:
+        return None
+    canonical_source = _canonical_annual_url(source_url)
+    if canonical_source is None or canonical_source != source_url:
+        return None
+    return _AnnualRecord(
+        award_year=award_year,
+        category=category,
+        work_title=work_title,
+        work_author=work_author,
+        linked_authors=linked_authors,
+        rank=rank,
+        winner=winner,
+        tied=tied,
+        source_url=source_url,
+    )
+
+
+def _annual_coverage(
+    records: tuple[_AnnualRecord, ...],
+    award_year: int,
+) -> dict:
+    ranks = [record.rank for record in records]
+    return {
+        'award_year': award_year,
+        'categories': sorted({record.category for record in records}),
+        'max_rank': max(ranks) if ranks else None,
+        'min_rank': min(ranks) if ranks else None,
+        'record_count': len(records),
+        'tied_record_count': sum(1 for record in records if record.tied),
+        'winner_count': sum(1 for record in records if record.winner),
+    }
+
+
+def _validate_cached_annual_records(
+    records: tuple[_AnnualRecord, ...],
+    canonical_url: str,
+) -> bool:
+    expected_year = _award_year_from_canonical_annual_url(canonical_url)
+    if expected_year is None:
+        return False
+    seen: set[tuple[int, str, str, str, int]] = set()
+    for record in records:
+        if record.award_year != expected_year:
+            return False
+        if record.source_url != canonical_url:
+            return False
+        key = (
+            record.award_year,
+            record.category,
+            record.work_title.casefold(),
+            record.work_author.casefold(),
+            record.rank,
+        )
+        if key in seen:
+            return False
+        seen.add(key)
+    return True
+
+
+def _records_from_annual_cache_payload(
+    payload: dict,
+    canonical_url: str,
+) -> tuple[_AnnualRecord, ...] | None:
+    if payload.get('source_urls') != [canonical_url]:
+        return None
+    raw_records = payload.get('records')
+    if not isinstance(raw_records, list):
+        return None
+    records: list[_AnnualRecord] = []
+    for item in raw_records:
+        record = _annual_record_from_cache_dict(item)
+        if record is None:
+            return None
+        records.append(record)
+    restored = tuple(records)
+    if not _validate_cached_annual_records(restored, canonical_url):
+        return None
+    return restored
+
+
+def _load_persistent_annual(
+    canonical_url: str,
+) -> tuple[_AnnualRecord, ...] | None:
+    payload = cache.load_cache_entry(
+        SOURCE_KEY,
+        ANNUAL_ENTRY_KIND,
+        canonical_url,
+        ANNUAL_CACHE_VERSION,
+    )
+    if payload is None:
+        return None
+    return _records_from_annual_cache_payload(payload, canonical_url)
+
+
+def _save_persistent_annual(
+    canonical_url: str,
+    records: tuple[_AnnualRecord, ...],
+) -> None:
+    award_year = _award_year_from_canonical_annual_url(canonical_url)
+    if award_year is None:
+        return
+    try:
+        cache.save_cache_entry(
+            SOURCE_KEY,
+            ANNUAL_ENTRY_KIND,
+            canonical_url,
+            ANNUAL_CACHE_VERSION,
+            records=[
+                _annual_record_to_cache_dict(record) for record in records
+            ],
+            source_urls=[canonical_url],
+            coverage=_annual_coverage(records, award_year),
+            ttl_seconds=ANNUAL_CACHE_TTL_SECONDS,
+        )
+    except OSError:
+        pass
+
+
+def _load_live_annual(
+    opener: urllib.request.OpenerDirector,
+    canonical_url: str,
+) -> tuple[_AnnualRecord, ...]:
+    award_year = _award_year_from_canonical_annual_url(canonical_url)
+    if award_year is None:
+        raise LocusSourceError(
+            f'SFADB Locus annual URL is not a usable year page: {canonical_url}'
+        )
+    status, body = _request_html(opener, canonical_url)
+    if status != 200 or not body.strip():
+        raise LocusSourceError(
+            'Locus annual page request failed with HTTP '
+            f'{status} for {canonical_url}'
+        )
+    return _parse_annual_page(body, award_year, canonical_url)
+
+
 def _get_annual_records(
     opener: urllib.request.OpenerDirector,
     annual_url: str,
 ) -> tuple[_AnnualRecord, ...]:
-    """Return parsed annual records, caching only after a successful parse."""
-    year = _year_from_locus_href(annual_url)
-    if year is None or not _is_sfadb_url(annual_url):
+    """Return parsed annual records: RAM, then disk, then live parse.
+
+    Disk is used only after the existing annual parse/validation succeeds
+    on a previous live load. Fresh and stale-valid annual disk are both
+    used immediately in Phase L2, with zero annual HTTP and without
+    claiming the shared stale-refresh budget. That stale behavior is
+    temporary until Phase L4. A missing or invalid disk entry still
+    performs the required live annual fetch.
+    """
+    canonical_url = _canonical_annual_url(annual_url)
+    if canonical_url is None:
         raise LocusSourceError(
             f'SFADB Locus annual URL is not a usable year page: {annual_url}'
         )
     with _cache_lock:
-        cached = _annual_page_cache.get(annual_url)
+        cached = _annual_page_cache.get(canonical_url)
     if cached is not None:
         return cached
-    status, body = _request_html(opener, annual_url)
-    if status != 200 or not body.strip():
-        raise LocusSourceError(
-            f'Locus annual page request failed with HTTP {status} for {annual_url}'
-        )
-    records = _parse_annual_page(body, year, annual_url)
+    disk = _load_persistent_annual(canonical_url)
+    if disk is not None:
+        with _cache_lock:
+            _annual_page_cache[canonical_url] = disk
+        return disk
+    records = _load_live_annual(opener, canonical_url)
     with _cache_lock:
-        _annual_page_cache[annual_url] = records
+        _annual_page_cache[canonical_url] = records
+    _save_persistent_annual(canonical_url, records)
     return records
 
 
