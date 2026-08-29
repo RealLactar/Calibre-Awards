@@ -2,7 +2,8 @@
 
 Literature prizes are author-level by default. Only a finite set of works
 that official Nobel material names explicitly is promoted to work identity.
-Motivation prose is not parsed into titles.
+Motivation prose is not parsed into titles. A validated laureate archive may
+also be loaded from the injected persistent cache.
 """
 
 from __future__ import annotations
@@ -17,6 +18,7 @@ from dataclasses import dataclass
 from http.cookiejar import CookieJar
 from urllib.parse import urlparse
 
+from .. import cache
 from ..model import AwardResult
 
 TIMEOUT_SECONDS = 30
@@ -29,6 +31,13 @@ SOURCE_HOME_URL = 'https://www.nobelprize.org/'
 AWARD_NAME = 'Nobel Prize'
 CATEGORY_LITERATURE = 'Literature'
 LAUREATE_FALLBACK_URL = 'https://www.nobelprize.org/laureate/{id}'
+
+SOURCE_KEY = 'nobel'
+CACHE_VERSION = 1
+# 7-day base plus an explicit stagger. Do not derive from AWARD_SOURCES order.
+CACHE_BASE_TTL_SECONDS = 7 * 24 * 60 * 60
+CACHE_REFRESH_OFFSET_SECONDS = 4 * 60 * 60
+CACHE_TTL_SECONDS = CACHE_BASE_TTL_SECONDS + CACHE_REFRESH_OFFSET_SECONDS
 
 _BROWSER_HEADERS = {
     'User-Agent': (
@@ -133,12 +142,26 @@ class _Laureate:
     prize: _LiteraturePrize
 
 
+_LAUREATE_CACHE_FIELDS = (
+    'known_name',
+    'laureate_id',
+    'match_names',
+    'prize',
+)
+_PRIZE_CACHE_FIELDS = (
+    'award_year',
+    'notes',
+    'prize_status',
+    'source_url',
+)
+
+
 _cache_lock = threading.Lock()
 _laureates_cache: tuple[_Laureate, ...] | None = None
 
 
 def _reset_runtime_state() -> None:
-    """Clear in-process caches. Used by tests."""
+    """Clear in-process caches. Used by tests. Does not delete disk cache."""
     global _laureates_cache
     with _cache_lock:
         _laureates_cache = None
@@ -477,16 +500,266 @@ def _parse_laureates_payload(status: int, body: str) -> tuple[_Laureate, ...]:
     return parsed
 
 
+# ---------------------------------------------------------------------------
+# Persistent laureate archive cache
+# ---------------------------------------------------------------------------
+
+def _record_to_cache_dict(record: _Laureate) -> dict:
+    prize = record.prize
+    return {
+        'known_name': record.known_name,
+        'laureate_id': record.laureate_id,
+        'match_names': list(record.match_names),
+        'prize': {
+            'award_year': prize.award_year,
+            'notes': prize.notes,
+            'prize_status': prize.prize_status,
+            'source_url': prize.source_url,
+        },
+    }
+
+
+def _match_names_from_cache(value) -> tuple[str, ...] | None:
+    if isinstance(value, (str, bytes, bytearray)):
+        return None
+    if not isinstance(value, (list, tuple)) or not value:
+        return None
+    names: list[str] = []
+    for item in value:
+        if not isinstance(item, str) or not item.strip() or item != item.strip():
+            return None
+        names.append(item)
+    return tuple(names)
+
+
+def _prize_from_cache_dict(data) -> _LiteraturePrize | None:
+    if not isinstance(data, dict) or set(data) != set(_PRIZE_CACHE_FIELDS):
+        return None
+    award_year = data.get('award_year')
+    if isinstance(award_year, bool) or not isinstance(award_year, int) or award_year <= 0:
+        return None
+    prize_status = data.get('prize_status')
+    source_url = data.get('source_url')
+    notes = data.get('notes')
+    if (
+        not isinstance(prize_status, str)
+        or not prize_status.strip()
+        or prize_status != prize_status.strip()
+    ):
+        return None
+    if (
+        not isinstance(source_url, str)
+        or not source_url.strip()
+        or source_url != source_url.strip()
+        or not _is_official_nobel_html_url(source_url)
+    ):
+        return None
+    if notes is not None:
+        if not isinstance(notes, str) or not notes.strip() or notes != notes.strip():
+            return None
+    return _LiteraturePrize(
+        award_year=award_year,
+        prize_status=prize_status,
+        source_url=source_url,
+        notes=notes,
+    )
+
+
+def _record_from_cache_dict(data) -> _Laureate | None:
+    if not isinstance(data, dict) or set(data) != set(_LAUREATE_CACHE_FIELDS):
+        return None
+    laureate_id = data.get('laureate_id')
+    known_name = data.get('known_name')
+    if (
+        not isinstance(laureate_id, str)
+        or not laureate_id.strip()
+        or laureate_id != laureate_id.strip()
+    ):
+        return None
+    if (
+        not isinstance(known_name, str)
+        or not known_name.strip()
+        or known_name != known_name.strip()
+    ):
+        return None
+    match_names = _match_names_from_cache(data.get('match_names'))
+    if match_names is None or known_name not in match_names:
+        return None
+    prize = _prize_from_cache_dict(data.get('prize'))
+    if prize is None:
+        return None
+    return _Laureate(
+        laureate_id=laureate_id,
+        known_name=known_name,
+        match_names=match_names,
+        prize=prize,
+    )
+
+
+def _archive_source_urls() -> tuple[str, ...]:
+    return (LAUREATES_URL,)
+
+
+def _coverage_from_records(records: tuple[_Laureate, ...]) -> dict:
+    years = [item.prize.award_year for item in records]
+    cited_ids = {item.laureate_id for item in _CITED_WORKS}
+    status_counts: dict[str, int] = {}
+    for item in records:
+        key = item.prize.prize_status
+        status_counts[key] = status_counts.get(key, 0) + 1
+    return {
+        'category': CATEGORY_LITERATURE,
+        'cited_work_laureate_count': sum(
+            1 for item in records if item.laureate_id in cited_ids
+        ),
+        'laureate_count': len(records),
+        'max_year': max(years) if years else None,
+        'min_year': min(years) if years else None,
+        'prize_status_counts': dict(sorted(status_counts.items())),
+    }
+
+
+def _validate_cached_archive(records: tuple[_Laureate, ...]) -> None:
+    """Fail closed if reconstructed laureates are not a usable archive."""
+    if not records:
+        raise NobelSourceError(
+            'Nobel persistent cache contained no laureate records'
+        )
+    seen_ids: set[str] = set()
+    by_id: dict[str, _Laureate] = {}
+    for record in records:
+        if record.laureate_id in seen_ids:
+            raise NobelSourceError(
+                'Nobel persistent cache contained duplicate laureate id: '
+                f'{record.laureate_id!r}'
+            )
+        seen_ids.add(record.laureate_id)
+        by_id[record.laureate_id] = record
+        if record.known_name not in record.match_names:
+            raise NobelSourceError(
+                f'Nobel laureate {record.laureate_id} known_name is missing '
+                'from match_names'
+            )
+        if not record.match_names:
+            raise NobelSourceError(
+                f'Nobel laureate {record.laureate_id} is missing match_names'
+            )
+        prize = record.prize
+        if prize.award_year <= 0:
+            raise NobelSourceError(
+                f'Nobel laureate {record.laureate_id} has an invalid award year'
+            )
+        if not _is_official_nobel_html_url(prize.source_url):
+            raise NobelSourceError(
+                'Nobel archive produced an unexpected source URL: '
+                f'{prize.source_url!r}'
+            )
+        expected_notes = _notes_for_status(prize.prize_status)
+        if prize.notes != expected_notes:
+            raise NobelSourceError(
+                f'Nobel laureate {record.laureate_id} notes do not match '
+                f'prize status {prize.prize_status!r}'
+            )
+    missing_cited: list[str] = []
+    for mapping in _CITED_WORKS:
+        laureate = by_id.get(mapping.laureate_id)
+        if laureate is None or laureate.prize.award_year != mapping.award_year:
+            missing_cited.append(mapping.laureate_id)
+    if missing_cited:
+        extra = f' (+{len(missing_cited) - 1} more)' if len(missing_cited) > 1 else ''
+        raise NobelSourceError(
+            'Nobel persistent cache is missing required cited-work '
+            f'laureate(s): {missing_cited[0]}{extra}'
+        )
+
+
+def _records_from_cache_payload(
+    payload: dict,
+) -> tuple[_Laureate, ...] | None:
+    expected_urls = list(_archive_source_urls())
+    if payload.get('source_urls') != expected_urls:
+        return None
+    raw_records = payload.get('records')
+    if not isinstance(raw_records, list):
+        return None
+    records: list[_Laureate] = []
+    for item in raw_records:
+        record = _record_from_cache_dict(item)
+        if record is None:
+            return None
+        records.append(record)
+    restored = tuple(records)
+    try:
+        _validate_cached_archive(restored)
+    except NobelSourceError:
+        return None
+    return restored
+
+
+def _load_persistent_archive() -> (
+    tuple[tuple[_Laureate, ...], dict] | None
+):
+    payload = cache.load_source_cache(SOURCE_KEY, CACHE_VERSION)
+    if payload is None:
+        return None
+    records = _records_from_cache_payload(payload)
+    if records is None:
+        return None
+    return records, payload
+
+
+def _save_persistent_archive(records: tuple[_Laureate, ...]) -> None:
+    try:
+        cache.save_source_cache(
+            SOURCE_KEY,
+            CACHE_VERSION,
+            records=[_record_to_cache_dict(record) for record in records],
+            source_urls=_archive_source_urls(),
+            coverage=_coverage_from_records(records),
+            ttl_seconds=CACHE_TTL_SECONDS,
+        )
+    except OSError:
+        pass
+
+
+def _load_live_archive() -> tuple[_Laureate, ...]:
+    status, body = _request_json()
+    return _parse_laureates_payload(status, body)
+
+
 def _get_laureates() -> tuple[_Laureate, ...]:
-    """Return parsed laureates, caching only after payload validation."""
+    """Return laureates: RAM, then disk, then live fetch/parse/validate.
+
+    A fresh disk cache is used immediately. A stale-but-valid disk cache
+    live-refreshes only if this lookup still has a stale-refresh slot;
+    otherwise the stale archive is used with no network. A missing or
+    invalid cache still live-fetches.
+    """
     global _laureates_cache
     with _cache_lock:
         if _laureates_cache is not None:
             return _laureates_cache
-        status, body = _request_json()
-        parsed = _parse_laureates_payload(status, body)
-        _laureates_cache = parsed
-        return parsed
+        disk = _load_persistent_archive()
+        if disk is not None:
+            records, payload = disk
+            if cache.cache_is_fresh(payload):
+                _laureates_cache = records
+                return records
+            if not cache.try_claim_stale_refresh():
+                _laureates_cache = records
+                return records
+        else:
+            records = None
+        try:
+            live = _load_live_archive()
+        except Exception:
+            if records is not None:
+                _laureates_cache = records
+                return records
+            raise
+        _save_persistent_archive(live)
+        _laureates_cache = live
+        return live
 
 
 def _normalize_title_text(value: str) -> str:
