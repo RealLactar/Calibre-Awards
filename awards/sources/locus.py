@@ -15,6 +15,7 @@ import unicodedata
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from html.parser import HTMLParser
 from http.cookiejar import CookieJar
 from urllib.parse import quote, unquote, urljoin, urlparse
@@ -32,14 +33,13 @@ CANONICAL_SFADB_HOST = 'www.sfadb.com'
 SOURCE_KEY = 'locus'
 ANNUAL_ENTRY_KIND = 'annuals'
 ANNUAL_CACHE_VERSION = 1
-# Temporary uniform annual TTL for Phase L2. Historical vs current-year
-# policy and refresh-budget interaction belong to Phase L4.
-ANNUAL_CACHE_TTL_SECONDS = 7 * 24 * 60 * 60
 AUTHOR_ENTRY_KIND = 'authors'
 AUTHOR_CACHE_VERSION = 1
-# Temporary uniform author TTL for Phase L3. Stale-refresh policy belongs
-# to Phase L4.
 AUTHOR_CACHE_TTL_SECONDS = 7 * 24 * 60 * 60
+# Historical annual rankings are treated as immutable for automatic refresh.
+HISTORICAL_ANNUAL_CACHE_TTL_SECONDS = 180 * 24 * 60 * 60
+# Active/current annual pages can still change during the award year.
+CURRENT_ANNUAL_CACHE_TTL_SECONDS = 7 * 24 * 60 * 60
 
 _BROWSER_HEADERS = {
     'User-Agent': (
@@ -190,6 +190,7 @@ _AUTHOR_PAGE_CACHE_FIELDS = (
 _cache_lock = threading.Lock()
 _author_page_cache: dict[str, _AuthorPage] = {}
 _annual_page_cache: dict[str, tuple[_AnnualRecord, ...]] = {}
+_lookup_refresh_state = threading.local()
 
 
 def _reset_runtime_state() -> None:
@@ -197,6 +198,7 @@ def _reset_runtime_state() -> None:
     with _cache_lock:
         _author_page_cache.clear()
         _annual_page_cache.clear()
+    _lookup_refresh_state.optional_claimed = False
 
 
 # ---------------------------------------------------------------------------
@@ -298,6 +300,49 @@ def _canonical_annual_url(url: str) -> str | None:
     if year <= 0:
         return None
     return f'https://{CANONICAL_SFADB_HOST}/Locus_Awards_{year}'
+
+
+def _utc_now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def _current_calendar_year() -> int:
+    """UTC calendar year. Tests may patch _utc_now or this helper.
+
+    An annual page is current/active when award_year >= this value, so a
+    next-year SFADB page published before January 1 is still treated as
+    active. Shortly after January 1 the previous award year becomes
+    historical and will not auto-refresh.
+    """
+    return _utc_now().year
+
+
+def _annual_year_is_current(award_year: int) -> bool:
+    return award_year >= _current_calendar_year()
+
+
+def _annual_ttl_seconds_for_year(award_year: int) -> int:
+    if _annual_year_is_current(award_year):
+        return CURRENT_ANNUAL_CACHE_TTL_SECONDS
+    return HISTORICAL_ANNUAL_CACHE_TTL_SECONDS
+
+
+def _begin_lookup_refresh_gate() -> None:
+    _lookup_refresh_state.optional_claimed = False
+
+
+def _try_claim_optional_refresh() -> bool:
+    """Claim at most one optional Locus refresh for this lookup.
+
+    Also consumes the shared engine stale-refresh slot when a budget is
+    active. Without a budget, Locus still refreshes at most once per lookup.
+    """
+    if getattr(_lookup_refresh_state, 'optional_claimed', False):
+        return False
+    if not cache.try_claim_stale_refresh():
+        return False
+    _lookup_refresh_state.optional_claimed = True
+    return True
 
 
 def _canonical_author_url(url: str) -> str | None:
@@ -849,17 +894,73 @@ def _candidate_author_urls(author: str) -> tuple[str, ...]:
     return tuple(urls)
 
 
+def _matching_discoveries(
+    page: _AuthorPage, title: str
+) -> list[_DiscoveryEntry]:
+    return [
+        entry
+        for entry in page.entries
+        if _titles_equivalent(title, entry.work_title)
+        and _discovery_category_supported(entry.category_text)
+    ]
+
+
+def _has_stale_current_annual_disk(page: _AuthorPage, title: str) -> bool:
+    """True when a matching discovery has stale-valid current-year annual disk.
+
+    Disk peek only; does not install RAM or fetch HTTP. Missing annual files
+    are required-live later and do not reserve the optional slot.
+    """
+    for entry in _matching_discoveries(page, title):
+        canonical = _canonical_annual_url(entry.annual_url)
+        if canonical is None:
+            continue
+        year = _award_year_from_canonical_annual_url(canonical)
+        if year is None or not _annual_year_is_current(year):
+            continue
+        loaded = _load_persistent_annual(canonical)
+        if loaded is None:
+            continue
+        _records, payload = loaded
+        if not cache.cache_is_fresh(payload):
+            return True
+    return False
+
+
+def _try_optional_author_refresh(
+    opener: urllib.request.OpenerDirector,
+    canonical_url: str,
+    author: str,
+) -> _AuthorPage | None:
+    """Refresh one canonical author URL. On failure return None (use stale)."""
+    if not _try_claim_optional_refresh():
+        return None
+    try:
+        live = _load_live_author_page(opener, canonical_url)
+    except Exception:
+        return None
+    if live is None or not _author_page_matches_query(live, author):
+        return None
+    persistable = _author_page_for_cache(live, canonical_url)
+    stored = persistable if persistable is not None else live
+    if persistable is not None:
+        _save_persistent_author(canonical_url, persistable)
+    return stored
+
+
 def _resolve_author_page(
     opener: urllib.request.OpenerDirector,
     author: str,
+    query_title: str,
 ) -> _AuthorPage | None:
     """Return a matching author page from RAM, disk, then live slug probing.
 
-    Persistent candidates for every slug are examined before any live HTTP
-    so a later successful slug is reused without repeating an earlier 404.
-    404s, wrong-person pages, and malformed Locus sections are not stored.
-    Fresh and stale-valid author disk are both used immediately in Phase L3,
-    without claiming the shared stale-refresh budget.
+    Fresh author disk is used immediately. Stale-valid author disk is used
+    immediately unless this lookup still has its one optional refresh and no
+    stale current-year annual disk needs that slot. Optional author refresh
+    fetches only the already-resolved canonical URL, not the full slug
+    sequence. 404s, wrong-person pages, and malformed Locus sections are not
+    stored.
     """
     candidate_urls = _candidate_author_urls(author)
     if not candidate_urls:
@@ -872,14 +973,25 @@ def _resolve_author_page(
         if _author_page_matches_query(cached, author):
             return cached
     for canonical_url in candidate_urls:
-        disk = _load_persistent_author(canonical_url)
-        if disk is None:
+        loaded = _load_persistent_author(canonical_url)
+        if loaded is None:
             continue
-        if not _author_page_matches_query(disk, author):
+        page, payload = loaded
+        if not _author_page_matches_query(page, author):
             continue
+        if cache.cache_is_fresh(payload):
+            with _cache_lock:
+                _author_page_cache[canonical_url] = page
+            return page
+        refreshed = None
+        if not _has_stale_current_annual_disk(page, query_title):
+            refreshed = _try_optional_author_refresh(
+                opener, canonical_url, author
+            )
+        stored = refreshed if refreshed is not None else page
         with _cache_lock:
-            _author_page_cache[canonical_url] = disk
-        return disk
+            _author_page_cache[canonical_url] = stored
+        return stored
     for canonical_url in candidate_urls:
         with _cache_lock:
             cached = _author_page_cache.get(canonical_url)
@@ -1368,7 +1480,7 @@ def _records_from_annual_cache_payload(
 
 def _load_persistent_annual(
     canonical_url: str,
-) -> tuple[_AnnualRecord, ...] | None:
+) -> tuple[tuple[_AnnualRecord, ...], dict] | None:
     payload = cache.load_cache_entry(
         SOURCE_KEY,
         ANNUAL_ENTRY_KIND,
@@ -1377,7 +1489,10 @@ def _load_persistent_annual(
     )
     if payload is None:
         return None
-    return _records_from_annual_cache_payload(payload, canonical_url)
+    records = _records_from_annual_cache_payload(payload, canonical_url)
+    if records is None:
+        return None
+    return records, payload
 
 
 def _save_persistent_annual(
@@ -1398,7 +1513,7 @@ def _save_persistent_annual(
             ],
             source_urls=[canonical_url],
             coverage=_annual_coverage(records, award_year),
-            ttl_seconds=ANNUAL_CACHE_TTL_SECONDS,
+            ttl_seconds=_annual_ttl_seconds_for_year(award_year),
         )
     except OSError:
         pass
@@ -1428,12 +1543,11 @@ def _get_annual_records(
 ) -> tuple[_AnnualRecord, ...]:
     """Return parsed annual records: RAM, then disk, then live parse.
 
-    Disk is used only after the existing annual parse/validation succeeds
-    on a previous live load. Fresh and stale-valid annual disk are both
-    used immediately in Phase L2, with zero annual HTTP and without
-    claiming the shared stale-refresh budget. That stale behavior is
-    temporary until Phase L4. A missing or invalid disk entry still
-    performs the required live annual fetch.
+    Fresh disk is used immediately. Historical stale-valid disk is used
+    immediately without claiming the optional refresh slot. Current/active
+    stale-valid disk may live-refresh once per lookup if the shared slot is
+    still available; a failed optional refresh falls back to the stale
+    snapshot. Missing or invalid disk still required-live-fetches.
     """
     canonical_url = _canonical_annual_url(annual_url)
     if canonical_url is None:
@@ -1444,11 +1558,30 @@ def _get_annual_records(
         cached = _annual_page_cache.get(canonical_url)
     if cached is not None:
         return cached
-    disk = _load_persistent_annual(canonical_url)
-    if disk is not None:
+    loaded = _load_persistent_annual(canonical_url)
+    if loaded is not None:
+        records, payload = loaded
+        year = _award_year_from_canonical_annual_url(canonical_url)
+        use_stale_immediately = (
+            cache.cache_is_fresh(payload)
+            or year is None
+            or not _annual_year_is_current(year)
+            or not _try_claim_optional_refresh()
+        )
+        if not use_stale_immediately:
+            try:
+                live = _load_live_annual(opener, canonical_url)
+            except Exception:
+                with _cache_lock:
+                    _annual_page_cache[canonical_url] = records
+                return records
+            with _cache_lock:
+                _annual_page_cache[canonical_url] = live
+            _save_persistent_annual(canonical_url, live)
+            return live
         with _cache_lock:
-            _annual_page_cache[canonical_url] = disk
-        return disk
+            _annual_page_cache[canonical_url] = records
+        return records
     records = _load_live_annual(opener, canonical_url)
     with _cache_lock:
         _annual_page_cache[canonical_url] = records
@@ -1621,7 +1754,9 @@ def _page_from_author_cache_payload(
     return _author_page_from_cache_dict(raw_records[0], canonical_url)
 
 
-def _load_persistent_author(canonical_url: str) -> _AuthorPage | None:
+def _load_persistent_author(
+    canonical_url: str,
+) -> tuple[_AuthorPage, dict] | None:
     payload = cache.load_cache_entry(
         SOURCE_KEY,
         AUTHOR_ENTRY_KIND,
@@ -1630,7 +1765,10 @@ def _load_persistent_author(canonical_url: str) -> _AuthorPage | None:
     )
     if payload is None:
         return None
-    return _page_from_author_cache_payload(payload, canonical_url)
+    page = _page_from_author_cache_payload(payload, canonical_url)
+    if page is None:
+        return None
+    return page, payload
 
 
 def _save_persistent_author(canonical_url: str, page: _AuthorPage) -> None:
@@ -1693,8 +1831,9 @@ def lookup(title: str, author: str, series: str | None = None) -> list[AwardResu
     if not cleaned_author:
         raise ValueError('author must be a non-empty string')
 
+    _begin_lookup_refresh_gate()
     opener = _build_opener()
-    page = _resolve_author_page(opener, cleaned_author)
+    page = _resolve_author_page(opener, cleaned_author, cleaned_title)
     if page is None:
         return []
 

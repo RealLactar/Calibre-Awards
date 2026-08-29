@@ -12,7 +12,8 @@ from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 from awards import cache
-from awards.sources import locus
+from awards.engine import lookup_awards
+from awards.sources import hugo, locus, nebula, newbery, nobel, pulitzer, world_fantasy
 
 _UTC = timezone.utc
 _TESTS_DIR = Path(__file__).resolve().parent
@@ -20,6 +21,7 @@ _CANONICAL_1990 = 'https://www.sfadb.com/Locus_Awards_1990'
 _CANONICAL_1971 = 'https://www.sfadb.com/Locus_Awards_1971'
 _CANONICAL_2026 = 'https://www.sfadb.com/Locus_Awards_2026'
 _AUTHOR_SIMMONS = 'https://www.sfadb.com/Dan_Simmons'
+_AUTHOR_OKORAFOR = 'https://www.sfadb.com/Nnedi_Okorafor'
 
 
 def _load_parser_fixtures():
@@ -27,6 +29,14 @@ def _load_parser_fixtures():
     spec = importlib.util.spec_from_file_location(
         '_locus_parser_fixture_source', path
     )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _load_named_test_module(name: str):
+    path = _TESTS_DIR / f'{name}.py'
+    spec = importlib.util.spec_from_file_location(f'_l4_{name}', path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -81,6 +91,7 @@ def _save_annual_disk(
     ttl_seconds=None,
     version=None,
 ):
+    year = locus._award_year_from_canonical_annual_url(canonical_url)
     cache.save_cache_entry(
         locus.SOURCE_KEY,
         locus.ANNUAL_ENTRY_KIND,
@@ -92,10 +103,14 @@ def _save_annual_disk(
         source_urls=[canonical_url],
         coverage=locus._annual_coverage(
             tuple(records),
-            locus._award_year_from_canonical_annual_url(canonical_url),
+            year,
         ),
         ttl_seconds=(
-            locus.ANNUAL_CACHE_TTL_SECONDS
+            (
+                locus._annual_ttl_seconds_for_year(year)
+                if year is not None
+                else locus.CURRENT_ANNUAL_CACHE_TTL_SECONDS
+            )
             if ttl_seconds is None
             else ttl_seconds
         ),
@@ -146,12 +161,18 @@ class LocusAnnualCacheTests(unittest.TestCase):
         self.assertEqual(locus.SOURCE_KEY, 'locus')
         self.assertEqual(locus.ANNUAL_ENTRY_KIND, 'annuals')
         self.assertEqual(locus.ANNUAL_CACHE_VERSION, 1)
-        self.assertEqual(locus.ANNUAL_CACHE_TTL_SECONDS, 7 * 24 * 60 * 60)
-        self.assertEqual(locus.ANNUAL_CACHE_TTL_SECONDS, 604800)
         self.assertEqual(locus.AUTHOR_ENTRY_KIND, 'authors')
         self.assertEqual(locus.AUTHOR_CACHE_VERSION, 1)
         self.assertEqual(locus.AUTHOR_CACHE_TTL_SECONDS, 7 * 24 * 60 * 60)
         self.assertEqual(locus.AUTHOR_CACHE_TTL_SECONDS, 604800)
+        self.assertEqual(
+            locus.HISTORICAL_ANNUAL_CACHE_TTL_SECONDS, 180 * 24 * 60 * 60
+        )
+        self.assertEqual(locus.HISTORICAL_ANNUAL_CACHE_TTL_SECONDS, 15552000)
+        self.assertEqual(
+            locus.CURRENT_ANNUAL_CACHE_TTL_SECONDS, 7 * 24 * 60 * 60
+        )
+        self.assertEqual(locus.CURRENT_ANNUAL_CACHE_TTL_SECONDS, 604800)
 
     def test_annual_record_serialization_round_trip(self):
         original = locus._parse_annual_page(
@@ -807,7 +828,7 @@ class LocusAnnualCacheTests(unittest.TestCase):
         if authors_dir.exists():
             self.assertEqual(list(authors_dir.glob('*.json')), [])
 
-    def test_stale_author_loads_without_http_or_refresh_claim(self):
+    def test_stale_author_optional_refresh_failure_uses_stale(self):
         page = locus._parse_author_page(_FX.HTML_SIMMONS, _AUTHOR_SIMMONS)
         _save_author_disk(
             page,
@@ -824,11 +845,8 @@ class LocusAnnualCacheTests(unittest.TestCase):
             generated_at=datetime(2020, 1, 1, tzinfo=_UTC),
             ttl_seconds=60,
         )
-        author_payload = cache.load_cache_entry(
-            'locus', 'authors', _AUTHOR_SIMMONS, 1
-        )
-        self.assertIsNotNone(author_payload)
-        self.assertFalse(cache.cache_is_fresh(author_payload))
+        author_path = _author_path(self.cache_dir, _AUTHOR_SIMMONS)
+        original = author_path.read_text(encoding='utf-8')
         claims = {'n': 0}
         real_claim = cache.try_claim_stale_refresh
 
@@ -836,18 +854,25 @@ class LocusAnnualCacheTests(unittest.TestCase):
             claims['n'] += 1
             return real_claim()
 
-        def boom(_opener, url):
-            raise AssertionError(f'Locus HTTP disabled: {url}')
-
         with cache.lookup_refresh_budget():
             with patch.object(
                 cache, 'try_claim_stale_refresh', side_effect=wrapped_claim
             ):
-                with patch.object(locus, '_request_html', side_effect=boom):
-                    results = locus.lookup('Hyperion', 'Dan Simmons')
-            self.assertTrue(cache.try_claim_stale_refresh())
+                with patch.object(
+                    locus,
+                    '_load_live_author_page',
+                    side_effect=locus.LocusSourceError('author down'),
+                ):
+                    with patch.object(
+                        locus,
+                        '_load_live_annual',
+                        side_effect=AssertionError('annual live'),
+                    ):
+                        results = locus.lookup('Hyperion', 'Dan Simmons')
+            self.assertFalse(cache.try_claim_stale_refresh())
         self.assertEqual(results[0].rank, 1)
-        self.assertEqual(claims['n'], 0)
+        self.assertEqual(claims['n'], 1)
+        self.assertEqual(author_path.read_text(encoding='utf-8'), original)
 
     def test_corrupt_author_disk_falls_back_to_live(self):
         page = locus._parse_author_page(_FX.HTML_SIMMONS, _AUTHOR_SIMMONS)
@@ -1050,9 +1075,506 @@ class LocusAnnualCacheTests(unittest.TestCase):
                 locus.lookup('Hyperion', 'Dan Simmons')
         self.assertIn('disagreed', str(ctx.exception))
 
+    def test_historical_vs_current_classification(self):
+        with patch.object(locus, '_current_calendar_year', return_value=2026):
+            self.assertFalse(locus._annual_year_is_current(1990))
+            self.assertFalse(locus._annual_year_is_current(2025))
+            self.assertTrue(locus._annual_year_is_current(2026))
+            self.assertTrue(locus._annual_year_is_current(2027))
+            self.assertEqual(
+                locus._annual_ttl_seconds_for_year(1990),
+                locus.HISTORICAL_ANNUAL_CACHE_TTL_SECONDS,
+            )
+            self.assertEqual(
+                locus._annual_ttl_seconds_for_year(2026),
+                locus.CURRENT_ANNUAL_CACHE_TTL_SECONDS,
+            )
 
-if __name__ == '__main__':
-    unittest.main()
+    def test_historical_live_save_writes_180_day_ttl(self):
+        self._lookup('Hyperion', 'Dan Simmons')
+        payload = json.loads(
+            _annual_path(self.cache_dir, _CANONICAL_1990).read_text(
+                encoding='utf-8'
+            )
+        )
+        self.assertEqual(
+            payload['ttl_seconds'], locus.HISTORICAL_ANNUAL_CACHE_TTL_SECONDS
+        )
+        author_payload = json.loads(
+            _author_path(self.cache_dir, _AUTHOR_SIMMONS).read_text(
+                encoding='utf-8'
+            )
+        )
+        self.assertEqual(
+            author_payload['ttl_seconds'], locus.AUTHOR_CACHE_TTL_SECONDS
+        )
+
+    def test_l2_seven_day_historical_file_remains_readable(self):
+        records = locus._parse_annual_page(
+            _FX.HTML_1990, 1990, _CANONICAL_1990
+        )
+        _save_annual_disk(
+            records,
+            _CANONICAL_1990,
+            generated_at=datetime(2020, 1, 1, tzinfo=_UTC),
+            ttl_seconds=604800,
+        )
+        page = locus._parse_author_page(_FX.HTML_SIMMONS, _AUTHOR_SIMMONS)
+        _save_author_disk(page, _AUTHOR_SIMMONS)
+        payload = cache.load_cache_entry(
+            'locus', 'annuals', _CANONICAL_1990, 1
+        )
+        self.assertIsNotNone(payload)
+        self.assertEqual(payload['ttl_seconds'], 604800)
+        self.assertFalse(cache.cache_is_fresh(payload))
+        with patch.object(
+            locus, '_load_live_annual', side_effect=AssertionError('annual')
+        ):
+            with patch.object(
+                locus, '_request_html', side_effect=AssertionError('http')
+            ):
+                results = locus.lookup('Hyperion', 'Dan Simmons')
+        self.assertEqual(results[0].rank, 1)
+
+    def test_stale_current_annual_refresh_success(self):
+        with patch.object(locus, '_current_calendar_year', return_value=2026):
+            page = locus._parse_author_page(
+                _FX.HTML_OKORAFOR, _AUTHOR_OKORAFOR
+            )
+            _save_author_disk(page, _AUTHOR_OKORAFOR)
+            stale = locus._parse_annual_page(
+                _FX.HTML_2026, 2026, _CANONICAL_2026
+            )
+            _save_annual_disk(
+                stale,
+                _CANONICAL_2026,
+                generated_at=datetime(2020, 1, 1, tzinfo=_UTC),
+                ttl_seconds=60,
+            )
+            path = _annual_path(self.cache_dir, _CANONICAL_2026)
+            original = json.loads(path.read_text(encoding='utf-8'))
+            live = locus._parse_annual_page(
+                _FX.HTML_2026, 2026, _CANONICAL_2026
+            )
+            with cache.lookup_refresh_budget():
+                with patch.object(
+                    locus, '_load_live_annual', return_value=live
+                ) as mocked:
+                    with patch.object(
+                        locus,
+                        '_load_live_author_page',
+                        side_effect=AssertionError('author'),
+                    ):
+                        results = locus.lookup(
+                            'Death of the Author', 'Nnedi Okorafor'
+                        )
+                self.assertFalse(cache.try_claim_stale_refresh())
+            self.assertEqual(results[0].rank, 1)
+            self.assertEqual(mocked.call_count, 1)
+            updated = json.loads(path.read_text(encoding='utf-8'))
+            self.assertNotEqual(
+                updated['generated_at'], original['generated_at']
+            )
+            self.assertEqual(
+                updated['ttl_seconds'],
+                locus.CURRENT_ANNUAL_CACHE_TTL_SECONDS,
+            )
+
+    def test_stale_current_annual_refresh_failure_uses_stale(self):
+        with patch.object(locus, '_current_calendar_year', return_value=2026):
+            page = locus._parse_author_page(
+                _FX.HTML_OKORAFOR, _AUTHOR_OKORAFOR
+            )
+            _save_author_disk(page, _AUTHOR_OKORAFOR)
+            stale = locus._parse_annual_page(
+                _FX.HTML_2026, 2026, _CANONICAL_2026
+            )
+            _save_annual_disk(
+                stale,
+                _CANONICAL_2026,
+                generated_at=datetime(2020, 1, 1, tzinfo=_UTC),
+                ttl_seconds=60,
+            )
+            path = _annual_path(self.cache_dir, _CANONICAL_2026)
+            original = path.read_text(encoding='utf-8')
+            with cache.lookup_refresh_budget():
+                with patch.object(
+                    locus,
+                    '_load_live_annual',
+                    side_effect=locus.LocusSourceError('annual down'),
+                ):
+                    results = locus.lookup(
+                        'Death of the Author', 'Nnedi Okorafor'
+                    )
+                self.assertFalse(cache.try_claim_stale_refresh())
+            self.assertEqual(results[0].rank, 1)
+            self.assertEqual(path.read_text(encoding='utf-8'), original)
+
+    def test_stale_current_annual_without_slot_uses_disk(self):
+        with patch.object(locus, '_current_calendar_year', return_value=2026):
+            page = locus._parse_author_page(
+                _FX.HTML_OKORAFOR, _AUTHOR_OKORAFOR
+            )
+            _save_author_disk(page, _AUTHOR_OKORAFOR)
+            stale = locus._parse_annual_page(
+                _FX.HTML_2026, 2026, _CANONICAL_2026
+            )
+            _save_annual_disk(
+                stale,
+                _CANONICAL_2026,
+                generated_at=datetime(2020, 1, 1, tzinfo=_UTC),
+                ttl_seconds=60,
+            )
+            with cache.lookup_refresh_budget():
+                self.assertTrue(cache.try_claim_stale_refresh())
+                with patch.object(
+                    locus,
+                    '_load_live_annual',
+                    side_effect=AssertionError('annual'),
+                ):
+                    results = locus.lookup(
+                        'Death of the Author', 'Nnedi Okorafor'
+                    )
+            self.assertEqual(results[0].rank, 1)
+
+    def test_stale_author_refresh_success(self):
+        page = locus._parse_author_page(_FX.HTML_SIMMONS, _AUTHOR_SIMMONS)
+        _save_author_disk(
+            page,
+            _AUTHOR_SIMMONS,
+            generated_at=datetime(2020, 1, 1, tzinfo=_UTC),
+            ttl_seconds=60,
+        )
+        records = locus._parse_annual_page(
+            _FX.HTML_1990, 1990, _CANONICAL_1990
+        )
+        _save_annual_disk(records, _CANONICAL_1990)
+        path = _author_path(self.cache_dir, _AUTHOR_SIMMONS)
+        original = json.loads(path.read_text(encoding='utf-8'))
+        live = locus._parse_author_page(_FX.HTML_SIMMONS, _AUTHOR_SIMMONS)
+        with cache.lookup_refresh_budget():
+            with patch.object(
+                locus, '_load_live_author_page', return_value=live
+            ) as mocked:
+                with patch.object(
+                    locus,
+                    '_load_live_annual',
+                    side_effect=AssertionError('annual'),
+                ):
+                    results = locus.lookup('Hyperion', 'Dan Simmons')
+            self.assertFalse(cache.try_claim_stale_refresh())
+        self.assertEqual(results[0].rank, 1)
+        self.assertEqual(mocked.call_count, 1)
+        updated = json.loads(path.read_text(encoding='utf-8'))
+        self.assertNotEqual(updated['generated_at'], original['generated_at'])
+
+    def test_stale_author_without_slot_uses_disk(self):
+        page = locus._parse_author_page(_FX.HTML_SIMMONS, _AUTHOR_SIMMONS)
+        _save_author_disk(
+            page,
+            _AUTHOR_SIMMONS,
+            generated_at=datetime(2020, 1, 1, tzinfo=_UTC),
+            ttl_seconds=60,
+        )
+        records = locus._parse_annual_page(
+            _FX.HTML_1990, 1990, _CANONICAL_1990
+        )
+        _save_annual_disk(records, _CANONICAL_1990)
+        with cache.lookup_refresh_budget():
+            self.assertTrue(cache.try_claim_stale_refresh())
+            with patch.object(
+                locus,
+                '_load_live_author_page',
+                side_effect=AssertionError('author'),
+            ):
+                with patch.object(
+                    locus,
+                    '_load_live_annual',
+                    side_effect=AssertionError('annual'),
+                ):
+                    results = locus.lookup('Hyperion', 'Dan Simmons')
+        self.assertEqual(results[0].rank, 1)
+
+    def test_stale_author_and_stale_current_annual_refresh_at_most_one(self):
+        with patch.object(locus, '_current_calendar_year', return_value=2026):
+            page = locus._parse_author_page(
+                _FX.HTML_OKORAFOR, _AUTHOR_OKORAFOR
+            )
+            _save_author_disk(
+                page,
+                _AUTHOR_OKORAFOR,
+                generated_at=datetime(2020, 1, 1, tzinfo=_UTC),
+                ttl_seconds=60,
+            )
+            stale = locus._parse_annual_page(
+                _FX.HTML_2026, 2026, _CANONICAL_2026
+            )
+            _save_annual_disk(
+                stale,
+                _CANONICAL_2026,
+                generated_at=datetime(2020, 1, 1, tzinfo=_UTC),
+                ttl_seconds=60,
+            )
+            live_annual = locus._parse_annual_page(
+                _FX.HTML_2026, 2026, _CANONICAL_2026
+            )
+            with cache.lookup_refresh_budget():
+                with patch.object(
+                    locus, '_load_live_annual', return_value=live_annual
+                ) as annual_live:
+                    with patch.object(
+                        locus,
+                        '_load_live_author_page',
+                        side_effect=AssertionError('author'),
+                    ) as author_live:
+                        results = locus.lookup(
+                            'Death of the Author', 'Nnedi Okorafor'
+                        )
+                self.assertFalse(cache.try_claim_stale_refresh())
+            self.assertEqual(results[0].rank, 1)
+            self.assertEqual(annual_live.call_count, 1)
+            self.assertEqual(author_live.call_count, 0)
+
+    def test_missing_author_still_live_after_slot_spent(self):
+        with cache.lookup_refresh_budget():
+            self.assertTrue(cache.try_claim_stale_refresh())
+            tracker = _HttpTracker(_FX.PAGES)
+            with patch.object(locus, '_request_html', side_effect=tracker):
+                results = locus.lookup('Hyperion', 'Dan Simmons')
+        self.assertEqual(results[0].rank, 1)
+        self.assertEqual(tracker.author, [_AUTHOR_SIMMONS])
+        self.assertEqual(tracker.annual, [_CANONICAL_1990])
+
+    def test_invalid_annual_and_live_failure_is_source_error(self):
+        page = locus._parse_author_page(_FX.HTML_SIMMONS, _AUTHOR_SIMMONS)
+        _save_author_disk(page, _AUTHOR_SIMMONS)
+        path = _annual_path(self.cache_dir, _CANONICAL_1990)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text('{not json', encoding='utf-8')
+        with patch.object(
+            locus,
+            '_load_live_annual',
+            side_effect=locus.LocusSourceError('annual down'),
+        ):
+            with self.assertRaises(locus.LocusSourceError):
+                locus.lookup('Hyperion', 'Dan Simmons')
+
+    def test_multiple_stale_current_annuals_refresh_at_most_one(self):
+        url_2027 = 'https://www.sfadb.com/Locus_Awards_2027'
+        author_url = 'https://www.sfadb.com/L4_Author'
+        author_html = _FX._author_page(
+            'L4 Author',
+            _FX._entry(2026, 'Alpha Book', 'sf novel', '2nd place')
+            + _FX._entry(2027, 'Alpha Book', 'sf novel', '3rd place'),
+        )
+        html_year = """
+<div class="categoryblock">
+<div class="category">Sf Novel</div>
+<ol>
+<li value="{rank}"> <b>Alpha Book</b>, <a href="L4_Author">L4 Author</a></li>
+</ol>
+</div>
+"""
+        records_2026 = locus._parse_annual_page(
+            html_year.format(rank=2), 2026, _CANONICAL_2026
+        )
+        records_2027 = locus._parse_annual_page(
+            html_year.format(rank=3), 2027, url_2027
+        )
+        page = locus._parse_author_page(author_html, author_url)
+        with patch.object(locus, '_current_calendar_year', return_value=2026):
+            _save_author_disk(page, author_url)
+            _save_annual_disk(
+                records_2026,
+                _CANONICAL_2026,
+                generated_at=datetime(2020, 1, 1, tzinfo=_UTC),
+                ttl_seconds=60,
+            )
+            _save_annual_disk(
+                records_2027,
+                url_2027,
+                generated_at=datetime(2020, 1, 1, tzinfo=_UTC),
+                ttl_seconds=60,
+            )
+            live_calls = {'n': 0}
+
+            def live_annual(_opener, canonical_url):
+                live_calls['n'] += 1
+                if canonical_url == _CANONICAL_2026:
+                    return records_2026
+                return records_2027
+
+            with cache.lookup_refresh_budget():
+                with patch.object(
+                    locus, '_load_live_annual', side_effect=live_annual
+                ):
+                    results = locus.lookup('Alpha Book', 'L4 Author')
+                self.assertFalse(cache.try_claim_stale_refresh())
+            self.assertEqual(len(results), 2)
+            self.assertEqual(live_calls['n'], 1)
+
+
+class LocusSevenSourceRefreshBudgetTests(unittest.TestCase):
+    def setUp(self):
+        locus._reset_runtime_state()
+        pulitzer._reset_runtime_state()
+        nobel._reset_runtime_state()
+        newbery._reset_runtime_state()
+        hugo._reset_runtime_state()
+        world_fantasy._reset_runtime_state()
+        nebula._clear_caches_for_tests()
+        cache._reset_runtime_state()
+        self._temp = TemporaryDirectory()
+        cache.set_cache_directory(Path(self._temp.name))
+        self._nebula_tests = _load_named_test_module('test_nebula_cache')
+        self._wfa_tests = _load_named_test_module('test_world_fantasy_cache')
+        self._hugo_tests = _load_named_test_module('test_hugo_cache')
+        self._newbery_tests = _load_named_test_module('test_newbery_cache')
+        self._nobel_tests = _load_named_test_module('test_nobel_cache')
+        self._pulitzer_tests = _load_named_test_module('test_pulitzer_cache')
+
+    def tearDown(self):
+        locus._reset_runtime_state()
+        pulitzer._reset_runtime_state()
+        nobel._reset_runtime_state()
+        newbery._reset_runtime_state()
+        hugo._reset_runtime_state()
+        world_fantasy._reset_runtime_state()
+        nebula._clear_caches_for_tests()
+        cache._reset_runtime_state()
+        self._temp.cleanup()
+
+    def test_one_optional_refresh_among_seven_stale_sources(self):
+        stale_at = datetime(2020, 1, 1, tzinfo=_UTC)
+        pulitzer_stale = self._pulitzer_tests._complete_archive()
+        nobel_stale = self._nobel_tests._complete_archive()
+        nebula_stale = self._nebula_tests._complete_archive()
+        wfa_stale = self._wfa_tests._complete_archive()
+        hugo_stale = self._hugo_tests._complete_archive()
+        newbery_stale = self._newbery_tests._complete_archive()
+        self._pulitzer_tests._save_disk(
+            pulitzer_stale, generated_at=stale_at, ttl_seconds=60
+        )
+        self._nobel_tests._save_disk(
+            nobel_stale, generated_at=stale_at, ttl_seconds=60
+        )
+        self._nebula_tests._save_disk(
+            nebula_stale, generated_at=stale_at, ttl_seconds=60
+        )
+        self._wfa_tests._save_disk(
+            wfa_stale, generated_at=stale_at, ttl_seconds=60
+        )
+        self._hugo_tests._save_disk(
+            hugo_stale, generated_at=stale_at, ttl_seconds=60
+        )
+        self._newbery_tests._save_disk(
+            newbery_stale, generated_at=stale_at, ttl_seconds=60
+        )
+        simmons = locus._parse_author_page(_FX.HTML_SIMMONS, _AUTHOR_SIMMONS)
+        _save_author_disk(
+            simmons,
+            _AUTHOR_SIMMONS,
+            generated_at=stale_at,
+            ttl_seconds=60,
+        )
+        annual_1990 = locus._parse_annual_page(
+            _FX.HTML_1990, 1990, _CANONICAL_1990
+        )
+        _save_annual_disk(
+            annual_1990,
+            _CANONICAL_1990,
+            generated_at=stale_at,
+            ttl_seconds=60,
+        )
+        locus._reset_runtime_state()
+        pulitzer._reset_runtime_state()
+        nobel._reset_runtime_state()
+        newbery._reset_runtime_state()
+        hugo._reset_runtime_state()
+        world_fantasy._reset_runtime_state()
+        nebula._clear_caches_for_tests()
+
+        enabled = (
+            'nebula',
+            'world_fantasy',
+            'hugo',
+            'newbery',
+            'nobel',
+            'pulitzer',
+            'locus',
+        )
+        with patch.object(
+            nebula, '_load_live_archive', return_value=nebula_stale
+        ) as nebula_live, patch.object(
+            world_fantasy, '_load_live_archive', return_value=wfa_stale
+        ) as wfa_live, patch.object(
+            hugo, '_load_live_archive', return_value=hugo_stale
+        ) as hugo_live, patch.object(
+            newbery, '_load_live_archive', return_value=newbery_stale
+        ) as newbery_live, patch.object(
+            nobel, '_load_live_archive', return_value=nobel_stale
+        ) as nobel_live, patch.object(
+            pulitzer, '_load_live_archive', return_value=pulitzer_stale
+        ) as pulitzer_live, patch.object(
+            locus, '_load_live_author_page', return_value=simmons
+        ) as locus_author_live, patch.object(
+            locus, '_load_live_annual', side_effect=AssertionError('annual')
+        ) as locus_annual_live:
+            first = lookup_awards(
+                'Hyperion',
+                'Dan Simmons',
+                enabled_source_keys=enabled,
+            )
+            self.assertEqual(len(first.failures), 0)
+            self.assertTrue(
+                any(
+                    item.result.work_title == 'Hyperion'
+                    and item.result.source_name
+                    == 'Science Fiction Awards Database'
+                    for item in first.assessments
+                )
+            )
+            first_counts = (
+                nebula_live.call_count,
+                wfa_live.call_count,
+                hugo_live.call_count,
+                newbery_live.call_count,
+                nobel_live.call_count,
+                pulitzer_live.call_count,
+                locus_author_live.call_count,
+            )
+            self.assertEqual(sum(first_counts), 1)
+            self.assertEqual(locus_annual_live.call_count, 0)
+
+            locus._reset_runtime_state()
+            pulitzer._reset_runtime_state()
+            nobel._reset_runtime_state()
+            newbery._reset_runtime_state()
+            hugo._reset_runtime_state()
+            world_fantasy._reset_runtime_state()
+            nebula._clear_caches_for_tests()
+            second = lookup_awards(
+                'Hyperion',
+                'Dan Simmons',
+                enabled_source_keys=enabled,
+            )
+            self.assertEqual(len(second.failures), 0)
+            second_counts = (
+                nebula_live.call_count - first_counts[0],
+                wfa_live.call_count - first_counts[1],
+                hugo_live.call_count - first_counts[2],
+                newbery_live.call_count - first_counts[3],
+                nobel_live.call_count - first_counts[4],
+                pulitzer_live.call_count - first_counts[5],
+                locus_author_live.call_count - first_counts[6],
+            )
+            self.assertEqual(sum(second_counts), 1)
+            self.assertEqual(
+                locus_annual_live.call_count, 0
+            )
+            for first_n, second_n in zip(first_counts, second_counts):
+                if first_n:
+                    self.assertEqual(second_n, 0)
 
 
 if __name__ == '__main__':
