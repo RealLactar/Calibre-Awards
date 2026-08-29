@@ -13,7 +13,7 @@ from awards.source_info import (
     format_source_info,
 )
 from awards.source_registry import AWARD_SOURCES
-from awards.sources import hugo, locus, nebula, newbery, nobel, pulitzer, world_fantasy
+from awards.sources import booker, hugo, locus, nebula, newbery, nobel, pulitzer, world_fantasy
 
 
 def _info(key: str) -> SourceInfo:
@@ -111,7 +111,7 @@ class SourceInfoRegistryConsistencyTests(unittest.TestCase):
             tuple(source.display_name for source in AWARD_SOURCES),
         )
         self.assertEqual(len(SOURCE_INFOS), len(AWARD_SOURCES))
-        self.assertEqual(len(SOURCE_INFOS), 7)
+        self.assertEqual(len(SOURCE_INFOS), 8)
 
     def test_keys_are_unique(self):
         keys = [info.key for info in SOURCE_INFOS]
@@ -195,6 +195,13 @@ class SourceInfoCategoryTests(unittest.TestCase):
         self.assertEqual(info.categories, (newbery.CATEGORY,))
         self.assertEqual(info.categories, ("Children's Literature",))
 
+    def test_booker_fiction_only(self):
+        info = _info('booker')
+        self.assertEqual(info.categories, (booker.CATEGORY,))
+        self.assertEqual(info.categories, ('Fiction',))
+        self.assertNotIn('International', info.description)
+        self.assertNotIn('International', info.limitation or '')
+
 
 class SourceInfoScopeAndHomepageTests(unittest.TestCase):
     def test_identity_scopes(self):
@@ -205,6 +212,7 @@ class SourceInfoScopeAndHomepageTests(unittest.TestCase):
             'locus': ('work',),
             'world_fantasy': ('work',),
             'nobel': ('author', 'work'),
+            'booker': ('work',),
             'newbery': ('work',),
         }
         self.assertEqual(
@@ -223,6 +231,7 @@ class SourceInfoScopeAndHomepageTests(unittest.TestCase):
         self.assertEqual(hosts['locus'], 'www.sfadb.com')
         self.assertEqual(hosts['world_fantasy'], 'worldfantasy.org')
         self.assertEqual(hosts['nobel'], 'www.nobelprize.org')
+        self.assertEqual(hosts['booker'], 'thebookerprizes.com')
         self.assertEqual(hosts['newbery'], 'www.ala.org')
         self.assertEqual(_info('pulitzer').homepage_url, pulitzer.SOURCE_HOME_URL)
         self.assertEqual(_info('nebula').homepage_url, nebula.SOURCE_HOME_URL)
@@ -233,14 +242,27 @@ class SourceInfoScopeAndHomepageTests(unittest.TestCase):
             world_fantasy.SOURCE_HOME_URL,
         )
         self.assertEqual(_info('nobel').homepage_url, nobel.SOURCE_HOME_URL)
+        self.assertEqual(_info('booker').homepage_url, booker.SOURCE_HOME_URL)
         self.assertEqual(_info('newbery').homepage_url, newbery.SOURCE_HOME_URL)
 
-    def test_only_pulitzer_and_newbery_have_limitations(self):
+    def test_only_pulitzer_booker_and_newbery_have_limitations(self):
         for info in SOURCE_INFOS:
-            if info.key in {'pulitzer', 'newbery'}:
+            if info.key in {'pulitzer', 'booker', 'newbery'}:
                 self.assertIsNotNone(info.limitation)
             else:
                 self.assertIsNone(info.limitation)
+
+    def test_booker_description_and_limitation_cover_shortlist_not_longlist(self):
+        info = _info('booker')
+        description = info.description.casefold()
+        self.assertIn('booker prize', description)
+        self.assertIn('winner', description)
+        self.assertIn('shortlist', description)
+        self.assertNotIn('international', description)
+        self.assertNotIn('the booker prizes', description)
+        limitation = info.limitation.casefold()
+        self.assertIn('longlisted-only', limitation)
+        self.assertNotIn('international', limitation)
 
     def test_nobel_description_covers_author_and_cited_work_scope(self):
         text = _info('nobel').description.casefold()
@@ -276,7 +298,7 @@ class SourceInfoImportAndFormatTests(unittest.TestCase):
         with patch.object(urllib.request, 'urlopen') as mocked_open:
             reloaded = importlib.reload(source_info)
             infos = reloaded.SOURCE_INFOS
-            self.assertEqual(len(infos), 7)
+            self.assertEqual(len(infos), 8)
             self.assertEqual(infos[0].key, 'pulitzer')
             self.assertEqual(infos[-1].key, 'newbery')
             mocked_open.assert_not_called()
@@ -308,6 +330,16 @@ class SourceInfoImportAndFormatTests(unittest.TestCase):
         formatted = format_source_info(_info('hugo'))
         self.assertIn('Scope: Work awards, Series awards', formatted)
         self.assertNotIn('Note:', formatted)
+
+    def test_format_source_info_includes_booker_longlist_limitation(self):
+        formatted = format_source_info(_info('booker'))
+        self.assertEqual(formatted.splitlines()[0], 'The Booker Prize')
+        self.assertIn('Categories: Fiction', formatted)
+        self.assertIn('Scope: Work awards', formatted)
+        self.assertIn('official Booker Prize archive', formatted)
+        self.assertIn('Note: Longlisted-only works are not returned.', formatted)
+        self.assertNotIn('International', formatted)
+        self.assertNotIn('The Booker Prizes', formatted)
 
 
 if __name__ == '__main__':

@@ -10,7 +10,7 @@ import unittest
 
 from awards.model import AwardResult
 from awards.qualifier import QualificationDecision, qualify_award_result
-from awards.registry import NEWBERY_POLICY, PULITZER_FICTION_POLICY
+from awards.registry import BOOKER_POLICY, NEWBERY_POLICY, PULITZER_FICTION_POLICY
 
 
 def _result(**overrides) -> AwardResult:
@@ -308,6 +308,85 @@ class QualifyNewberyHonorPolicyTests(unittest.TestCase):
         with self.assertRaises(ValueError) as caught_category:
             qualify_award_result(wrong_category, NEWBERY_POLICY)
         self.assertIn('does not apply', str(caught_category.exception))
+
+
+class QualifyBookerShortlistedPolicyTests(unittest.TestCase):
+    def _booker(self, **overrides) -> AwardResult:
+        values = {
+            'work_title': 'Empire of the Sun',
+            'work_author': 'J. G. Ballard',
+            'award_name': 'Booker Prize',
+            'award_year': 1984,
+            'category': 'Fiction',
+            'status': 'Shortlisted',
+            'rank': None,
+            'source_name': 'The Booker Prize',
+            'source_url': (
+                'https://thebookerprizes.com/the-booker-library/books/'
+                'empire-of-the-sun'
+            ),
+        }
+        values.update(overrides)
+        return AwardResult(**values)
+
+    def test_booker_winner_qualifies_without_inventing_rank(self):
+        result = self._booker(
+            work_title='Midnight’s Children',
+            work_author='Salman Rushdie',
+            award_year=1981,
+            status='Winner',
+            rank=None,
+            source_url=(
+                'https://thebookerprizes.com/the-booker-library/books/'
+                'midnights-children'
+            ),
+        )
+        assessment = qualify_award_result(result, BOOKER_POLICY)
+        self.assertEqual(assessment.decision, QualificationDecision.QUALIFIES)
+        self.assertEqual(
+            assessment.reason,
+            'Status indicates a win without an established ordinal rank.',
+        )
+        self.assertIsNone(result.rank)
+
+    def test_booker_shortlisted_qualifies_without_inventing_rank(self):
+        result = self._booker()
+        assessment = qualify_award_result(result, BOOKER_POLICY)
+        self.assertEqual(assessment.decision, QualificationDecision.QUALIFIES)
+        self.assertEqual(
+            assessment.reason,
+            'Award-specific policy identifies this status as satisfying '
+            'the inclusion rule.',
+        )
+        self.assertIsNone(result.rank)
+
+    def test_generic_shortlisted_without_policy_remains_review(self):
+        result = self._booker()
+        assessment = qualify_award_result(result, policy=None)
+        self.assertEqual(assessment.decision, QualificationDecision.REVIEW)
+        self.assertEqual(
+            assessment.reason,
+            'Status meaning depends on the structure of the specific award.',
+        )
+
+    def test_unrelated_award_shortlisted_remains_review(self):
+        hugo_shortlisted = _hugo_result(status='Shortlisted', rank=None)
+        assessment = qualify_award_result(hugo_shortlisted, policy=None)
+        self.assertEqual(assessment.decision, QualificationDecision.REVIEW)
+
+    def test_booker_policy_does_not_apply_to_other_award_or_category(self):
+        hugo_shortlisted = _hugo_result(status='Shortlisted', rank=None)
+        with self.assertRaises(ValueError) as caught_award:
+            qualify_award_result(hugo_shortlisted, BOOKER_POLICY)
+        self.assertIn('does not apply', str(caught_award.exception))
+        wrong_category = self._booker(category='Poetry')
+        with self.assertRaises(ValueError) as caught_category:
+            qualify_award_result(wrong_category, BOOKER_POLICY)
+        self.assertIn('does not apply', str(caught_category.exception))
+
+    def test_booker_policy_does_not_include_longlisted(self):
+        self.assertNotIn('longlisted', BOOKER_POLICY.qualifying_statuses)
+        self.assertEqual(BOOKER_POLICY.qualifying_statuses, frozenset({'shortlisted'}))
 
 
 if __name__ == '__main__':

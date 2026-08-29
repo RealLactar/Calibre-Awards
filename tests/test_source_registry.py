@@ -5,14 +5,23 @@ from __future__ import annotations
 import unittest
 
 from awards.source_registry import AWARD_SOURCES, AwardSource
-from awards.sources import newbery
+from awards.sources import booker, newbery
 
 
 class AwardSourceRegistryTests(unittest.TestCase):
     def test_supported_source_keys_in_order(self):
         self.assertEqual(
             tuple(source.key for source in AWARD_SOURCES),
-            ('pulitzer', 'nebula', 'hugo', 'locus', 'world_fantasy', 'nobel', 'newbery'),
+            (
+                'pulitzer',
+                'nebula',
+                'hugo',
+                'locus',
+                'world_fantasy',
+                'nobel',
+                'booker',
+                'newbery',
+            ),
         )
 
     def test_display_names(self):
@@ -25,6 +34,7 @@ class AwardSourceRegistryTests(unittest.TestCase):
                 'Locus Awards',
                 'World Fantasy Awards',
                 'NobelPrize.org',
+                'The Booker Prize',
                 'John Newbery Medal',
             ),
         )
@@ -53,6 +63,12 @@ class AwardSourceRegistryTests(unittest.TestCase):
             source for source in AWARD_SOURCES if source.key == 'newbery'
         ][0]
         self.assertIs(newbery_source.lookup, newbery.lookup)
+
+    def test_booker_uses_the_public_lookup_function(self):
+        booker_source = [
+            source for source in AWARD_SOURCES if source.key == 'booker'
+        ][0]
+        self.assertIs(booker_source.lookup, booker.lookup)
 
 
 if __name__ == '__main__':

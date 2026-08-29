@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from typing import Protocol
 
 from .model import AwardResult
+from .sources.booker import lookup as booker_lookup
 from .sources.hugo import lookup as hugo_lookup
 from .sources.locus import lookup as locus_lookup
 from .sources.nebula import lookup as nebula_lookup
@@ -71,6 +72,11 @@ AWARD_SOURCES: tuple[AwardSource, ...] = (
         key='nobel',
         display_name='NobelPrize.org',
         lookup=nobel_lookup,
+    ),
+    AwardSource(
+        key='booker',
+        display_name='The Booker Prize',
+        lookup=booker_lookup,
     ),
     AwardSource(
         key='newbery',

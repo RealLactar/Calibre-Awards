@@ -1,8 +1,7 @@
 """Offline coverage for the award-policy registry.
 
-Pulitzer Fiction and Newbery Honor are the registered policies. A Booker
-Prize name in a test is an unsupported fixture, not plugin support for that
-award.
+Pulitzer Fiction, Newbery Honor, and Booker Shortlisted are the registered
+policies.
 """
 
 from __future__ import annotations
@@ -12,6 +11,7 @@ import unittest
 from awards.model import AwardResult
 from awards.registry import (
     AWARD_POLICIES,
+    BOOKER_POLICY,
     NEWBERY_POLICY,
     PULITZER_FICTION_POLICY,
     find_award_policy,
@@ -50,11 +50,27 @@ def _newbery_result(**overrides) -> AwardResult:
     return AwardResult(**values)
 
 
+def _booker_result(**overrides) -> AwardResult:
+    values = {
+        'work_title': 'Midnight’s Children',
+        'work_author': 'Salman Rushdie',
+        'award_name': 'Booker Prize',
+        'award_year': 1981,
+        'category': 'Fiction',
+        'status': 'Winner',
+        'rank': None,
+        'source_name': 'The Booker Prize',
+        'source_url': 'https://thebookerprizes.com/the-booker-library/books/midnights-children',
+    }
+    values.update(overrides)
+    return AwardResult(**values)
+
+
 class AwardPolicyRegistryTests(unittest.TestCase):
-    def test_registered_policies_are_pulitzer_then_newbery(self):
+    def test_registered_policies_are_pulitzer_newbery_then_booker(self):
         self.assertEqual(
             AWARD_POLICIES,
-            (PULITZER_FICTION_POLICY, NEWBERY_POLICY),
+            (PULITZER_FICTION_POLICY, NEWBERY_POLICY, BOOKER_POLICY),
         )
 
     def test_pulitzer_fiction_result_finds_the_active_policy(self):
@@ -88,8 +104,29 @@ class AwardPolicyRegistryTests(unittest.TestCase):
             )
         )
 
-    def test_unsupported_booker_result_has_no_registry_policy(self):
-        # Negative fixture: Booker is not a registered policy.
+    def test_booker_result_finds_the_shortlisted_policy(self):
+        winner = _booker_result()
+        shortlisted = _booker_result(
+            work_title='Empire of the Sun',
+            work_author='J. G. Ballard',
+            award_year=1984,
+            status='Shortlisted',
+            source_url=(
+                'https://thebookerprizes.com/the-booker-library/books/'
+                'empire-of-the-sun'
+            ),
+        )
+        self.assertIs(find_award_policy(winner), BOOKER_POLICY)
+        self.assertIs(find_award_policy(shortlisted), BOOKER_POLICY)
+
+    def test_booker_policy_does_not_match_other_award_or_category(self):
+        self.assertIsNone(
+            find_award_policy(_booker_result(award_name='International Booker Prize'))
+        )
+        self.assertIsNone(find_award_policy(_booker_result(category='Poetry')))
+        self.assertIsNone(find_award_policy(_booker_result(category=None)))
+
+    def test_longlisted_booker_name_without_fiction_category_has_no_policy(self):
         result = _result(
             work_title='Other',
             work_author='Author',
@@ -97,10 +134,11 @@ class AwardPolicyRegistryTests(unittest.TestCase):
             award_year=2026,
             category=None,
             status='Longlisted',
-            source_name='Booker Prize',
+            source_name='The Booker Prize',
             source_url=None,
         )
         self.assertIsNone(find_award_policy(result))
+        self.assertNotIn('longlisted', BOOKER_POLICY.qualifying_statuses)
 
 
 if __name__ == '__main__':

@@ -31,9 +31,21 @@ NEWBERY_POLICY = AwardPolicy(
     ),
 )
 
+BOOKER_POLICY = AwardPolicy(
+    award_name='Booker Prize',
+    category='Fiction',
+    qualifying_statuses=frozenset({'Shortlisted'}),
+    notes=(
+        'The Booker Prize Shortlist is an official published distinction. '
+        'Shortlisted qualifies under this Booker-specific policy. '
+        'Shortlisted does not imply an ordinal rank.'
+    ),
+)
+
 AWARD_POLICIES: tuple[AwardPolicy, ...] = (
     PULITZER_FICTION_POLICY,
     NEWBERY_POLICY,
+    BOOKER_POLICY,
 )
 
 
