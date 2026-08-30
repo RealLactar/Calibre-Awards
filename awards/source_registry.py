@@ -22,6 +22,7 @@ from .sources.nebula import lookup as nebula_lookup
 from .sources.newbery import lookup as newbery_lookup
 from .sources.nobel import lookup as nobel_lookup
 from .sources.pulitzer import lookup as pulitzer_lookup
+from .sources.womens_prize_fiction import lookup as womens_prize_fiction_lookup
 from .sources.world_fantasy import lookup as world_fantasy_lookup
 
 
@@ -95,6 +96,11 @@ AWARD_SOURCES: tuple[AwardSource, ...] = (
         key='miles_franklin',
         display_name='Miles Franklin Literary Award',
         lookup=miles_franklin_lookup,
+    ),
+    AwardSource(
+        key='womens_prize_fiction',
+        display_name="Women's Prize for Fiction",
+        lookup=womens_prize_fiction_lookup,
     ),
     AwardSource(
         key='newbery',

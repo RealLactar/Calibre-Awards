@@ -20,6 +20,7 @@ _CURRENT = (
     'german_book_prize',
     'prix_goncourt',
     'miles_franklin',
+    'womens_prize_fiction',
     'newbery',
 )
 
@@ -96,7 +97,7 @@ class ComputeEnabledSourceKeysTests(unittest.TestCase):
     def test_one_disabled(self):
         self.assertEqual(
             compute_enabled_source_keys(_CURRENT, ('pulitzer',)),
-            ('nebula', 'hugo', 'locus', 'world_fantasy', 'nobel', 'booker', 'german_book_prize', 'prix_goncourt', 'miles_franklin', 'newbery'),
+            ('nebula', 'hugo', 'locus', 'world_fantasy', 'nobel', 'booker', 'german_book_prize', 'prix_goncourt', 'miles_franklin', 'womens_prize_fiction', 'newbery'),
         )
 
     def test_several_disabled(self):
@@ -124,7 +125,7 @@ class ComputeEnabledSourceKeysTests(unittest.TestCase):
         self.assertEqual(disabled, ('pulitzer', 'removed_old_source'))
         self.assertEqual(
             compute_enabled_source_keys(_CURRENT, disabled),
-            ('nebula', 'hugo', 'locus', 'world_fantasy', 'nobel', 'booker', 'german_book_prize', 'prix_goncourt', 'miles_franklin', 'newbery'),
+            ('nebula', 'hugo', 'locus', 'world_fantasy', 'nobel', 'booker', 'german_book_prize', 'prix_goncourt', 'miles_franklin', 'womens_prize_fiction', 'newbery'),
         )
 
     def test_future_source_defaults_enabled(self):
@@ -143,6 +144,7 @@ class ComputeEnabledSourceKeysTests(unittest.TestCase):
                 'german_book_prize',
                 'prix_goncourt',
                 'miles_franklin',
+                'womens_prize_fiction',
                 'newbery',
                 'future_source',
             ),
@@ -173,7 +175,7 @@ class SourceInfosPreferenceCompositionTests(unittest.TestCase):
         self.assertEqual(all_keys[0], 'pulitzer')
         self.assertEqual(all_keys[-1], 'newbery')
         self.assertIn('newbery', all_keys)
-        self.assertEqual(len(all_keys), 11)
+        self.assertEqual(len(all_keys), 12)
         self.assertNotIn('national_book_awards', all_keys)
         self.assertNotIn(
             'national_book_awards',
@@ -212,8 +214,12 @@ class SourceInfosPreferenceCompositionTests(unittest.TestCase):
             all_keys.index('prix_goncourt') + 1,
         )
         self.assertEqual(
-            all_keys.index('newbery'),
+            all_keys.index('womens_prize_fiction'),
             all_keys.index('miles_franklin') + 1,
+        )
+        self.assertEqual(
+            all_keys.index('newbery'),
+            all_keys.index('womens_prize_fiction') + 1,
         )
 
     def test_prix_goncourt_defaults_enabled_for_preexisting_disabled_list(self):
@@ -226,6 +232,12 @@ class SourceInfosPreferenceCompositionTests(unittest.TestCase):
         all_keys = self._all_keys()
         enabled = compute_enabled_source_keys(all_keys, ['pulitzer'])
         self.assertIn('miles_franklin', enabled)
+        self.assertNotIn('pulitzer', enabled)
+
+    def test_womens_prize_fiction_defaults_enabled_for_preexisting_disabled_list(self):
+        all_keys = self._all_keys()
+        enabled = compute_enabled_source_keys(all_keys, ['pulitzer'])
+        self.assertIn('womens_prize_fiction', enabled)
         self.assertNotIn('pulitzer', enabled)
 
     def test_pulitzer_disabled_excludes_only_pulitzer(self):

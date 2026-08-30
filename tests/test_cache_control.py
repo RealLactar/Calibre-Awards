@@ -31,6 +31,7 @@ from awards.sources import (
     nobel,
     prix_goncourt,
     pulitzer,
+    womens_prize_fiction,
     world_fantasy,
 )
 
@@ -99,6 +100,7 @@ class CacheControlTestCase(unittest.TestCase):
         nobel._reset_runtime_state()
         prix_goncourt._reset_runtime_state()
         pulitzer._reset_runtime_state()
+        womens_prize_fiction._reset_runtime_state()
         world_fantasy._reset_runtime_state()
         self._temp = TemporaryDirectory()
         self.cache_dir = Path(self._temp.name)
@@ -115,6 +117,7 @@ class CacheControlTestCase(unittest.TestCase):
         nobel._reset_runtime_state()
         prix_goncourt._reset_runtime_state()
         pulitzer._reset_runtime_state()
+        womens_prize_fiction._reset_runtime_state()
         world_fantasy._reset_runtime_state()
         cache._reset_runtime_state()
         self._temp.cleanup()
@@ -164,6 +167,7 @@ class ArchiveSourceRefreshTests(CacheControlTestCase):
             'german_book_prize',
             'prix_goncourt',
             'miles_franklin',
+            'womens_prize_fiction',
             'newbery',
         ):
             _save_archive(key)
@@ -178,6 +182,7 @@ class ArchiveSourceRefreshTests(CacheControlTestCase):
             'german_book_prize',
             'prix_goncourt',
             'miles_franklin',
+            'womens_prize_fiction',
             'newbery',
         ):
             self.assertTrue((self.cache_dir / f'{key}.json').is_file(), key)

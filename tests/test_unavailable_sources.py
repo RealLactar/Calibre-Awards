@@ -67,8 +67,8 @@ class UnavailableAwardSourceCollectionTests(unittest.TestCase):
     def test_is_separate_from_executable_registries(self):
         executable_keys = [source.key for source in AWARD_SOURCES]
         executable_info_keys = [info.key for info in SOURCE_INFOS]
-        self.assertEqual(len(executable_keys), 11)
-        self.assertEqual(len(executable_info_keys), 11)
+        self.assertEqual(len(executable_keys), 12)
+        self.assertEqual(len(executable_info_keys), 12)
         self.assertNotIn('national_book_awards', executable_keys)
         self.assertNotIn('national_book_awards', executable_info_keys)
         self.assertNotIn(

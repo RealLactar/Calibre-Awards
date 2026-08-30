@@ -21,6 +21,7 @@ from .sources import (
     nobel,
     prix_goncourt,
     pulitzer,
+    womens_prize_fiction,
     world_fantasy,
 )
 
@@ -122,6 +123,10 @@ def _prix_goncourt_categories() -> tuple[str, ...]:
 
 def _miles_franklin_categories() -> tuple[str, ...]:
     return (miles_franklin.CATEGORY,)
+
+
+def _womens_prize_fiction_categories() -> tuple[str, ...]:
+    return (womens_prize_fiction.CATEGORY,)
 
 
 def _newbery_categories() -> tuple[str, ...]:
@@ -270,6 +275,25 @@ SOURCE_INFOS: tuple[SourceInfo, ...] = (
             'returned because that page does not distinguish those works from '
             'longlist-only works. Longlist-only works are not returned. '
             'Pre-2007 winners are not available from this archive.'
+        ),
+    ),
+    SourceInfo(
+        key='womens_prize_fiction',
+        display_name="Women's Prize for Fiction",
+        categories=_womens_prize_fiction_categories(),
+        identity_scopes=('work',),
+        homepage_url=womens_prize_fiction.SOURCE_HOME_URL,
+        description=(
+            "Women's Prize for Fiction winners from the official "
+            'previous-prizes archive and current prize page.'
+        ),
+        limitation=(
+            'Official Winner coverage begins in 1996. Historical Orange '
+            'Prize for Fiction years are treated as the same prize under '
+            'its current name. Phase 1 returns Winners only; shortlisted '
+            'and longlisted works are not returned. The Women\'s Prize '
+            'for Non-Fiction and other Women\'s Prize Trust programmes '
+            'are excluded.'
         ),
     ),
     SourceInfo(
