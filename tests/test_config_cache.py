@@ -26,6 +26,7 @@ from awards.cache_control import (
 from awards.source_info import SOURCE_INFOS
 from awards.source_registry import AWARD_SOURCES
 from awards.source_settings import normalize_disabled_source_keys
+from awards.unavailable_sources import unavailable_award_sources
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 _CONFIG_PATH = _REPO_ROOT / 'config.py'
@@ -55,6 +56,13 @@ def _award_sources_init_block() -> str:
     start = text.index("QGroupBox('Award sources'")
     end = text.index("QGroupBox('Qualification and award output'")
     return text[start:end]
+
+
+def _unavailable_sources_loop_block() -> str:
+    block = _award_sources_init_block()
+    start = block.index('for info in unavailable_award_sources():')
+    end = block.index('buttons = QWidget(sources_group)')
+    return block[start:end]
 
 
 def _save_settings_body() -> str:
@@ -130,6 +138,7 @@ class FakeAwardSourcesPanel:
             self.source_checkboxes[source_key] = checkbox
             self.source_refresh_buttons[source_key] = button
             self.inserted_source_rows.append(source_key)
+        self.unavailable_source_rows = list(unavailable_award_sources())
 
     def set_checked(self, source_key: str, checked: bool):
         self.source_checkboxes[source_key].setChecked(checked)
@@ -258,6 +267,110 @@ class AwardSourcesLayoutTests(unittest.TestCase):
             tuple(source.key for source in AWARD_SOURCES),
         )
         self.assertEqual(tuple(panel.inserted_source_rows), _EXPECTED_SOURCE_ORDER)
+
+
+class AwardSourcesUnavailableRowTests(unittest.TestCase):
+    def test_unavailable_rows_use_the_same_helper_as_config_widget(self):
+        panel = FakeAwardSourcesPanel()
+        infos = unavailable_award_sources()
+        self.assertEqual(tuple(panel.unavailable_source_rows), infos)
+        self.assertEqual(len(infos), 1)
+        self.assertEqual(infos[0].display_name, 'National Book Awards')
+        self.assertEqual(infos[0].status, 'Transport blocked')
+        self.assertIn('JavaScript robot challenge', infos[0].tooltip)
+        self.assertIn('ordinary automated access', infos[0].tooltip)
+        self.assertNotIn('HTTP', infos[0].tooltip)
+        self.assertNotIn('Cursor', infos[0].tooltip)
+
+    def test_informational_row_has_no_checkbox_or_refresh(self):
+        panel = FakeAwardSourcesPanel()
+        self.assertNotIn('national_book_awards', panel.source_checkboxes)
+        self.assertNotIn('national_book_awards', panel.source_refresh_buttons)
+        self.assertNotIn('national_book_awards', panel.inserted_source_rows)
+        self.assertEqual(tuple(panel.source_checkboxes), _EXPECTED_SOURCE_ORDER)
+        self.assertEqual(
+            tuple(panel.source_refresh_buttons),
+            _EXPECTED_SOURCE_ORDER,
+        )
+        for checkbox in panel.source_checkboxes.values():
+            self.assertNotEqual(checkbox.text, 'National Book Awards')
+
+    def test_executable_rows_retain_checkbox_and_refresh(self):
+        panel = FakeAwardSourcesPanel()
+        self.assertEqual(len(panel.source_checkboxes), 11)
+        self.assertEqual(len(panel.source_refresh_buttons), 11)
+        for source_key, display_name in cache_refresh_source_rows():
+            self.assertIn(source_key, panel.source_checkboxes)
+            self.assertIn(source_key, panel.source_refresh_buttons)
+            self.assertEqual(
+                panel.source_checkboxes[source_key].text,
+                display_name,
+            )
+
+    def test_select_all_and_none_act_only_on_executable_sources(self):
+        panel = FakeAwardSourcesPanel(disabled_keys=['nebula'])
+        checkbox_keys = tuple(panel.source_checkboxes)
+        refresh_keys = tuple(panel.source_refresh_buttons)
+        unavailable_before = tuple(panel.unavailable_source_rows)
+        panel.select_all_sources()
+        self.assertEqual(tuple(panel.source_checkboxes), checkbox_keys)
+        self.assertEqual(tuple(panel.source_refresh_buttons), refresh_keys)
+        self.assertEqual(tuple(panel.unavailable_source_rows), unavailable_before)
+        self.assertNotIn('national_book_awards', panel.source_checkboxes)
+        for checkbox in panel.source_checkboxes.values():
+            self.assertTrue(checkbox.checked)
+        panel.select_no_sources()
+        self.assertEqual(tuple(panel.source_checkboxes), checkbox_keys)
+        self.assertNotIn('national_book_awards', panel.source_checkboxes)
+        for checkbox in panel.source_checkboxes.values():
+            self.assertFalse(checkbox.checked)
+        self.assertEqual(tuple(panel.unavailable_source_rows), unavailable_before)
+
+    def test_config_builds_unavailable_rows_from_generic_collection(self):
+        block = _award_sources_init_block()
+        loop = _unavailable_sources_loop_block()
+        self.assertIn(
+            'for source_key, display_name in cache_refresh_source_rows():',
+            block,
+        )
+        self.assertIn('for info in unavailable_award_sources():', block)
+        self.assertLess(
+            block.index(
+                'for source_key, display_name in cache_refresh_source_rows():'
+            ),
+            block.index('for info in unavailable_award_sources():'),
+        )
+        self.assertNotIn('National Book Awards', block)
+        self.assertNotIn('national_book_awards', block)
+        self.assertNotIn('Currently unavailable', block)
+        self.assertIn('QLabel(info.display_name, row)', loop)
+        self.assertIn('QLabel(info.status, row)', loop)
+        self.assertIn('name_label.setEnabled(False)', loop)
+        self.assertIn('status_label.setEnabled(False)', loop)
+        self.assertIn('name_label.setToolTip(info.tooltip)', loop)
+        self.assertIn('status_label.setToolTip(info.tooltip)', loop)
+        self.assertIn('row.setToolTip(info.tooltip)', loop)
+        self.assertNotIn('QCheckBox', loop)
+        self.assertNotIn('QPushButton', loop)
+        self.assertNotIn('CACHE_REFRESH_BUTTON_LABEL', loop)
+        self.assertNotIn('source_checkboxes', loop)
+        self.assertNotIn('source_refresh_buttons', loop)
+        self.assertIn(
+            'layout.setSizeConstraint(QVBoxLayout.SizeConstraint.SetMinimumSize)',
+            _config_text().split('class ConfigWidget')[1].split(
+                'def _populate_field_combo'
+            )[0],
+        )
+
+    def test_save_settings_does_not_persist_unavailable_source_keys(self):
+        body = _save_settings_body()
+        self.assertIn('for info in SOURCE_INFOS', body)
+        self.assertIn('self.source_checkboxes[info.key].isChecked()', body)
+        self.assertNotIn('unavailable_award_sources', body)
+        self.assertNotIn('national_book_awards', body)
+        defaults_block = _config_text().split('class ConfigWidget')[0]
+        self.assertIn("prefs.defaults['disabled_source_keys'] = []", defaults_block)
+        self.assertNotIn('national_book_awards', defaults_block)
 
 
 class RefreshButtonIdentityTests(unittest.TestCase):

@@ -124,6 +124,14 @@ class SourceInfoRegistryConsistencyTests(unittest.TestCase):
         )
         self.assertEqual(len(SOURCE_INFOS), len(AWARD_SOURCES))
         self.assertEqual(len(SOURCE_INFOS), 11)
+        self.assertNotIn(
+            'national_book_awards',
+            [info.key for info in SOURCE_INFOS],
+        )
+        self.assertNotIn(
+            'National Book Awards',
+            [info.display_name for info in SOURCE_INFOS],
+        )
 
     def test_keys_are_unique(self):
         keys = [info.key for info in SOURCE_INFOS]

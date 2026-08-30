@@ -173,6 +173,12 @@ class SourceInfosPreferenceCompositionTests(unittest.TestCase):
         self.assertEqual(all_keys[0], 'pulitzer')
         self.assertEqual(all_keys[-1], 'newbery')
         self.assertIn('newbery', all_keys)
+        self.assertEqual(len(all_keys), 11)
+        self.assertNotIn('national_book_awards', all_keys)
+        self.assertNotIn(
+            'national_book_awards',
+            compute_enabled_source_keys(all_keys, []),
+        )
 
     def test_german_book_prize_defaults_enabled_for_preexisting_disabled_list(self):
         all_keys = self._all_keys()

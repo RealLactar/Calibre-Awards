@@ -128,6 +128,14 @@ class RegistryResetAlignmentTests(CacheControlTestCase):
         self.assertEqual(resets, registered)
         self.assertEqual(resets, infos)
 
+    def test_national_book_awards_is_not_registered_for_cache_reset(self):
+        self.assertNotIn('national_book_awards', runtime_reset_source_keys())
+        self.assertNotIn('national_book_awards', cache_control._SOURCE_RUNTIME_RESETS)
+        self.assertNotIn(
+            'national_book_awards',
+            [key for key, _name in cache_control.cache_refresh_source_rows()],
+        )
+
 
 class ArchiveSourceRefreshTests(CacheControlTestCase):
     def test_refresh_archive_source_removes_only_that_persistent_cache(self):

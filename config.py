@@ -37,6 +37,9 @@ from calibre_plugins.calibre_awards.awards.source_info import SOURCE_INFOS
 from calibre_plugins.calibre_awards.awards.source_settings import (
     normalize_disabled_source_keys,
 )
+from calibre_plugins.calibre_awards.awards.unavailable_sources import (
+    unavailable_award_sources,
+)
 from qt.core import (
     QCheckBox,
     QComboBox,
@@ -174,6 +177,21 @@ class ConfigWidget(QWidget):
             row_layout.addWidget(checkbox)
             row_layout.addStretch(1)
             row_layout.addWidget(refresh_btn)
+            sources_layout.addWidget(row)
+        for info in unavailable_award_sources():
+            row = QWidget(sources_group)
+            row_layout = QHBoxLayout(row)
+            row_layout.setContentsMargins(0, 0, 0, 0)
+            name_label = QLabel(info.display_name, row)
+            status_label = QLabel(info.status, row)
+            name_label.setEnabled(False)
+            status_label.setEnabled(False)
+            name_label.setToolTip(info.tooltip)
+            status_label.setToolTip(info.tooltip)
+            row.setToolTip(info.tooltip)
+            row_layout.addWidget(name_label)
+            row_layout.addStretch(1)
+            row_layout.addWidget(status_label)
             sources_layout.addWidget(row)
         buttons = QWidget(sources_group)
         buttons_layout = QHBoxLayout(buttons)
