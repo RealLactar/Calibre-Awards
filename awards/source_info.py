@@ -196,7 +196,7 @@ SOURCE_INFOS: tuple[SourceInfo, ...] = (
     ),
     SourceInfo(
         key='nobel',
-        display_name='NobelPrize.org',
+        display_name='Nobel Award',
         categories=_nobel_categories(),
         identity_scopes=('author', 'work'),
         homepage_url=nobel.SOURCE_HOME_URL,

@@ -17,6 +17,7 @@ from calibre_plugins.calibre_awards.awards.cache_control import (
     SOURCES_GROUP_HINT,
     bind_refresh_enabled_to_checkbox,
     bind_source_refresh_callback,
+    cache_refresh_source_rows,
     run_source_cache_refresh_if_confirmed,
     source_cache_refresh_confirm_body,
     source_cache_refresh_confirm_title,
@@ -128,6 +129,10 @@ class ConfigWidget(QWidget):
     def __init__(self):
         QWidget.__init__(self)
         layout = QVBoxLayout()
+        # Calibre wraps this widget in a QScrollArea with setWidgetResizable.
+        # Without a minimum-size constraint, a restored short dialog compresses
+        # Award sources rows until later sources have no visible height.
+        layout.setSizeConstraint(QVBoxLayout.SizeConstraint.SetMinimumSize)
         self.setLayout(layout)
 
         sources_group = QGroupBox('Award sources', self)
@@ -140,32 +145,32 @@ class ConfigWidget(QWidget):
         )
         self.source_checkboxes = {}
         self.source_refresh_buttons = {}
-        for info in SOURCE_INFOS:
+        for source_key, display_name in cache_refresh_source_rows():
             # Current capabilities only; stale disabled keys have no checkbox.
             # Refresh is enabled from the open checkbox, not stored prefs.
             row = QWidget(sources_group)
             row_layout = QHBoxLayout(row)
             row_layout.setContentsMargins(0, 0, 0, 0)
-            checkbox = QCheckBox(info.display_name, row)
-            enabled = info.key not in disabled_keys
+            checkbox = QCheckBox(display_name, row)
+            enabled = source_key not in disabled_keys
             checkbox.setChecked(enabled)
             refresh_btn = QPushButton(CACHE_REFRESH_BUTTON_LABEL, row)
-            refresh_btn.setObjectName(f'cache_refresh_{info.key}')
+            refresh_btn.setObjectName(f'cache_refresh_{source_key}')
             refresh_btn.setAutoDefault(False)
             refresh_btn.setDefault(False)
             refresh_btn.setEnabled(enabled)
             refresh_btn.clicked.connect(
                 bind_source_refresh_callback(
                     self._on_refresh_cached_source,
-                    info.key,
-                    info.display_name,
+                    source_key,
+                    display_name,
                 )
             )
             checkbox.toggled.connect(
                 bind_refresh_enabled_to_checkbox(refresh_btn)
             )
-            self.source_checkboxes[info.key] = checkbox
-            self.source_refresh_buttons[info.key] = refresh_btn
+            self.source_checkboxes[source_key] = checkbox
+            self.source_refresh_buttons[source_key] = refresh_btn
             row_layout.addWidget(checkbox)
             row_layout.addStretch(1)
             row_layout.addWidget(refresh_btn)

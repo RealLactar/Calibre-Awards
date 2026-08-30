@@ -198,6 +198,7 @@ class SourceInfoCategoryTests(unittest.TestCase):
 
     def test_nobel_literature_only(self):
         info = _info('nobel')
+        self.assertEqual(info.display_name, 'Nobel Award')
         self.assertEqual(info.categories, (nobel.CATEGORY_LITERATURE,))
         self.assertEqual(info.categories, ('Literature',))
 

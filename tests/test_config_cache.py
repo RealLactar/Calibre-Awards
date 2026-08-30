@@ -35,6 +35,27 @@ def _config_text() -> str:
     return _CONFIG_PATH.read_text(encoding='utf-8')
 
 
+_EXPECTED_SOURCE_ORDER = (
+    'pulitzer',
+    'nebula',
+    'hugo',
+    'locus',
+    'world_fantasy',
+    'nobel',
+    'booker',
+    'german_book_prize',
+    'prix_goncourt',
+    'newbery',
+)
+
+
+def _award_sources_init_block() -> str:
+    text = _config_text()
+    start = text.index("QGroupBox('Award sources'")
+    end = text.index("QGroupBox('Qualification and award output'")
+    return text[start:end]
+
+
 def _save_settings_body() -> str:
     text = _config_text()
     marker = 'def save_settings(self):'
@@ -92,6 +113,7 @@ class FakeAwardSourcesPanel:
         self.confirm_next = True
         self.source_checkboxes = {}
         self.source_refresh_buttons = {}
+        self.inserted_source_rows = []
         for source_key, display_name in cache_refresh_source_rows():
             enabled = source_key not in disabled
             checkbox = FakeCheckbox(display_name, checked=enabled)
@@ -106,6 +128,7 @@ class FakeAwardSourcesPanel:
             checkbox._toggled.append(bind_refresh_enabled_to_checkbox(button))
             self.source_checkboxes[source_key] = checkbox
             self.source_refresh_buttons[source_key] = button
+            self.inserted_source_rows.append(source_key)
 
     def set_checked(self, source_key: str, checked: bool):
         self.source_checkboxes[source_key].setChecked(checked)
@@ -160,17 +183,17 @@ class AwardSourcesLayoutTests(unittest.TestCase):
         )
 
     def test_each_row_has_checkbox_and_refresh_button(self):
-        text = _config_text()
-        self.assertIn('self.source_checkboxes[info.key] = checkbox', text)
-        self.assertIn('self.source_refresh_buttons[info.key] = refresh_btn', text)
-        self.assertIn('QCheckBox(info.display_name', text)
-        self.assertIn('CACHE_REFRESH_BUTTON_LABEL', text)
+        block = _award_sources_init_block()
+        self.assertIn('self.source_checkboxes[source_key] = checkbox', block)
+        self.assertIn('self.source_refresh_buttons[source_key] = refresh_btn', block)
+        self.assertIn('QCheckBox(display_name', block)
+        self.assertIn('CACHE_REFRESH_BUTTON_LABEL', block)
         self.assertEqual(CACHE_REFRESH_BUTTON_LABEL, 'Refresh')
-        self.assertIn('row_layout.addWidget(checkbox)', text)
-        self.assertIn('row_layout.addStretch(1)', text)
-        self.assertIn('row_layout.addWidget(refresh_btn)', text)
-        self.assertNotIn('hugo._reset_runtime_state', text)
-        self.assertNotIn('nebula._reset_runtime_state', text)
+        self.assertIn('row_layout.addWidget(checkbox)', block)
+        self.assertIn('row_layout.addStretch(1)', block)
+        self.assertIn('row_layout.addWidget(refresh_btn)', block)
+        self.assertNotIn('hugo._reset_runtime_state', block)
+        self.assertNotIn('nebula._reset_runtime_state', block)
 
     def test_display_names_match_source_infos(self):
         by_key = dict(cache_refresh_source_rows())
@@ -179,11 +202,41 @@ class AwardSourcesLayoutTests(unittest.TestCase):
         self.assertEqual(by_key['hugo'], 'Hugo Awards')
         self.assertEqual(by_key['locus'], 'Locus Awards')
         self.assertEqual(by_key['world_fantasy'], 'World Fantasy Awards')
-        self.assertEqual(by_key['nobel'], 'NobelPrize.org')
+        self.assertEqual(by_key['nobel'], 'Nobel Award')
         self.assertEqual(by_key['booker'], 'The Booker Prize')
         self.assertEqual(by_key['german_book_prize'], 'Deutscher Buchpreis')
         self.assertEqual(by_key['prix_goncourt'], 'Prix Goncourt')
         self.assertEqual(by_key['newbery'], 'John Newbery Medal')
+
+    def test_config_widget_row_path_creates_all_sources_including_prix_goncourt(self):
+        block = _award_sources_init_block()
+        self.assertIn(
+            'for source_key, display_name in cache_refresh_source_rows():',
+            block,
+        )
+        self.assertIn('sources_layout.addWidget(row)', block)
+        self.assertIn(
+            'layout.setSizeConstraint(QVBoxLayout.SizeConstraint.SetMinimumSize)',
+            _config_text().split('class ConfigWidget')[1].split('def _populate_field_combo')[0],
+        )
+        self.assertNotIn('SOURCE_INFOS[', block)
+        self.assertNotIn('AWARD_SOURCES[', block)
+
+        rows = cache_refresh_source_rows()
+        self.assertEqual(tuple(key for key, _name in rows), _EXPECTED_SOURCE_ORDER)
+        panel = FakeAwardSourcesPanel()
+        self.assertEqual(tuple(panel.source_checkboxes), _EXPECTED_SOURCE_ORDER)
+        self.assertEqual(tuple(panel.source_refresh_buttons), _EXPECTED_SOURCE_ORDER)
+        self.assertEqual(tuple(panel.inserted_source_rows), _EXPECTED_SOURCE_ORDER)
+        self.assertIn('prix_goncourt', panel.source_checkboxes)
+        self.assertIn('prix_goncourt', panel.source_refresh_buttons)
+        self.assertEqual(
+            panel.source_checkboxes['prix_goncourt'].text,
+            'Prix Goncourt',
+        )
+        goncourt = _EXPECTED_SOURCE_ORDER.index('prix_goncourt')
+        self.assertEqual(panel.inserted_source_rows[goncourt - 1], 'german_book_prize')
+        self.assertEqual(panel.inserted_source_rows[goncourt + 1], 'newbery')
 
     def test_one_refresh_button_per_registered_source(self):
         panel = FakeAwardSourcesPanel()
@@ -195,6 +248,7 @@ class AwardSourcesLayoutTests(unittest.TestCase):
             tuple(panel.source_checkboxes),
             tuple(source.key for source in AWARD_SOURCES),
         )
+        self.assertEqual(tuple(panel.inserted_source_rows), _EXPECTED_SOURCE_ORDER)
 
 
 class RefreshButtonIdentityTests(unittest.TestCase):

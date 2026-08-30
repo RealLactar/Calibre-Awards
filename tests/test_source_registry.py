@@ -35,7 +35,7 @@ class AwardSourceRegistryTests(unittest.TestCase):
                 'Hugo Awards',
                 'Locus Awards',
                 'World Fantasy Awards',
-                'NobelPrize.org',
+                'Nobel Award',
                 'The Booker Prize',
                 'Deutscher Buchpreis',
                 'Prix Goncourt',

@@ -72,7 +72,7 @@ AWARD_SOURCES: tuple[AwardSource, ...] = (
     ),
     AwardSource(
         key='nobel',
-        display_name='NobelPrize.org',
+        display_name='Nobel Award',
         lookup=nobel_lookup,
     ),
     AwardSource(
