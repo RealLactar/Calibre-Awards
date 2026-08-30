@@ -330,8 +330,15 @@ class PrixGoncourtMatchingTests(unittest.TestCase):
         pg._reset_runtime_state()
         self.html = official_winners_html(max_year=2025)
         self.records, self.years = _parse(self.html)
+        self._skip_selection = patch.object(
+            pg,
+            '_load_live_selections',
+            side_effect=pg.PrixGoncourtSourceError('selection skipped'),
+        )
+        self._skip_selection.start()
 
     def tearDown(self):
+        self._skip_selection.stop()
         pg._reset_runtime_state()
 
     def test_lookup_returns_official_spelling(self):

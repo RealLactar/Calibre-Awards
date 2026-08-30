@@ -329,8 +329,16 @@ class SourceInfoScopeAndHomepageTests(unittest.TestCase):
         self.assertIn('fiction', description)
         self.assertNotIn('lycéens', description)
         limitation = info.limitation.casefold()
-        self.assertIn('selection', limitation)
+        self.assertIn('1903', limitation)
+        self.assertIn('2018', limitation)
+        self.assertIn('3ème', limitation)
+        self.assertIn('finalist', limitation)
+        self.assertIn('first', limitation)
+        self.assertIn('second', limitation)
         self.assertIn('not returned', limitation)
+        self.assertNotIn('2008', limitation)
+        self.assertNotIn('top 4', limitation)
+        self.assertNotIn('this version', limitation)
 
     def test_nobel_description_covers_author_and_cited_work_scope(self):
         text = _info('nobel').description.casefold()
@@ -425,10 +433,13 @@ class SourceInfoImportAndFormatTests(unittest.TestCase):
         self.assertIn('Categories: Fiction', formatted)
         self.assertIn('Scope: Work awards', formatted)
         self.assertIn('Académie Goncourt', formatted)
-        self.assertIn(
-            'Note: Staged Prix Goncourt selections are not returned in this version.',
-            formatted,
-        )
+        self.assertIn('Note:', formatted)
+        self.assertIn('1903', formatted)
+        self.assertIn('2018', formatted)
+        self.assertIn('3ème', formatted)
+        self.assertIn('not returned', formatted.casefold())
+        self.assertNotIn('this version', formatted)
+        self.assertNotIn('top 4', formatted)
         self.assertNotIn('Goncourt Prize', formatted)
         self.assertNotIn('Lycéens', formatted)
 

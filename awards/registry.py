@@ -54,11 +54,24 @@ GERMAN_BOOK_PRIZE_POLICY = AwardPolicy(
     ),
 )
 
+PRIX_GONCOURT_POLICY = AwardPolicy(
+    award_name='Prix Goncourt',
+    category='Fiction',
+    qualifying_statuses=frozenset({'Finalist'}),
+    notes=(
+        'The Académie Goncourt publishes three successive selections. '
+        'The 3ème sélection is the final official selection from which '
+        'the prize is awarded. Finalist qualifies under this '
+        'award-specific policy. Finalist does not imply an ordinal rank.'
+    ),
+)
+
 AWARD_POLICIES: tuple[AwardPolicy, ...] = (
     PULITZER_FICTION_POLICY,
     NEWBERY_POLICY,
     BOOKER_POLICY,
     GERMAN_BOOK_PRIZE_POLICY,
+    PRIX_GONCOURT_POLICY,
 )
 
 

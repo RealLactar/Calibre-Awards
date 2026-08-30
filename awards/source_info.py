@@ -241,7 +241,10 @@ SOURCE_INFOS: tuple[SourceInfo, ...] = (
             'archive; French-language fiction.'
         ),
         limitation=(
-            'Staged Prix Goncourt selections are not returned in this version.'
+            'Winners are available from the complete official archive '
+            'beginning in 1903. Finalists from the Académie Goncourt '
+            '3ème sélection are included from 2018 onward. First- and '
+            'second-selection-only works are not returned.'
         ),
     ),
     SourceInfo(

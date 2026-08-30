@@ -14,6 +14,7 @@ from awards.registry import (
     BOOKER_POLICY,
     GERMAN_BOOK_PRIZE_POLICY,
     NEWBERY_POLICY,
+    PRIX_GONCOURT_POLICY,
     PULITZER_FICTION_POLICY,
 )
 
@@ -474,6 +475,79 @@ class QualifyGermanBookPrizeShortlistedPolicyTests(unittest.TestCase):
             GERMAN_BOOK_PRIZE_POLICY.qualifying_statuses,
             frozenset({'shortlisted'}),
         )
+
+
+class QualifyPrixGoncourtFinalistPolicyTests(unittest.TestCase):
+    def _goncourt(self, **overrides) -> AwardResult:
+        values = {
+            'work_title': 'Triste tigre',
+            'work_author': 'Neige SINNO',
+            'award_name': 'Prix Goncourt',
+            'award_year': 2023,
+            'category': 'Fiction',
+            'status': 'Finalist',
+            'rank': None,
+            'source_name': 'Prix Goncourt',
+            'source_url': (
+                'https://www.academiegoncourt.com/'
+                'prix-goncourt-et-selection-annee'
+            ),
+        }
+        values.update(overrides)
+        return AwardResult(**values)
+
+    def test_prix_goncourt_winner_qualifies_without_inventing_rank(self):
+        result = self._goncourt(
+            work_title='La Maison vide',
+            work_author='Laurent Mauvignier',
+            award_year=2025,
+            status='Winner',
+            source_url=(
+                'https://www.academiegoncourt.com/tous-les-laureats-prix-goncourt'
+            ),
+        )
+        assessment = qualify_award_result(result, PRIX_GONCOURT_POLICY)
+        self.assertEqual(assessment.decision, QualificationDecision.QUALIFIES)
+        self.assertEqual(
+            assessment.reason,
+            'Status indicates a win without an established ordinal rank.',
+        )
+        self.assertIsNone(result.rank)
+
+    def test_prix_goncourt_finalist_qualifies_via_policy_without_inventing_rank(self):
+        result = self._goncourt()
+        assessment = qualify_award_result(result, PRIX_GONCOURT_POLICY)
+        self.assertEqual(assessment.decision, QualificationDecision.QUALIFIES)
+        self.assertEqual(
+            assessment.reason,
+            'Award-specific policy identifies this status as satisfying '
+            'the inclusion rule.',
+        )
+        self.assertIsNone(result.rank)
+
+    def test_generic_unrelated_finalist_remains_review(self):
+        hugo_finalist = _hugo_result(status='Finalist', rank=None)
+        assessment = qualify_award_result(hugo_finalist, policy=None)
+        self.assertEqual(assessment.decision, QualificationDecision.REVIEW)
+
+    def test_prix_goncourt_policy_does_not_apply_to_wrong_category(self):
+        wrong_category = self._goncourt(category='Poetry')
+        with self.assertRaises(ValueError) as caught:
+            qualify_award_result(wrong_category, PRIX_GONCOURT_POLICY)
+        self.assertIn('does not apply', str(caught.exception))
+
+    def test_prix_goncourt_policy_does_not_include_early_selections(self):
+        self.assertNotIn('1ère', PRIX_GONCOURT_POLICY.qualifying_statuses)
+        self.assertNotIn('2ème', PRIX_GONCOURT_POLICY.qualifying_statuses)
+        self.assertEqual(
+            PRIX_GONCOURT_POLICY.qualifying_statuses,
+            frozenset({'finalist'}),
+        )
+        notes = (PRIX_GONCOURT_POLICY.notes or '').casefold()
+        self.assertIn('three successive selections', notes)
+        self.assertIn('3ème', notes)
+        self.assertNotIn('top 4', notes)
+        self.assertNotIn('rank', notes.replace('ordinal rank', ''))
 
 
 if __name__ == '__main__':

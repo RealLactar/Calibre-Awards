@@ -1,7 +1,8 @@
 """Offline coverage for the award-policy registry.
 
-Pulitzer Fiction, Newbery Honor, Booker Shortlisted, and Deutscher
-Buchpreis Shortlisted are the registered policies.
+Pulitzer Fiction, Newbery Honor, Booker Shortlisted, Deutscher
+Buchpreis Shortlisted, and Prix Goncourt Finalist are the registered
+policies.
 """
 
 from __future__ import annotations
@@ -14,6 +15,7 @@ from awards.registry import (
     BOOKER_POLICY,
     GERMAN_BOOK_PRIZE_POLICY,
     NEWBERY_POLICY,
+    PRIX_GONCOURT_POLICY,
     PULITZER_FICTION_POLICY,
     find_award_policy,
 )
@@ -84,7 +86,7 @@ def _booker_result(**overrides) -> AwardResult:
 
 
 class AwardPolicyRegistryTests(unittest.TestCase):
-    def test_registered_policies_are_pulitzer_newbery_booker_then_german(self):
+    def test_registered_policies_are_pulitzer_newbery_booker_german_goncourt(self):
         self.assertEqual(
             AWARD_POLICIES,
             (
@@ -92,6 +94,7 @@ class AwardPolicyRegistryTests(unittest.TestCase):
                 NEWBERY_POLICY,
                 BOOKER_POLICY,
                 GERMAN_BOOK_PRIZE_POLICY,
+                PRIX_GONCOURT_POLICY,
             ),
         )
 
@@ -171,6 +174,61 @@ class AwardPolicyRegistryTests(unittest.TestCase):
         )
         self.assertIsNone(find_award_policy(_german_result(category='Poetry')))
         self.assertIsNone(find_award_policy(_german_result(category=None)))
+
+    def test_prix_goncourt_result_finds_the_finalist_policy(self):
+        winner = _result(
+            work_title='La Maison vide',
+            work_author='Laurent Mauvignier',
+            award_name='Prix Goncourt',
+            award_year=2025,
+            category='Fiction',
+            status='Winner',
+            source_name='Prix Goncourt',
+            source_url='https://www.academiegoncourt.com/tous-les-laureats-prix-goncourt',
+        )
+        finalist = _result(
+            work_title='Triste tigre',
+            work_author='Neige SINNO',
+            award_name='Prix Goncourt',
+            award_year=2023,
+            category='Fiction',
+            status='Finalist',
+            source_name='Prix Goncourt',
+            source_url='https://www.academiegoncourt.com/prix-goncourt-et-selection-annee',
+        )
+        self.assertIs(find_award_policy(winner), PRIX_GONCOURT_POLICY)
+        self.assertIs(find_award_policy(finalist), PRIX_GONCOURT_POLICY)
+
+    def test_prix_goncourt_policy_does_not_match_other_award_or_category(self):
+        self.assertIsNone(
+            find_award_policy(
+                _result(
+                    award_name='Prix Goncourt',
+                    category='Poetry',
+                    status='Finalist',
+                )
+            )
+        )
+        self.assertIsNone(
+            find_award_policy(
+                _result(
+                    award_name='Prix Femina',
+                    category='Fiction',
+                    status='Finalist',
+                )
+            )
+        )
+        self.assertNotIn('1ère', PRIX_GONCOURT_POLICY.qualifying_statuses)
+        self.assertNotIn('2ème', PRIX_GONCOURT_POLICY.qualifying_statuses)
+        self.assertEqual(
+            PRIX_GONCOURT_POLICY.qualifying_statuses,
+            frozenset({'finalist'}),
+        )
+        notes = (PRIX_GONCOURT_POLICY.notes or '').casefold()
+        self.assertIn('3ème', notes)
+        self.assertIn('does not imply', notes)
+        self.assertNotIn('top 4', notes)
+        self.assertNotIn('rank 4', notes)
 
     def test_german_book_prize_policy_does_not_include_longlisted(self):
         self.assertNotIn('longlisted', GERMAN_BOOK_PRIZE_POLICY.qualifying_statuses)
