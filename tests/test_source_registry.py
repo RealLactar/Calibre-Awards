@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 from awards.source_registry import AWARD_SOURCES, AwardSource
-from awards.sources import booker, newbery
+from awards.sources import booker, german_book_prize, newbery
 
 
 class AwardSourceRegistryTests(unittest.TestCase):
@@ -20,6 +20,7 @@ class AwardSourceRegistryTests(unittest.TestCase):
                 'world_fantasy',
                 'nobel',
                 'booker',
+                'german_book_prize',
                 'newbery',
             ),
         )
@@ -35,6 +36,7 @@ class AwardSourceRegistryTests(unittest.TestCase):
                 'World Fantasy Awards',
                 'NobelPrize.org',
                 'The Booker Prize',
+                'Deutscher Buchpreis',
                 'John Newbery Medal',
             ),
         )
@@ -69,6 +71,12 @@ class AwardSourceRegistryTests(unittest.TestCase):
             source for source in AWARD_SOURCES if source.key == 'booker'
         ][0]
         self.assertIs(booker_source.lookup, booker.lookup)
+
+    def test_german_book_prize_uses_the_public_lookup_function(self):
+        german_source = [
+            source for source in AWARD_SOURCES if source.key == 'german_book_prize'
+        ][0]
+        self.assertIs(german_source.lookup, german_book_prize.lookup)
 
 
 if __name__ == '__main__':

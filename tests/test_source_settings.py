@@ -17,6 +17,7 @@ _CURRENT = (
     'world_fantasy',
     'nobel',
     'booker',
+    'german_book_prize',
     'newbery',
 )
 
@@ -93,7 +94,7 @@ class ComputeEnabledSourceKeysTests(unittest.TestCase):
     def test_one_disabled(self):
         self.assertEqual(
             compute_enabled_source_keys(_CURRENT, ('pulitzer',)),
-            ('nebula', 'hugo', 'locus', 'world_fantasy', 'nobel', 'booker', 'newbery'),
+            ('nebula', 'hugo', 'locus', 'world_fantasy', 'nobel', 'booker', 'german_book_prize', 'newbery'),
         )
 
     def test_several_disabled(self):
@@ -121,7 +122,7 @@ class ComputeEnabledSourceKeysTests(unittest.TestCase):
         self.assertEqual(disabled, ('pulitzer', 'removed_old_source'))
         self.assertEqual(
             compute_enabled_source_keys(_CURRENT, disabled),
-            ('nebula', 'hugo', 'locus', 'world_fantasy', 'nobel', 'booker', 'newbery'),
+            ('nebula', 'hugo', 'locus', 'world_fantasy', 'nobel', 'booker', 'german_book_prize', 'newbery'),
         )
 
     def test_future_source_defaults_enabled(self):
@@ -137,6 +138,7 @@ class ComputeEnabledSourceKeysTests(unittest.TestCase):
                 'world_fantasy',
                 'nobel',
                 'booker',
+                'german_book_prize',
                 'newbery',
                 'future_source',
             ),
@@ -168,6 +170,12 @@ class SourceInfosPreferenceCompositionTests(unittest.TestCase):
         self.assertEqual(all_keys[-1], 'newbery')
         self.assertIn('newbery', all_keys)
 
+    def test_german_book_prize_defaults_enabled_for_preexisting_disabled_list(self):
+        all_keys = self._all_keys()
+        enabled = compute_enabled_source_keys(all_keys, ['pulitzer'])
+        self.assertIn('german_book_prize', enabled)
+        self.assertNotIn('pulitzer', enabled)
+
     def test_newbery_defaults_enabled_for_preexisting_disabled_list(self):
         all_keys = self._all_keys()
         enabled = compute_enabled_source_keys(all_keys, ['pulitzer'])
@@ -178,9 +186,17 @@ class SourceInfosPreferenceCompositionTests(unittest.TestCase):
         all_keys = self._all_keys()
         enabled = compute_enabled_source_keys(all_keys, ['pulitzer'])
         self.assertIn('booker', enabled)
+        self.assertIn('german_book_prize', enabled)
         self.assertNotIn('pulitzer', enabled)
         self.assertEqual(all_keys.index('booker'), all_keys.index('nobel') + 1)
-        self.assertEqual(all_keys.index('newbery'), all_keys.index('booker') + 1)
+        self.assertEqual(
+            all_keys.index('german_book_prize'),
+            all_keys.index('booker') + 1,
+        )
+        self.assertEqual(
+            all_keys.index('newbery'),
+            all_keys.index('german_book_prize') + 1,
+        )
 
     def test_pulitzer_disabled_excludes_only_pulitzer(self):
         all_keys = self._all_keys()

@@ -12,7 +12,17 @@ from __future__ import annotations
 
 from . import cache
 from .source_info import SOURCE_INFOS
-from .sources import booker, hugo, locus, nebula, newbery, nobel, pulitzer, world_fantasy
+from .sources import (
+    booker,
+    german_book_prize,
+    hugo,
+    locus,
+    nebula,
+    newbery,
+    nobel,
+    pulitzer,
+    world_fantasy,
+)
 
 CACHE_REFRESH_BUTTON_LABEL = 'Refresh'
 SOURCES_GROUP_HINT = (
@@ -25,6 +35,7 @@ SOURCES_GROUP_HINT = (
 # AWARD_SOURCES without a mapping here is caught by tests.
 _SOURCE_RUNTIME_RESETS = {
     'booker': booker._reset_runtime_state,
+    'german_book_prize': german_book_prize._reset_runtime_state,
     'hugo': hugo._reset_runtime_state,
     'locus': locus._reset_runtime_state,
     'nebula': nebula._reset_runtime_state,

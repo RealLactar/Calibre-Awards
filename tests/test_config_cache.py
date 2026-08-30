@@ -181,6 +181,7 @@ class AwardSourcesLayoutTests(unittest.TestCase):
         self.assertEqual(by_key['world_fantasy'], 'World Fantasy Awards')
         self.assertEqual(by_key['nobel'], 'NobelPrize.org')
         self.assertEqual(by_key['booker'], 'The Booker Prize')
+        self.assertEqual(by_key['german_book_prize'], 'Deutscher Buchpreis')
         self.assertEqual(by_key['newbery'], 'John Newbery Medal')
 
     def test_one_refresh_button_per_registered_source(self):

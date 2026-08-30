@@ -1,12 +1,11 @@
-"""Deutscher Buchpreis official HTML source (G1: parse, acquire, lookup).
+"""Deutscher Buchpreis official HTML source.
 
 Historical facts come from /archiv/jahr/YYYY/. Current-year facts prefer that
 archive page when it exists; otherwise /nominiert/. Longlist is ignored.
 
-G1 has no persistent cache. A RAM cache is used only for the current process.
-If historical acquisition succeeds but the current-year request then fails,
-G1 fails the whole source closed rather than returning history-only results.
-G2 stale persistent data is the intended later fallback.
+Parsed facts are persisted as keyed cache entries: one archive-index payload
+and one payload per award year. Historical years reuse stale disk without
+claiming the shared refresh slot. Current year may optionally refresh.
 """
 
 from __future__ import annotations
@@ -21,6 +20,7 @@ from datetime import datetime, timezone
 from html.parser import HTMLParser
 from urllib.parse import urljoin, urlparse
 
+from .. import cache
 from ..matching import normalize_title_conjunctions
 from ..model import AwardResult
 
@@ -34,6 +34,47 @@ ARCHIVE_INDEX_URL = SITE_ORIGIN + '/archiv/'
 YEAR_URL_TEMPLATE = SITE_ORIGIN + '/archiv/jahr/{year}/'
 CURRENT_NOMINEES_URL = SITE_ORIGIN + '/nominiert/'
 ARCHIVE_MIN_YEAR = 2005
+CACHE_VERSION = 1
+INDEX_ENTRY_KIND = 'index'
+YEAR_ENTRY_KIND = 'years'
+INDEX_CACHE_TTL_SECONDS = 630000
+HISTORICAL_YEAR_CACHE_TTL_SECONDS = 180 * 24 * 60 * 60
+CURRENT_YEAR_CACHE_BASE_TTL_SECONDS = 7 * 24 * 60 * 60
+CURRENT_YEAR_CACHE_REFRESH_OFFSET_SECONDS = 7 * 60 * 60
+CURRENT_YEAR_CACHE_TTL_SECONDS = (
+    CURRENT_YEAR_CACHE_BASE_TTL_SECONDS + CURRENT_YEAR_CACHE_REFRESH_OFFSET_SECONDS
+)
+_SOURCE_KINDS = frozenset({'archive', 'nominiert'})
+_CURRENT_RECOGNIZED_STATES = frozenset({
+    'longlist_only',
+    'shortlist',
+    'winner',
+})
+_RECORD_CACHE_FIELDS = (
+    'award_year',
+    'category',
+    'source_url',
+    'status',
+    'work_author',
+    'work_title',
+)
+_INDEX_RECORD_FIELDS = ('award_year',)
+_INDEX_COVERAGE_FIELDS = frozenset({
+    'kind',
+    'max_completed_year',
+    'min_year',
+})
+_COMPLETED_YEAR_COVERAGE_FIELDS = frozenset({
+    'award_year',
+    'kind',
+    'source_kind',
+})
+_CURRENT_YEAR_COVERAGE_FIELDS = frozenset({
+    'award_year',
+    'kind',
+    'recognized_state',
+    'source_kind',
+})
 
 _OFFICIAL_HTML_HOSTS = frozenset({
     'deutscher-buchpreis.de',
@@ -112,6 +153,15 @@ class _ParsedRecord:
     source_url: str
 
 
+@dataclass(frozen=True, slots=True)
+class _YearSnapshot:
+    award_year: int
+    records: tuple[_ParsedRecord, ...]
+    source_kind: str
+    recognized_state: str
+    source_url: str
+
+
 def _utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
@@ -131,6 +181,11 @@ def _collapse_ws(text: str) -> str:
 
 def _canonical_year_url(year: int) -> str:
     return YEAR_URL_TEMPLATE.format(year=year)
+
+
+def _year_entry_key(year: int) -> str:
+    """Stable logical year identity, independent of archive vs /nominiert/."""
+    return str(year)
 
 
 def _classes(attr: dict[str, str]) -> set[str]:
@@ -184,14 +239,18 @@ def _fetch_html(url: str) -> str:
 
 
 _archive_records_cache: tuple[_ParsedRecord, ...] | None = None
+_index_years_cache: tuple[int, ...] | None = None
+_year_records_cache: dict[int, tuple[_ParsedRecord, ...]] = {}
 _cache_lock = threading.Lock()
 
 
 def _reset_runtime_state() -> None:
-    """Clear in-process caches. Used by tests. G1 has no disk cache."""
-    global _archive_records_cache
+    """Clear in-process caches. Used by tests. Does not delete disk cache."""
+    global _archive_records_cache, _index_years_cache
     with _cache_lock:
         _archive_records_cache = None
+        _index_years_cache = None
+        _year_records_cache.clear()
 
 
 # ---------------------------------------------------------------------------
@@ -849,56 +908,535 @@ def _completed_years(current_year: int) -> tuple[int, ...]:
     return tuple(range(ARCHIVE_MIN_YEAR, current_year))
 
 
-def _acquire_current_year_records(current_year: int) -> tuple[_ParsedRecord, ...]:
+def _recognized_state_from_parser(
+    parser: _PrizePageParser,
+    records: tuple[_ParsedRecord, ...],
+) -> str:
+    if (
+        _winner_count(list(records)) >= 1
+        or parser.saw_winner_figure
+        or parser.roman_year is not None
+        or parser.winner_records
+    ):
+        return 'winner'
+    if (
+        any(record.status == 'Shortlisted' for record in records)
+        or parser.shortlist_ids
+        or parser.saw_shortlist_section
+        or parser.saw_shortlist_heading
+    ):
+        return 'shortlist'
+    return 'longlist_only'
+
+
+def _acquire_current_year_snapshot(current_year: int) -> _YearSnapshot:
     archive_url = _canonical_year_url(current_year)
     status, body = _fetch_response(archive_url)
     if status == 200:
-        return parse_year_page(body, current_year, completed=False)
+        records = parse_year_page(body, current_year, completed=False)
+        parser = _parse_prize_page(body)
+        return _YearSnapshot(
+            award_year=current_year,
+            records=records,
+            source_kind='archive',
+            recognized_state=_recognized_state_from_parser(parser, records),
+            source_url=archive_url,
+        )
     if status == 404:
         nominees_html = _fetch_html(CURRENT_NOMINEES_URL)
-        return parse_nominiert_page(nominees_html, current_year)
+        records = parse_nominiert_page(nominees_html, current_year)
+        parser = _parse_prize_page(nominees_html)
+        return _YearSnapshot(
+            award_year=current_year,
+            records=records,
+            source_kind='nominiert',
+            recognized_state=_recognized_state_from_parser(parser, records),
+            source_url=CURRENT_NOMINEES_URL,
+        )
     raise DeutscherBuchpreisSourceError(
         f'Deutscher Buchpreis current-year request failed with HTTP {status} '
         f'for {archive_url}'
     )
 
 
-def _acquire_complete_records() -> tuple[_ParsedRecord, ...]:
-    """Fetch index + every completed year + current year. Fail closed.
+def _acquire_current_year_records(current_year: int) -> tuple[_ParsedRecord, ...]:
+    return _acquire_current_year_snapshot(current_year).records
 
-    Requests are sequential. Complete cold history is about one index GET,
-    one GET per completed year, and possibly /nominiert/. G1 does not fan
-    out parallel year fetches.
-    """
+
+def _acquire_completed_year_records(award_year: int) -> tuple[_ParsedRecord, ...]:
+    html = _fetch_html(_canonical_year_url(award_year))
+    return parse_year_page(html, award_year, completed=True)
+
+
+def _acquire_live_index_years() -> tuple[int, ...]:
     current_year = _current_calendar_year()
     index_html = _fetch_html(ARCHIVE_INDEX_URL)
     _require_official_identity(index_html, page_kind='archive index')
     years = _discover_archive_years(index_html)
     _validate_discovered_years(years, current_year)
+    return _completed_years(current_year)
 
+
+def _acquire_complete_records() -> tuple[_ParsedRecord, ...]:
+    """Live-only complete fetch. Tests and cold paths may still call this."""
+    current_year = _current_calendar_year()
+    years = _acquire_live_index_years()
     records: list[_ParsedRecord] = []
-    for year in _completed_years(current_year):
-        html = _fetch_html(_canonical_year_url(year))
-        records.extend(parse_year_page(html, year, completed=True))
-
-    try:
-        records.extend(_acquire_current_year_records(current_year))
-    except DeutscherBuchpreisSourceError:
-        # G1 limitation: do not return history-only after a current-year miss.
-        raise
-
+    for year in years:
+        records.extend(_acquire_completed_year_records(year))
+    records.extend(_acquire_current_year_records(current_year))
     return _sort_records(records)
 
 
+# ---------------------------------------------------------------------------
+# Persistent keyed cache
+# ---------------------------------------------------------------------------
+
+def _is_positive_year(value) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool) and value > 0
+
+
+def _record_to_cache_dict(record: _ParsedRecord) -> dict:
+    return {
+        'award_year': record.award_year,
+        'category': record.category,
+        'source_url': record.source_url,
+        'status': record.status,
+        'work_author': record.work_author,
+        'work_title': record.work_title,
+    }
+
+
+def _record_from_cache_dict(data) -> _ParsedRecord | None:
+    if not isinstance(data, dict) or set(data) != set(_RECORD_CACHE_FIELDS):
+        return None
+    award_year = data.get('award_year')
+    if not _is_positive_year(award_year) or award_year < ARCHIVE_MIN_YEAR:
+        return None
+    category = data.get('category')
+    status = data.get('status')
+    work_title = data.get('work_title')
+    work_author = data.get('work_author')
+    source_url = data.get('source_url')
+    if category != CATEGORY:
+        return None
+    if status not in _PARSED_STATUSES:
+        return None
+    if not isinstance(work_title, str) or not work_title.strip() or work_title != work_title.strip():
+        return None
+    if not isinstance(work_author, str) or not work_author.strip() or work_author != work_author.strip():
+        return None
+    if (
+        not isinstance(source_url, str)
+        or not source_url.strip()
+        or source_url != source_url.strip()
+    ):
+        return None
+    return _ParsedRecord(
+        award_year=award_year,
+        category=category,
+        status=status,
+        work_title=work_title,
+        work_author=work_author,
+        source_url=source_url,
+    )
+
+
+def _records_from_payload(payload: dict) -> tuple[_ParsedRecord, ...] | None:
+    raw_records = payload.get('records')
+    if not isinstance(raw_records, list):
+        return None
+    records: list[_ParsedRecord] = []
+    for item in raw_records:
+        record = _record_from_cache_dict(item)
+        if record is None:
+            return None
+        records.append(record)
+    return tuple(records)
+
+
+def _validate_cached_completed_year(
+    records: tuple[_ParsedRecord, ...],
+    award_year: int,
+) -> bool:
+    if not records:
+        return False
+    identities = [_identity_key(record) for record in records]
+    if len(identities) != len(set(identities)):
+        return False
+    unique = _unique_work_count(list(records))
+    if unique < _COMPLETED_UNIQUE_MIN or unique > _COMPLETED_UNIQUE_MAX:
+        return False
+    if _winner_count(list(records)) != 1:
+        return False
+    for record in records:
+        if record.award_year != award_year:
+            return False
+        try:
+            _validate_record(record, allow_nominiert=False)
+        except DeutscherBuchpreisSourceError:
+            return False
+    return True
+
+
+def _validate_cached_current_year(
+    records: tuple[_ParsedRecord, ...],
+    award_year: int,
+    *,
+    source_kind: str,
+    recognized_state: str,
+) -> bool:
+    if source_kind not in _SOURCE_KINDS:
+        return False
+    if recognized_state not in _CURRENT_RECOGNIZED_STATES:
+        return False
+    winners = _winner_count(list(records))
+    if winners > 1:
+        return False
+    if recognized_state == 'longlist_only':
+        if records:
+            return False
+    elif recognized_state == 'shortlist':
+        if winners != 0:
+            return False
+        if not any(record.status == 'Shortlisted' for record in records):
+            return False
+    elif recognized_state == 'winner':
+        if winners != 1:
+            return False
+    if records:
+        unique = _unique_work_count(list(records))
+        if unique < 1 or unique > _CURRENT_UNIQUE_MAX:
+            return False
+    identities = [_identity_key(record) for record in records]
+    if len(identities) != len(set(identities)):
+        return False
+    allow_nominiert = source_kind == 'nominiert'
+    expected_url = (
+        CURRENT_NOMINEES_URL if source_kind == 'nominiert' else _canonical_year_url(award_year)
+    )
+    for record in records:
+        if record.award_year != award_year:
+            return False
+        if record.source_url != expected_url:
+            return False
+        try:
+            _validate_record(record, allow_nominiert=allow_nominiert)
+        except DeutscherBuchpreisSourceError:
+            return False
+    return True
+
+
+def _index_years_from_payload(payload: dict) -> tuple[int, ...] | None:
+    if payload.get('source_urls') != [ARCHIVE_INDEX_URL]:
+        return None
+    coverage = payload.get('coverage')
+    if not isinstance(coverage, dict) or set(coverage) != _INDEX_COVERAGE_FIELDS:
+        return None
+    if coverage.get('kind') != 'archive_index':
+        return None
+    if coverage.get('min_year') != ARCHIVE_MIN_YEAR:
+        return None
+    max_completed = coverage.get('max_completed_year')
+    if not _is_positive_year(max_completed) or max_completed < ARCHIVE_MIN_YEAR:
+        return None
+    raw_records = payload.get('records')
+    if not isinstance(raw_records, list):
+        return None
+    years: list[int] = []
+    for item in raw_records:
+        if not isinstance(item, dict) or set(item) != set(_INDEX_RECORD_FIELDS):
+            return None
+        year = item.get('award_year')
+        if not _is_positive_year(year) or year < ARCHIVE_MIN_YEAR:
+            return None
+        years.append(year)
+    if not years:
+        return None
+    if len(years) != len(set(years)):
+        return None
+    if years != sorted(years):
+        return None
+    if years[0] != ARCHIVE_MIN_YEAR:
+        return None
+    if years[-1] != max_completed:
+        return None
+    if years != list(range(ARCHIVE_MIN_YEAR, max_completed + 1)):
+        return None
+    current_year = _current_calendar_year()
+    if max_completed >= current_year:
+        return None
+    if max_completed != current_year - 1:
+        return None
+    return tuple(years)
+
+
+def _completed_year_from_payload(
+    payload: dict,
+    award_year: int,
+) -> tuple[_ParsedRecord, ...] | None:
+    coverage = payload.get('coverage')
+    if not isinstance(coverage, dict) or set(coverage) != _COMPLETED_YEAR_COVERAGE_FIELDS:
+        return None
+    if coverage.get('kind') != 'completed_year':
+        return None
+    if coverage.get('award_year') != award_year:
+        return None
+    if coverage.get('source_kind') != 'archive':
+        return None
+    if payload.get('source_urls') != [_canonical_year_url(award_year)]:
+        return None
+    records = _records_from_payload(payload)
+    if records is None:
+        return None
+    if not _validate_cached_completed_year(records, award_year):
+        return None
+    return records
+
+
+def _current_year_from_payload(
+    payload: dict,
+    award_year: int,
+) -> tuple[_ParsedRecord, ...] | None:
+    coverage = payload.get('coverage')
+    if not isinstance(coverage, dict) or set(coverage) != _CURRENT_YEAR_COVERAGE_FIELDS:
+        return None
+    if coverage.get('kind') != 'current_year':
+        return None
+    if coverage.get('award_year') != award_year:
+        return None
+    source_kind = coverage.get('source_kind')
+    recognized_state = coverage.get('recognized_state')
+    if source_kind not in _SOURCE_KINDS:
+        return None
+    if recognized_state not in _CURRENT_RECOGNIZED_STATES:
+        return None
+    expected_url = (
+        CURRENT_NOMINEES_URL if source_kind == 'nominiert' else _canonical_year_url(award_year)
+    )
+    if payload.get('source_urls') != [expected_url]:
+        return None
+    records = _records_from_payload(payload)
+    if records is None:
+        return None
+    if not _validate_cached_current_year(
+        records,
+        award_year,
+        source_kind=source_kind,
+        recognized_state=recognized_state,
+    ):
+        return None
+    return records
+
+
+def _index_coverage(years: tuple[int, ...]) -> dict:
+    return {
+        'kind': 'archive_index',
+        'max_completed_year': years[-1],
+        'min_year': ARCHIVE_MIN_YEAR,
+    }
+
+
+def _completed_year_coverage(award_year: int) -> dict:
+    return {
+        'award_year': award_year,
+        'kind': 'completed_year',
+        'source_kind': 'archive',
+    }
+
+
+def _current_year_coverage(snapshot: _YearSnapshot) -> dict:
+    return {
+        'award_year': snapshot.award_year,
+        'kind': 'current_year',
+        'recognized_state': snapshot.recognized_state,
+        'source_kind': snapshot.source_kind,
+    }
+
+
+def _save_persistent_index(years: tuple[int, ...]) -> None:
+    try:
+        cache.save_cache_entry(
+            SOURCE_KEY,
+            INDEX_ENTRY_KIND,
+            ARCHIVE_INDEX_URL,
+            CACHE_VERSION,
+            records=[{'award_year': year} for year in years],
+            source_urls=[ARCHIVE_INDEX_URL],
+            coverage=_index_coverage(years),
+            ttl_seconds=INDEX_CACHE_TTL_SECONDS,
+        )
+    except OSError:
+        pass
+
+
+def _save_persistent_completed_year(
+    award_year: int,
+    records: tuple[_ParsedRecord, ...],
+) -> None:
+    try:
+        cache.save_cache_entry(
+            SOURCE_KEY,
+            YEAR_ENTRY_KIND,
+            _year_entry_key(award_year),
+            CACHE_VERSION,
+            records=[_record_to_cache_dict(record) for record in records],
+            source_urls=[_canonical_year_url(award_year)],
+            coverage=_completed_year_coverage(award_year),
+            ttl_seconds=HISTORICAL_YEAR_CACHE_TTL_SECONDS,
+        )
+    except OSError:
+        pass
+
+
+def _save_persistent_current_year(snapshot: _YearSnapshot) -> None:
+    try:
+        cache.save_cache_entry(
+            SOURCE_KEY,
+            YEAR_ENTRY_KIND,
+            _year_entry_key(snapshot.award_year),
+            CACHE_VERSION,
+            records=[_record_to_cache_dict(record) for record in snapshot.records],
+            source_urls=[snapshot.source_url],
+            coverage=_current_year_coverage(snapshot),
+            ttl_seconds=CURRENT_YEAR_CACHE_TTL_SECONDS,
+        )
+    except OSError:
+        pass
+
+
+def _load_persistent_index() -> tuple[tuple[int, ...], dict] | None:
+    payload = cache.load_cache_entry(
+        SOURCE_KEY,
+        INDEX_ENTRY_KIND,
+        ARCHIVE_INDEX_URL,
+        CACHE_VERSION,
+    )
+    if payload is None:
+        return None
+    years = _index_years_from_payload(payload)
+    if years is None:
+        return None
+    return years, payload
+
+
+def _load_persistent_completed_year(
+    award_year: int,
+) -> tuple[tuple[_ParsedRecord, ...], dict] | None:
+    payload = cache.load_cache_entry(
+        SOURCE_KEY,
+        YEAR_ENTRY_KIND,
+        _year_entry_key(award_year),
+        CACHE_VERSION,
+    )
+    if payload is None:
+        return None
+    records = _completed_year_from_payload(payload, award_year)
+    if records is None:
+        return None
+    return records, payload
+
+
+def _load_persistent_current_year(
+    award_year: int,
+) -> tuple[tuple[_ParsedRecord, ...], dict] | None:
+    payload = cache.load_cache_entry(
+        SOURCE_KEY,
+        YEAR_ENTRY_KIND,
+        _year_entry_key(award_year),
+        CACHE_VERSION,
+    )
+    if payload is None:
+        return None
+    records = _current_year_from_payload(payload, award_year)
+    if records is None:
+        return None
+    return records, payload
+
+
+def _store_year_records(award_year: int, records: tuple[_ParsedRecord, ...]) -> None:
+    with _cache_lock:
+        _year_records_cache[award_year] = records
+
+
+def _get_index_years() -> tuple[int, ...]:
+    """Return completed years from RAM, complete stale/fresh disk, or live."""
+    global _index_years_cache
+    with _cache_lock:
+        if _index_years_cache is not None:
+            return _index_years_cache
+    loaded = _load_persistent_index()
+    if loaded is not None:
+        years, _payload = loaded
+        with _cache_lock:
+            _index_years_cache = years
+        return years
+    years = _acquire_live_index_years()
+    _save_persistent_index(years)
+    with _cache_lock:
+        _index_years_cache = years
+    return years
+
+
+def _get_completed_year_records(award_year: int) -> tuple[_ParsedRecord, ...]:
+    """Historical year: RAM, then stale/fresh disk, else required live fetch."""
+    with _cache_lock:
+        cached = _year_records_cache.get(award_year)
+    if cached is not None:
+        return cached
+    loaded = _load_persistent_completed_year(award_year)
+    if loaded is not None:
+        records, _payload = loaded
+        _store_year_records(award_year, records)
+        return records
+    records = _acquire_completed_year_records(award_year)
+    _store_year_records(award_year, records)
+    _save_persistent_completed_year(award_year, records)
+    return records
+
+
+def _get_current_year_records(current_year: int) -> tuple[_ParsedRecord, ...]:
+    """Current year: fresh disk, optional stale refresh, or required live."""
+    with _cache_lock:
+        cached = _year_records_cache.get(current_year)
+    if cached is not None:
+        return cached
+    loaded = _load_persistent_current_year(current_year)
+    if loaded is not None:
+        records, payload = loaded
+        if cache.cache_is_fresh(payload) or not cache.try_claim_stale_refresh():
+            _store_year_records(current_year, records)
+            return records
+        try:
+            snapshot = _acquire_current_year_snapshot(current_year)
+        except Exception:
+            _store_year_records(current_year, records)
+            return records
+        _store_year_records(current_year, snapshot.records)
+        _save_persistent_current_year(snapshot)
+        return snapshot.records
+    snapshot = _acquire_current_year_snapshot(current_year)
+    _store_year_records(current_year, snapshot.records)
+    _save_persistent_current_year(snapshot)
+    return snapshot.records
+
+
 def _get_archive_records() -> tuple[_ParsedRecord, ...]:
+    """Assemble index + completed years + current year. Fail closed on history."""
     global _archive_records_cache
     with _cache_lock:
         if _archive_records_cache is not None:
             return _archive_records_cache
-    live = _acquire_complete_records()
+    current_year = _current_calendar_year()
+    completed_years = _get_index_years()
+    records: list[_ParsedRecord] = []
+    for year in completed_years:
+        records.extend(_get_completed_year_records(year))
+    records.extend(_get_current_year_records(current_year))
+    assembled = _sort_records(records)
     with _cache_lock:
-        _archive_records_cache = live
-        return live
+        _archive_records_cache = assembled
+    return assembled
 
 
 # ---------------------------------------------------------------------------

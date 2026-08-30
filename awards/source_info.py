@@ -10,7 +10,17 @@ from __future__ import annotations
 from dataclasses import dataclass
 from urllib.parse import urlparse
 
-from .sources import booker, hugo, locus, nebula, newbery, nobel, pulitzer, world_fantasy
+from .sources import (
+    booker,
+    german_book_prize,
+    hugo,
+    locus,
+    nebula,
+    newbery,
+    nobel,
+    pulitzer,
+    world_fantasy,
+)
 
 _IDENTITY_SCOPES = frozenset({'work', 'series', 'author'})
 _SCOPE_LABELS = {
@@ -98,6 +108,10 @@ def _nobel_categories() -> tuple[str, ...]:
 
 def _booker_categories() -> tuple[str, ...]:
     return (booker.CATEGORY,)
+
+
+def _german_book_prize_categories() -> tuple[str, ...]:
+    return (german_book_prize.CATEGORY,)
 
 
 def _newbery_categories() -> tuple[str, ...]:
@@ -196,6 +210,18 @@ SOURCE_INFOS: tuple[SourceInfo, ...] = (
         description=(
             'Booker Prize winners and shortlisted works from the official '
             'Booker Prize archive.'
+        ),
+        limitation='Longlisted-only works are not returned.',
+    ),
+    SourceInfo(
+        key='german_book_prize',
+        display_name='Deutscher Buchpreis',
+        categories=_german_book_prize_categories(),
+        identity_scopes=('work',),
+        homepage_url=german_book_prize.ARCHIVE_INDEX_URL,
+        description=(
+            'German Book Prize (Deutscher Buchpreis) winners and shortlisted '
+            'novels from the official archive.'
         ),
         limitation='Longlisted-only works are not returned.',
     ),

@@ -20,7 +20,17 @@ from awards.cache_control import (
 )
 from awards.source_info import SOURCE_INFOS
 from awards.source_registry import AWARD_SOURCES
-from awards.sources import booker, hugo, locus, nebula, newbery, nobel, pulitzer, world_fantasy
+from awards.sources import (
+    booker,
+    german_book_prize,
+    hugo,
+    locus,
+    nebula,
+    newbery,
+    nobel,
+    pulitzer,
+    world_fantasy,
+)
 
 _UTC = timezone.utc
 _AUTHOR_URL = 'https://www.sfadb.com/Dan_Simmons'
@@ -78,6 +88,7 @@ class CacheControlTestCase(unittest.TestCase):
     def setUp(self):
         cache._reset_runtime_state()
         booker._reset_runtime_state()
+        german_book_prize._reset_runtime_state()
         hugo._reset_runtime_state()
         locus._reset_runtime_state()
         nebula._reset_runtime_state()
@@ -91,6 +102,7 @@ class CacheControlTestCase(unittest.TestCase):
 
     def tearDown(self):
         booker._reset_runtime_state()
+        german_book_prize._reset_runtime_state()
         hugo._reset_runtime_state()
         locus._reset_runtime_state()
         nebula._reset_runtime_state()
@@ -135,12 +147,21 @@ class ArchiveSourceRefreshTests(CacheControlTestCase):
             'world_fantasy',
             'nobel',
             'booker',
+            'german_book_prize',
             'newbery',
         ):
             _save_archive(key)
         refresh_award_source_cache('hugo')
         self.assertFalse((self.cache_dir / 'hugo.json').exists())
-        for key in ('pulitzer', 'nebula', 'world_fantasy', 'nobel', 'booker', 'newbery'):
+        for key in (
+            'pulitzer',
+            'nebula',
+            'world_fantasy',
+            'nobel',
+            'booker',
+            'german_book_prize',
+            'newbery',
+        ):
             self.assertTrue((self.cache_dir / f'{key}.json').is_file(), key)
             self.assertIsNotNone(cache.load_source_cache(key, 1), key)
 
