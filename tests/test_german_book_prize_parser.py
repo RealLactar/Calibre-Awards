@@ -210,6 +210,26 @@ YEAR_2024_SHORTLIST = (
     ('Short 2024 F', 'Author 2024 F', 'book-246'),
 )
 
+YEAR_2017_WINNER = ('Die Hauptstadt', 'Robert Menasse', 'book-171')
+YEAR_2017_SHORTLIST = (
+    YEAR_2017_WINNER,
+    ('Außer sich', 'Sasha Marianna Salzmann', 'book-172', 'Autor*in'),
+    ('Short 2017 C', 'Author 2017 C', 'book-173'),
+    ('Short 2017 D', 'Author 2017 D', 'book-174'),
+    ('Short 2017 E', 'Author 2017 E', 'book-175'),
+    ('Short 2017 F', 'Author 2017 F', 'book-176'),
+)
+
+YEAR_2022_WINNER = ('Blutbuch', "Kim de l'Horizon", 'book-221', 'Autor*in')
+YEAR_2022_SHORTLIST = (
+    YEAR_2022_WINNER,
+    ('Short 2022 B', 'Author 2022 B', 'book-222'),
+    ('Short 2022 C', 'Author 2022 C', 'book-223'),
+    ('Short 2022 D', 'Author 2022 D', 'book-224'),
+    ('Short 2022 E', 'Author 2022 E', 'book-225'),
+    ('Short 2022 F', 'Author 2022 F', 'book-226'),
+)
+
 YEAR_2025_WINNER = ('Die Holländerinnen', 'Dorothee Elmiger', 'book-251', 'Autorin')
 YEAR_2025_SHORTLIST = (
     YEAR_2025_WINNER,
@@ -234,6 +254,18 @@ def official_year_html(year: int) -> str:
             2010,
             winner=YEAR_2010_WINNER[:2] + (YEAR_2010_WINNER[3],),
             shortlist=YEAR_2010_SHORTLIST,
+        )
+    if year == 2017:
+        return year_page_html(
+            2017,
+            winner=YEAR_2017_WINNER[:2] + ('Autor',),
+            shortlist=YEAR_2017_SHORTLIST,
+        )
+    if year == 2022:
+        return year_page_html(
+            2022,
+            winner=YEAR_2022_WINNER[:2] + (YEAR_2022_WINNER[3],),
+            shortlist=YEAR_2022_SHORTLIST,
         )
     if year == 2024:
         return year_page_html(
@@ -457,9 +489,44 @@ class HistoricalYearParserTests(unittest.TestCase):
         self.assertEqual(unusual[0].work_author, 'Jehona Kicaj')
         self.assertEqual(unusual[0].status, 'Shortlisted')
 
+    def test_autor_label_is_accepted(self):
+        records = gbp.parse_year_page(official_year_html(2005), 2005, completed=True)
+        geiger = [r for r in records if r.work_author == 'Arno Geiger']
+        self.assertEqual(len(geiger), 1)
+        self.assertEqual(geiger[0].status, 'Winner')
+
     def test_autorin_label_is_accepted(self):
         records = gbp.parse_year_page(official_year_html(2025), 2025, completed=True)
         self.assertTrue(any(r.work_author == 'Dorothee Elmiger' for r in records))
+
+    def test_2017_ausser_sich_autor_star_in_shortlist(self):
+        records = gbp.parse_year_page(official_year_html(2017), 2017, completed=True)
+        winner = [r for r in records if r.status == 'Winner']
+        self.assertEqual(len(winner), 1)
+        self.assertEqual(winner[0].work_title, 'Die Hauptstadt')
+        self.assertEqual(winner[0].work_author, 'Robert Menasse')
+        salzmann = [r for r in records if r.work_title == 'Außer sich']
+        self.assertEqual(len(salzmann), 1)
+        self.assertEqual(salzmann[0].status, 'Shortlisted')
+        self.assertEqual(salzmann[0].work_author, 'Sasha Marianna Salzmann')
+        self.assertEqual(len(records), 6)
+
+    def test_2022_winner_autor_star_in_intro(self):
+        records = gbp.parse_year_page(official_year_html(2022), 2022, completed=True)
+        winner = [r for r in records if r.status == 'Winner']
+        self.assertEqual(len(winner), 1)
+        self.assertEqual(winner[0].work_title, 'Blutbuch')
+        self.assertEqual(winner[0].work_author, "Kim de l'Horizon")
+        self.assertEqual(len(records), 6)
+
+    def test_author_field_labels_are_exact(self):
+        self.assertTrue(gbp._is_author_field_label('Autor'))
+        self.assertTrue(gbp._is_author_field_label('Autorin'))
+        self.assertTrue(gbp._is_author_field_label('Autor*in'))
+        self.assertFalse(gbp._is_author_field_label('Autor:in'))
+        self.assertFalse(gbp._is_author_field_label('Autor_in'))
+        self.assertFalse(gbp._is_author_field_label('Autorschaft'))
+        self.assertFalse(gbp._is_author_field_label('Verlag'))
 
     def test_source_url_is_canonical_year_page_not_book_fragment(self):
         records = gbp.parse_year_page(official_year_html(2005), 2005, completed=True)

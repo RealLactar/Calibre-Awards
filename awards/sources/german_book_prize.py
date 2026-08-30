@@ -118,7 +118,7 @@ _ROMAN_HEADING_RE = re.compile(
     r'^Roman des Jahres\s+(\d{4})$',
     re.IGNORECASE,
 )
-_AUTHOR_LABEL_RE = re.compile(r'^(Autor|Autorin)$', re.IGNORECASE)
+_AUTHOR_FIELD_LABELS = frozenset({'Autor', 'Autorin', 'Autor*in'})
 _YEAR_ONLY_RE = re.compile(r'^\d{4}$')
 _INITIALS_SPACE_RE = re.compile(r'\b([A-Za-z])\.\s+')
 _SHORTLIST_SECTION_IDS = frozenset({'shortlist', 'section_shortlist'})
@@ -177,6 +177,11 @@ def _year_is_completed(award_year: int) -> bool:
 
 def _collapse_ws(text: str) -> str:
     return re.sub(r'\s+', ' ', text).strip()
+
+
+def _is_author_field_label(text: str) -> bool:
+    """Return True for official Autor / Autorin / Autor*in field labels only."""
+    return text in _AUTHOR_FIELD_LABELS
 
 
 def _canonical_year_url(year: int) -> str:
@@ -509,7 +514,7 @@ class _PrizePageParser(HTMLParser):
                 self._awaiting_winner_title = True
                 self._open_winners.append({'title': None, 'author': None})
                 return
-            if _AUTHOR_LABEL_RE.fullmatch(text):
+            if _is_author_field_label(text):
                 if self._panel_id is not None:
                     self._awaiting_author_in = 'panel'
                 elif self._tab is None and self._open_winners:
