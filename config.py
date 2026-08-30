@@ -39,10 +39,13 @@ from calibre_plugins.calibre_awards.awards.source_settings import (
 )
 from calibre_plugins.calibre_awards.awards.unavailable_sources import (
     unavailable_award_sources,
+    unavailable_source_status_text,
+    unavailable_source_tooltip_rich_text,
 )
 from qt.core import (
     QCheckBox,
     QComboBox,
+    QFont,
     QGroupBox,
     QHBoxLayout,
     QLabel,
@@ -183,12 +186,19 @@ class ConfigWidget(QWidget):
             row_layout = QHBoxLayout(row)
             row_layout.setContentsMargins(0, 0, 0, 0)
             name_label = QLabel(info.display_name, row)
-            status_label = QLabel(info.status, row)
+            status_label = QLabel(
+                unavailable_source_status_text(info.status),
+                row,
+            )
+            status_font = QFont(status_label.font())
+            status_font.setItalic(True)
+            status_label.setFont(status_font)
             name_label.setEnabled(False)
             status_label.setEnabled(False)
-            name_label.setToolTip(info.tooltip)
-            status_label.setToolTip(info.tooltip)
-            row.setToolTip(info.tooltip)
+            tooltip = unavailable_source_tooltip_rich_text(info.tooltip)
+            name_label.setToolTip(tooltip)
+            status_label.setToolTip(tooltip)
+            row.setToolTip(tooltip)
             row_layout.addWidget(name_label)
             row_layout.addStretch(1)
             row_layout.addWidget(status_label)

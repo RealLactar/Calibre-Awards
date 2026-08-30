@@ -26,7 +26,11 @@ from awards.cache_control import (
 from awards.source_info import SOURCE_INFOS
 from awards.source_registry import AWARD_SOURCES
 from awards.source_settings import normalize_disabled_source_keys
-from awards.unavailable_sources import unavailable_award_sources
+from awards.unavailable_sources import (
+    unavailable_award_sources,
+    unavailable_source_status_text,
+    unavailable_source_tooltip_rich_text,
+)
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 _CONFIG_PATH = _REPO_ROOT / 'config.py'
@@ -139,6 +143,19 @@ class FakeAwardSourcesPanel:
             self.source_refresh_buttons[source_key] = button
             self.inserted_source_rows.append(source_key)
         self.unavailable_source_rows = list(unavailable_award_sources())
+        self.unavailable_row_presentations = []
+        for info in unavailable_award_sources():
+            self.unavailable_row_presentations.append(
+                {
+                    'display_name': info.display_name,
+                    'status': info.status,
+                    'status_label': unavailable_source_status_text(info.status),
+                    'tooltip': unavailable_source_tooltip_rich_text(
+                        info.tooltip
+                    ),
+                    'status_italic': True,
+                }
+            )
 
     def set_checked(self, source_key: str, checked: bool):
         self.source_checkboxes[source_key].setChecked(checked)
@@ -277,10 +294,26 @@ class AwardSourcesUnavailableRowTests(unittest.TestCase):
         self.assertEqual(len(infos), 1)
         self.assertEqual(infos[0].display_name, 'National Book Awards')
         self.assertEqual(infos[0].status, 'Transport blocked')
+        self.assertNotIn('ⓘ', infos[0].status)
         self.assertIn('JavaScript robot challenge', infos[0].tooltip)
-        self.assertIn('ordinary automated access', infos[0].tooltip)
+        self.assertIn('ordinary automated', infos[0].tooltip)
+        self.assertIn('revisited', infos[0].tooltip)
         self.assertNotIn('HTTP', infos[0].tooltip)
         self.assertNotIn('Cursor', infos[0].tooltip)
+        self.assertNotIn('<qt>', infos[0].tooltip)
+        rendered = panel.unavailable_row_presentations[0]
+        self.assertEqual(rendered['display_name'], 'National Book Awards')
+        self.assertEqual(rendered['status'], 'Transport blocked')
+        self.assertEqual(rendered['status_label'], 'Transport blocked  ⓘ')
+        self.assertIn('ⓘ', rendered['status_label'])
+        self.assertTrue(rendered['status_italic'])
+        self.assertIn('<qt>', rendered['tooltip'])
+        self.assertIn('<br>', rendered['tooltip'])
+        self.assertIn('National Book Foundation', rendered['tooltip'])
+        self.assertIn('JavaScript robot challenge', rendered['tooltip'])
+        self.assertIn('Calibre cannot complete', rendered['tooltip'])
+        self.assertIn('revisited', rendered['tooltip'])
+        self.assertGreaterEqual(rendered['tooltip'].count('<br>'), 3)
 
     def test_informational_row_has_no_checkbox_or_refresh(self):
         panel = FakeAwardSourcesPanel()
@@ -344,12 +377,18 @@ class AwardSourcesUnavailableRowTests(unittest.TestCase):
         self.assertNotIn('national_book_awards', block)
         self.assertNotIn('Currently unavailable', block)
         self.assertIn('QLabel(info.display_name, row)', loop)
-        self.assertIn('QLabel(info.status, row)', loop)
+        self.assertIn('unavailable_source_status_text(info.status)', loop)
+        self.assertIn('unavailable_source_tooltip_rich_text(info.tooltip)', loop)
+        self.assertIn('status_font.setItalic(True)', loop)
+        self.assertIn('status_label.setFont(status_font)', loop)
+        self.assertNotIn('name_label.setFont', loop)
+        self.assertNotIn('setBold(True)', loop)
+        self.assertNotIn('setStyleSheet', loop)
         self.assertIn('name_label.setEnabled(False)', loop)
         self.assertIn('status_label.setEnabled(False)', loop)
-        self.assertIn('name_label.setToolTip(info.tooltip)', loop)
-        self.assertIn('status_label.setToolTip(info.tooltip)', loop)
-        self.assertIn('row.setToolTip(info.tooltip)', loop)
+        self.assertIn('name_label.setToolTip(tooltip)', loop)
+        self.assertIn('status_label.setToolTip(tooltip)', loop)
+        self.assertIn('row.setToolTip(tooltip)', loop)
         self.assertNotIn('QCheckBox', loop)
         self.assertNotIn('QPushButton', loop)
         self.assertNotIn('CACHE_REFRESH_BUTTON_LABEL', loop)

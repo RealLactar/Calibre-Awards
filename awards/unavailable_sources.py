@@ -8,6 +8,9 @@ Refresh action, engine registration, or enablement preference.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from html import escape
+
+UNAVAILABLE_SOURCE_INFO_INDICATOR = 'ⓘ'
 
 
 @dataclass(frozen=True, slots=True)
@@ -44,10 +47,11 @@ UNAVAILABLE_AWARD_SOURCES: tuple[UnavailableAwardSourceInfo, ...] = (
         display_name='National Book Awards',
         status='Transport blocked',
         tooltip=(
-            'The National Book Foundation website currently requires a '
-            'JavaScript robot challenge that Calibre cannot complete. This '
-            'award will be revisited if ordinary automated access becomes '
-            'available.'
+            'The National Book Foundation website currently requires\n'
+            'a JavaScript robot challenge that Calibre cannot complete.\n'
+            '\n'
+            'This award will be revisited if ordinary automated\n'
+            'access becomes available.'
         ),
     ),
 )
@@ -56,3 +60,23 @@ UNAVAILABLE_AWARD_SOURCES: tuple[UnavailableAwardSourceInfo, ...] = (
 def unavailable_award_sources() -> tuple[UnavailableAwardSourceInfo, ...]:
     """Return informational unavailable-source rows in UI order."""
     return UNAVAILABLE_AWARD_SOURCES
+
+
+def unavailable_source_status_text(status: str) -> str:
+    """Return status plus the hover-info indicator for every unavailable row."""
+    return f'{status}  {UNAVAILABLE_SOURCE_INFO_INDICATOR}'
+
+
+def unavailable_source_tooltip_rich_text(tooltip: str) -> str:
+    """Wrap a plain tooltip as a short multiline Qt rich-text tooltip."""
+    paragraphs = []
+    for paragraph in tooltip.strip().split('\n\n'):
+        lines = [
+            escape(line.strip())
+            for line in paragraph.split('\n')
+            if line.strip()
+        ]
+        if lines:
+            paragraphs.append('<br>\n'.join(lines))
+    body = '<br>\n<br>\n'.join(paragraphs)
+    return f'<qt>\n{body}\n</qt>'
