@@ -15,6 +15,7 @@ from .sources import (
     german_book_prize,
     hugo,
     locus,
+    miles_franklin,
     nebula,
     newbery,
     nobel,
@@ -117,6 +118,10 @@ def _german_book_prize_categories() -> tuple[str, ...]:
 
 def _prix_goncourt_categories() -> tuple[str, ...]:
     return (prix_goncourt.CATEGORY,)
+
+
+def _miles_franklin_categories() -> tuple[str, ...]:
+    return (miles_franklin.CATEGORY,)
 
 
 def _newbery_categories() -> tuple[str, ...]:
@@ -245,6 +250,26 @@ SOURCE_INFOS: tuple[SourceInfo, ...] = (
             'beginning in 1903. Finalists from the Académie Goncourt '
             '3ème sélection are included from 2018 onward. First- and '
             'second-selection-only works are not returned.'
+        ),
+    ),
+    SourceInfo(
+        key='miles_franklin',
+        display_name='Miles Franklin Literary Award',
+        categories=_miles_franklin_categories(),
+        identity_scopes=('work',),
+        homepage_url=miles_franklin.SOURCE_HOME_URL,
+        description=(
+            'Miles Franklin Literary Award winners and officially labeled '
+            'shortlist/finalist novels from Perpetual\'s judges and history '
+            'of recipients archive.'
+        ),
+        limitation=(
+            'Official production coverage begins in 2007. Finalists are '
+            'included only when the history page labels the work Finalist, '
+            'Shortlist, or Shortlisted. The 2025 nonwinning shortlist is not '
+            'returned because that page does not distinguish those works from '
+            'longlist-only works. Longlist-only works are not returned. '
+            'Pre-2007 winners are not available from this archive.'
         ),
     ),
     SourceInfo(

@@ -45,6 +45,7 @@ _EXPECTED_SOURCE_ORDER = (
     'booker',
     'german_book_prize',
     'prix_goncourt',
+    'miles_franklin',
     'newbery',
 )
 
@@ -206,6 +207,7 @@ class AwardSourcesLayoutTests(unittest.TestCase):
         self.assertEqual(by_key['booker'], 'The Booker Prize')
         self.assertEqual(by_key['german_book_prize'], 'Deutscher Buchpreis')
         self.assertEqual(by_key['prix_goncourt'], 'Prix Goncourt')
+        self.assertEqual(by_key['miles_franklin'], 'Miles Franklin Literary Award')
         self.assertEqual(by_key['newbery'], 'John Newbery Medal')
 
     def test_config_widget_row_path_creates_all_sources_including_prix_goncourt(self):
@@ -229,14 +231,21 @@ class AwardSourcesLayoutTests(unittest.TestCase):
         self.assertEqual(tuple(panel.source_refresh_buttons), _EXPECTED_SOURCE_ORDER)
         self.assertEqual(tuple(panel.inserted_source_rows), _EXPECTED_SOURCE_ORDER)
         self.assertIn('prix_goncourt', panel.source_checkboxes)
+        self.assertIn('miles_franklin', panel.source_checkboxes)
         self.assertIn('prix_goncourt', panel.source_refresh_buttons)
         self.assertEqual(
             panel.source_checkboxes['prix_goncourt'].text,
             'Prix Goncourt',
         )
+        self.assertEqual(
+            panel.source_checkboxes['miles_franklin'].text,
+            'Miles Franklin Literary Award',
+        )
         goncourt = _EXPECTED_SOURCE_ORDER.index('prix_goncourt')
         self.assertEqual(panel.inserted_source_rows[goncourt - 1], 'german_book_prize')
-        self.assertEqual(panel.inserted_source_rows[goncourt + 1], 'newbery')
+        self.assertEqual(panel.inserted_source_rows[goncourt + 1], 'miles_franklin')
+        miles = _EXPECTED_SOURCE_ORDER.index('miles_franklin')
+        self.assertEqual(panel.inserted_source_rows[miles + 1], 'newbery')
 
     def test_one_refresh_button_per_registered_source(self):
         panel = FakeAwardSourcesPanel()

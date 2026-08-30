@@ -1,8 +1,8 @@
 """Offline coverage for the award-policy registry.
 
 Pulitzer Fiction, Newbery Honor, Booker Shortlisted, Deutscher
-Buchpreis Shortlisted, and Prix Goncourt Finalist are the registered
-policies.
+Buchpreis Shortlisted, Prix Goncourt Finalist, and Miles Franklin
+Finalist are the registered policies.
 """
 
 from __future__ import annotations
@@ -14,6 +14,7 @@ from awards.registry import (
     AWARD_POLICIES,
     BOOKER_POLICY,
     GERMAN_BOOK_PRIZE_POLICY,
+    MILES_FRANKLIN_POLICY,
     NEWBERY_POLICY,
     PRIX_GONCOURT_POLICY,
     PULITZER_FICTION_POLICY,
@@ -86,7 +87,7 @@ def _booker_result(**overrides) -> AwardResult:
 
 
 class AwardPolicyRegistryTests(unittest.TestCase):
-    def test_registered_policies_are_pulitzer_newbery_booker_german_goncourt(self):
+    def test_registered_policies_are_pulitzer_newbery_booker_german_goncourt_miles(self):
         self.assertEqual(
             AWARD_POLICIES,
             (
@@ -95,6 +96,7 @@ class AwardPolicyRegistryTests(unittest.TestCase):
                 BOOKER_POLICY,
                 GERMAN_BOOK_PRIZE_POLICY,
                 PRIX_GONCOURT_POLICY,
+                MILES_FRANKLIN_POLICY,
             ),
         )
 
@@ -229,6 +231,64 @@ class AwardPolicyRegistryTests(unittest.TestCase):
         self.assertIn('does not imply', notes)
         self.assertNotIn('top 4', notes)
         self.assertNotIn('rank 4', notes)
+
+    def test_miles_franklin_result_finds_the_finalist_policy(self):
+        winner = _result(
+            work_title='Fierceland',
+            work_author='Omar Musa',
+            award_name='Miles Franklin Literary Award',
+            award_year=2026,
+            category='Fiction',
+            status='Winner',
+            source_name='Miles Franklin Literary Award',
+            source_url=(
+                'https://www.perpetual.com.au/wealth-management/'
+                'milesfranklin/judges-and-history-of-recipients/'
+            ),
+        )
+        finalist = _result(
+            work_title='Discipline',
+            work_author='Randa Abdel-Fattah',
+            award_name='Miles Franklin Literary Award',
+            award_year=2026,
+            category='Fiction',
+            status='Finalist',
+            source_name='Miles Franklin Literary Award',
+            source_url=(
+                'https://www.perpetual.com.au/wealth-management/'
+                'milesfranklin/judges-and-history-of-recipients/'
+            ),
+        )
+        self.assertIs(find_award_policy(winner), MILES_FRANKLIN_POLICY)
+        self.assertIs(find_award_policy(finalist), MILES_FRANKLIN_POLICY)
+
+    def test_miles_franklin_policy_does_not_match_other_award_or_category(self):
+        self.assertIsNone(
+            find_award_policy(
+                _result(
+                    award_name='Miles Franklin Literary Award',
+                    category='Poetry',
+                    status='Finalist',
+                )
+            )
+        )
+        self.assertIsNone(
+            find_award_policy(
+                _result(
+                    award_name='Stella Prize',
+                    category='Fiction',
+                    status='Finalist',
+                )
+            )
+        )
+        self.assertEqual(
+            MILES_FRANKLIN_POLICY.qualifying_statuses,
+            frozenset({'finalist'}),
+        )
+        notes = (MILES_FRANKLIN_POLICY.notes or '').casefold()
+        self.assertIn('shortlist', notes)
+        self.assertIn('does not imply', notes)
+        self.assertNotIn('top 6', notes)
 
     def test_german_book_prize_policy_does_not_include_longlisted(self):
         self.assertNotIn('longlisted', GERMAN_BOOK_PRIZE_POLICY.qualifying_statuses)

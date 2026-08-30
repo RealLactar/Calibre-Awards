@@ -19,6 +19,7 @@ _CURRENT = (
     'booker',
     'german_book_prize',
     'prix_goncourt',
+    'miles_franklin',
     'newbery',
 )
 
@@ -95,7 +96,7 @@ class ComputeEnabledSourceKeysTests(unittest.TestCase):
     def test_one_disabled(self):
         self.assertEqual(
             compute_enabled_source_keys(_CURRENT, ('pulitzer',)),
-            ('nebula', 'hugo', 'locus', 'world_fantasy', 'nobel', 'booker', 'german_book_prize', 'prix_goncourt', 'newbery'),
+            ('nebula', 'hugo', 'locus', 'world_fantasy', 'nobel', 'booker', 'german_book_prize', 'prix_goncourt', 'miles_franklin', 'newbery'),
         )
 
     def test_several_disabled(self):
@@ -123,7 +124,7 @@ class ComputeEnabledSourceKeysTests(unittest.TestCase):
         self.assertEqual(disabled, ('pulitzer', 'removed_old_source'))
         self.assertEqual(
             compute_enabled_source_keys(_CURRENT, disabled),
-            ('nebula', 'hugo', 'locus', 'world_fantasy', 'nobel', 'booker', 'german_book_prize', 'prix_goncourt', 'newbery'),
+            ('nebula', 'hugo', 'locus', 'world_fantasy', 'nobel', 'booker', 'german_book_prize', 'prix_goncourt', 'miles_franklin', 'newbery'),
         )
 
     def test_future_source_defaults_enabled(self):
@@ -141,6 +142,7 @@ class ComputeEnabledSourceKeysTests(unittest.TestCase):
                 'booker',
                 'german_book_prize',
                 'prix_goncourt',
+                'miles_franklin',
                 'newbery',
                 'future_source',
             ),
@@ -200,14 +202,24 @@ class SourceInfosPreferenceCompositionTests(unittest.TestCase):
             all_keys.index('german_book_prize') + 1,
         )
         self.assertEqual(
-            all_keys.index('newbery'),
+            all_keys.index('miles_franklin'),
             all_keys.index('prix_goncourt') + 1,
+        )
+        self.assertEqual(
+            all_keys.index('newbery'),
+            all_keys.index('miles_franklin') + 1,
         )
 
     def test_prix_goncourt_defaults_enabled_for_preexisting_disabled_list(self):
         all_keys = self._all_keys()
         enabled = compute_enabled_source_keys(all_keys, ['pulitzer'])
         self.assertIn('prix_goncourt', enabled)
+        self.assertNotIn('pulitzer', enabled)
+
+    def test_miles_franklin_defaults_enabled_for_preexisting_disabled_list(self):
+        all_keys = self._all_keys()
+        enabled = compute_enabled_source_keys(all_keys, ['pulitzer'])
+        self.assertIn('miles_franklin', enabled)
         self.assertNotIn('pulitzer', enabled)
 
     def test_pulitzer_disabled_excludes_only_pulitzer(self):

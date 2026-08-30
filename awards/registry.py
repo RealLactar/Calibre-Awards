@@ -66,12 +66,25 @@ PRIX_GONCOURT_POLICY = AwardPolicy(
     ),
 )
 
+MILES_FRANKLIN_POLICY = AwardPolicy(
+    award_name='Miles Franklin Literary Award',
+    category='Fiction',
+    qualifying_statuses=frozenset({'Finalist'}),
+    notes=(
+        'The Miles Franklin Literary Award publishes an official shortlist. '
+        'Finalist represents an official published shortlist member. '
+        'Shortlisted authors are formally recognized by the award. '
+        'Qualification does not imply an ordinal rank.'
+    ),
+)
+
 AWARD_POLICIES: tuple[AwardPolicy, ...] = (
     PULITZER_FICTION_POLICY,
     NEWBERY_POLICY,
     BOOKER_POLICY,
     GERMAN_BOOK_PRIZE_POLICY,
     PRIX_GONCOURT_POLICY,
+    MILES_FRANKLIN_POLICY,
 )
 
 

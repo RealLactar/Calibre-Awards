@@ -13,6 +13,7 @@ from awards.qualifier import QualificationDecision, qualify_award_result
 from awards.registry import (
     BOOKER_POLICY,
     GERMAN_BOOK_PRIZE_POLICY,
+    MILES_FRANKLIN_POLICY,
     NEWBERY_POLICY,
     PRIX_GONCOURT_POLICY,
     PULITZER_FICTION_POLICY,
@@ -548,6 +549,62 @@ class QualifyPrixGoncourtFinalistPolicyTests(unittest.TestCase):
         self.assertIn('3ème', notes)
         self.assertNotIn('top 4', notes)
         self.assertNotIn('rank', notes.replace('ordinal rank', ''))
+
+
+class QualifyMilesFranklinPolicyTests(unittest.TestCase):
+    def _miles(self, **overrides) -> AwardResult:
+        values = {
+            'work_title': 'Discipline',
+            'work_author': 'Randa Abdel-Fattah',
+            'award_name': 'Miles Franklin Literary Award',
+            'award_year': 2026,
+            'category': 'Fiction',
+            'status': 'Finalist',
+            'rank': None,
+            'source_name': 'Miles Franklin Literary Award',
+            'source_url': (
+                'https://www.perpetual.com.au/wealth-management/'
+                'milesfranklin/judges-and-history-of-recipients/'
+            ),
+        }
+        values.update(overrides)
+        return AwardResult(**values)
+
+    def test_miles_franklin_winner_qualifies_without_inventing_rank(self):
+        result = self._miles(
+            work_title='Fierceland',
+            work_author='Omar Musa',
+            status='Winner',
+        )
+        assessment = qualify_award_result(result, MILES_FRANKLIN_POLICY)
+        self.assertEqual(assessment.decision, QualificationDecision.QUALIFIES)
+        self.assertEqual(
+            assessment.reason,
+            'Status indicates a win without an established ordinal rank.',
+        )
+        self.assertIsNone(result.rank)
+
+    def test_miles_franklin_finalist_qualifies_via_policy_without_inventing_rank(self):
+        result = self._miles()
+        assessment = qualify_award_result(result, MILES_FRANKLIN_POLICY)
+        self.assertEqual(assessment.decision, QualificationDecision.QUALIFIES)
+        self.assertEqual(
+            assessment.reason,
+            'Award-specific policy identifies this status as satisfying '
+            'the inclusion rule.',
+        )
+        self.assertIsNone(result.rank)
+
+    def test_generic_unrelated_finalist_remains_review(self):
+        hugo_finalist = _hugo_result(status='Finalist', rank=None)
+        assessment = qualify_award_result(hugo_finalist, policy=None)
+        self.assertEqual(assessment.decision, QualificationDecision.REVIEW)
+
+    def test_miles_franklin_policy_does_not_apply_to_wrong_category(self):
+        wrong_category = self._miles(category='Poetry')
+        with self.assertRaises(ValueError) as caught:
+            qualify_award_result(wrong_category, MILES_FRANKLIN_POLICY)
+        self.assertIn('does not apply', str(caught.exception))
 
 
 if __name__ == '__main__':

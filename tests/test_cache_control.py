@@ -25,6 +25,7 @@ from awards.sources import (
     german_book_prize,
     hugo,
     locus,
+    miles_franklin,
     nebula,
     newbery,
     nobel,
@@ -92,6 +93,7 @@ class CacheControlTestCase(unittest.TestCase):
         german_book_prize._reset_runtime_state()
         hugo._reset_runtime_state()
         locus._reset_runtime_state()
+        miles_franklin._reset_runtime_state()
         nebula._reset_runtime_state()
         newbery._reset_runtime_state()
         nobel._reset_runtime_state()
@@ -107,6 +109,7 @@ class CacheControlTestCase(unittest.TestCase):
         german_book_prize._reset_runtime_state()
         hugo._reset_runtime_state()
         locus._reset_runtime_state()
+        miles_franklin._reset_runtime_state()
         nebula._reset_runtime_state()
         newbery._reset_runtime_state()
         nobel._reset_runtime_state()
@@ -152,6 +155,7 @@ class ArchiveSourceRefreshTests(CacheControlTestCase):
             'booker',
             'german_book_prize',
             'prix_goncourt',
+            'miles_franklin',
             'newbery',
         ):
             _save_archive(key)
@@ -165,6 +169,7 @@ class ArchiveSourceRefreshTests(CacheControlTestCase):
             'booker',
             'german_book_prize',
             'prix_goncourt',
+            'miles_franklin',
             'newbery',
         ):
             self.assertTrue((self.cache_dir / f'{key}.json').is_file(), key)

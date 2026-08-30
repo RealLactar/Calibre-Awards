@@ -17,6 +17,7 @@ from .sources.german_book_prize import lookup as german_book_prize_lookup
 from .sources.hugo import lookup as hugo_lookup
 from .sources.prix_goncourt import lookup as prix_goncourt_lookup
 from .sources.locus import lookup as locus_lookup
+from .sources.miles_franklin import lookup as miles_franklin_lookup
 from .sources.nebula import lookup as nebula_lookup
 from .sources.newbery import lookup as newbery_lookup
 from .sources.nobel import lookup as nobel_lookup
@@ -89,6 +90,11 @@ AWARD_SOURCES: tuple[AwardSource, ...] = (
         key='prix_goncourt',
         display_name='Prix Goncourt',
         lookup=prix_goncourt_lookup,
+    ),
+    AwardSource(
+        key='miles_franklin',
+        display_name='Miles Franklin Literary Award',
+        lookup=miles_franklin_lookup,
     ),
     AwardSource(
         key='newbery',
