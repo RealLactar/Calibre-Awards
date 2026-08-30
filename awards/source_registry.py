@@ -15,6 +15,7 @@ from .model import AwardResult
 from .sources.booker import lookup as booker_lookup
 from .sources.german_book_prize import lookup as german_book_prize_lookup
 from .sources.hugo import lookup as hugo_lookup
+from .sources.prix_goncourt import lookup as prix_goncourt_lookup
 from .sources.locus import lookup as locus_lookup
 from .sources.nebula import lookup as nebula_lookup
 from .sources.newbery import lookup as newbery_lookup
@@ -83,6 +84,11 @@ AWARD_SOURCES: tuple[AwardSource, ...] = (
         key='german_book_prize',
         display_name='Deutscher Buchpreis',
         lookup=german_book_prize_lookup,
+    ),
+    AwardSource(
+        key='prix_goncourt',
+        display_name='Prix Goncourt',
+        lookup=prix_goncourt_lookup,
     ),
     AwardSource(
         key='newbery',

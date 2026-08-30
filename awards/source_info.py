@@ -18,6 +18,7 @@ from .sources import (
     nebula,
     newbery,
     nobel,
+    prix_goncourt,
     pulitzer,
     world_fantasy,
 )
@@ -112,6 +113,10 @@ def _booker_categories() -> tuple[str, ...]:
 
 def _german_book_prize_categories() -> tuple[str, ...]:
     return (german_book_prize.CATEGORY,)
+
+
+def _prix_goncourt_categories() -> tuple[str, ...]:
+    return (prix_goncourt.CATEGORY,)
 
 
 def _newbery_categories() -> tuple[str, ...]:
@@ -224,6 +229,20 @@ SOURCE_INFOS: tuple[SourceInfo, ...] = (
             'novels from the official archive.'
         ),
         limitation='Longlisted-only works are not returned.',
+    ),
+    SourceInfo(
+        key='prix_goncourt',
+        display_name='Prix Goncourt',
+        categories=_prix_goncourt_categories(),
+        identity_scopes=('work',),
+        homepage_url=prix_goncourt.SOURCE_HOME_URL,
+        description=(
+            'Prix Goncourt winners from the official Académie Goncourt '
+            'archive; French-language fiction.'
+        ),
+        limitation=(
+            'Staged Prix Goncourt selections are not returned in this version.'
+        ),
     ),
     SourceInfo(
         key='newbery',

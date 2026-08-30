@@ -20,6 +20,7 @@ from .sources import (
     nebula,
     newbery,
     nobel,
+    prix_goncourt,
     pulitzer,
     world_fantasy,
 )
@@ -41,6 +42,7 @@ _SOURCE_RUNTIME_RESETS = {
     'nebula': nebula._reset_runtime_state,
     'newbery': newbery._reset_runtime_state,
     'nobel': nobel._reset_runtime_state,
+    'prix_goncourt': prix_goncourt._reset_runtime_state,
     'pulitzer': pulitzer._reset_runtime_state,
     'world_fantasy': world_fantasy._reset_runtime_state,
 }

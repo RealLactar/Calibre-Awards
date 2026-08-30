@@ -28,6 +28,7 @@ from awards.sources import (
     nebula,
     newbery,
     nobel,
+    prix_goncourt,
     pulitzer,
     world_fantasy,
 )
@@ -94,6 +95,7 @@ class CacheControlTestCase(unittest.TestCase):
         nebula._reset_runtime_state()
         newbery._reset_runtime_state()
         nobel._reset_runtime_state()
+        prix_goncourt._reset_runtime_state()
         pulitzer._reset_runtime_state()
         world_fantasy._reset_runtime_state()
         self._temp = TemporaryDirectory()
@@ -108,6 +110,7 @@ class CacheControlTestCase(unittest.TestCase):
         nebula._reset_runtime_state()
         newbery._reset_runtime_state()
         nobel._reset_runtime_state()
+        prix_goncourt._reset_runtime_state()
         pulitzer._reset_runtime_state()
         world_fantasy._reset_runtime_state()
         cache._reset_runtime_state()
@@ -148,6 +151,7 @@ class ArchiveSourceRefreshTests(CacheControlTestCase):
             'nobel',
             'booker',
             'german_book_prize',
+            'prix_goncourt',
             'newbery',
         ):
             _save_archive(key)
@@ -160,6 +164,7 @@ class ArchiveSourceRefreshTests(CacheControlTestCase):
             'nobel',
             'booker',
             'german_book_prize',
+            'prix_goncourt',
             'newbery',
         ):
             self.assertTrue((self.cache_dir / f'{key}.json').is_file(), key)

@@ -21,6 +21,7 @@ from awards.sources import (
     nebula,
     newbery,
     nobel,
+    prix_goncourt,
     pulitzer,
     world_fantasy,
 )
@@ -121,7 +122,7 @@ class SourceInfoRegistryConsistencyTests(unittest.TestCase):
             tuple(source.display_name for source in AWARD_SOURCES),
         )
         self.assertEqual(len(SOURCE_INFOS), len(AWARD_SOURCES))
-        self.assertEqual(len(SOURCE_INFOS), 9)
+        self.assertEqual(len(SOURCE_INFOS), 10)
 
     def test_keys_are_unique(self):
         keys = [info.key for info in SOURCE_INFOS]
@@ -231,6 +232,7 @@ class SourceInfoScopeAndHomepageTests(unittest.TestCase):
             'nobel': ('author', 'work'),
             'booker': ('work',),
             'german_book_prize': ('work',),
+            'prix_goncourt': ('work',),
             'newbery': ('work',),
         }
         self.assertEqual(
@@ -251,6 +253,7 @@ class SourceInfoScopeAndHomepageTests(unittest.TestCase):
         self.assertEqual(hosts['nobel'], 'www.nobelprize.org')
         self.assertEqual(hosts['booker'], 'thebookerprizes.com')
         self.assertEqual(hosts['german_book_prize'], 'www.deutscher-buchpreis.de')
+        self.assertEqual(hosts['prix_goncourt'], 'www.academiegoncourt.com')
         self.assertEqual(hosts['newbery'], 'www.ala.org')
         self.assertEqual(_info('pulitzer').homepage_url, pulitzer.SOURCE_HOME_URL)
         self.assertEqual(_info('nebula').homepage_url, nebula.SOURCE_HOME_URL)
@@ -266,11 +269,21 @@ class SourceInfoScopeAndHomepageTests(unittest.TestCase):
             _info('german_book_prize').homepage_url,
             german_book_prize.ARCHIVE_INDEX_URL,
         )
+        self.assertEqual(
+            _info('prix_goncourt').homepage_url,
+            prix_goncourt.SOURCE_HOME_URL,
+        )
         self.assertEqual(_info('newbery').homepage_url, newbery.SOURCE_HOME_URL)
 
-    def test_only_pulitzer_booker_german_and_newbery_have_limitations(self):
+    def test_only_documented_sources_have_limitations(self):
         for info in SOURCE_INFOS:
-            if info.key in {'pulitzer', 'booker', 'german_book_prize', 'newbery'}:
+            if info.key in {
+                'pulitzer',
+                'booker',
+                'german_book_prize',
+                'prix_goncourt',
+                'newbery',
+            }:
                 self.assertIsNotNone(info.limitation)
             else:
                 self.assertIsNone(info.limitation)
@@ -297,6 +310,26 @@ class SourceInfoScopeAndHomepageTests(unittest.TestCase):
         self.assertNotIn('english-language', description)
         limitation = info.limitation.casefold()
         self.assertIn('longlisted-only', limitation)
+
+    def test_prix_goncourt_fiction_only(self):
+        info = _info('prix_goncourt')
+        self.assertEqual(info.categories, (prix_goncourt.CATEGORY,))
+        self.assertEqual(info.categories, ('Fiction',))
+        self.assertEqual(info.display_name, 'Prix Goncourt')
+        self.assertNotIn('Goncourt Prize', info.description)
+        self.assertNotIn('Lycéens', info.description)
+
+    def test_prix_goncourt_description_and_limitation(self):
+        info = _info('prix_goncourt')
+        description = info.description.casefold()
+        self.assertIn('prix goncourt', description)
+        self.assertIn('winner', description)
+        self.assertIn('académie goncourt', description)
+        self.assertIn('fiction', description)
+        self.assertNotIn('lycéens', description)
+        limitation = info.limitation.casefold()
+        self.assertIn('selection', limitation)
+        self.assertIn('not returned', limitation)
 
     def test_nobel_description_covers_author_and_cited_work_scope(self):
         text = _info('nobel').description.casefold()
@@ -332,7 +365,7 @@ class SourceInfoImportAndFormatTests(unittest.TestCase):
         with patch.object(urllib.request, 'urlopen') as mocked_open:
             reloaded = importlib.reload(source_info)
             infos = reloaded.SOURCE_INFOS
-            self.assertEqual(len(infos), 9)
+            self.assertEqual(len(infos), 10)
             self.assertEqual(infos[0].key, 'pulitzer')
             self.assertEqual(infos[-1].key, 'newbery')
             mocked_open.assert_not_called()
@@ -384,6 +417,19 @@ class SourceInfoImportAndFormatTests(unittest.TestCase):
         self.assertIn('Deutscher Buchpreis', formatted)
         self.assertIn('Note: Longlisted-only works are not returned.', formatted)
         self.assertNotIn('English-language', formatted)
+
+    def test_format_source_info_includes_prix_goncourt_limitation(self):
+        formatted = format_source_info(_info('prix_goncourt'))
+        self.assertEqual(formatted.splitlines()[0], 'Prix Goncourt')
+        self.assertIn('Categories: Fiction', formatted)
+        self.assertIn('Scope: Work awards', formatted)
+        self.assertIn('Académie Goncourt', formatted)
+        self.assertIn(
+            'Note: Staged Prix Goncourt selections are not returned in this version.',
+            formatted,
+        )
+        self.assertNotIn('Goncourt Prize', formatted)
+        self.assertNotIn('Lycéens', formatted)
 
 
 if __name__ == '__main__':
