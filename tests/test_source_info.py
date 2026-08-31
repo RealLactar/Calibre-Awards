@@ -23,6 +23,7 @@ from awards.sources import (
     nebula,
     newbery,
     nobel,
+    pen_faulkner,
     prix_goncourt,
     pulitzer,
     womens_prize_fiction,
@@ -125,7 +126,7 @@ class SourceInfoRegistryConsistencyTests(unittest.TestCase):
             tuple(source.display_name for source in AWARD_SOURCES),
         )
         self.assertEqual(len(SOURCE_INFOS), len(AWARD_SOURCES))
-        self.assertEqual(len(SOURCE_INFOS), 13)
+        self.assertEqual(len(SOURCE_INFOS), 14)
         self.assertNotIn(
             'national_book_awards',
             [info.key for info in SOURCE_INFOS],
@@ -248,6 +249,7 @@ class SourceInfoScopeAndHomepageTests(unittest.TestCase):
             'miles_franklin': ('work',),
             'womens_prize_fiction': ('work',),
             'national_book_critics_circle': ('work',),
+            'pen_faulkner': ('work',),
             'newbery': ('work',),
         }
         self.assertEqual(
@@ -272,6 +274,7 @@ class SourceInfoScopeAndHomepageTests(unittest.TestCase):
         self.assertEqual(hosts['miles_franklin'], 'www.perpetual.com.au')
         self.assertEqual(hosts['womens_prize_fiction'], 'womensprize.com')
         self.assertEqual(hosts['national_book_critics_circle'], 'www.bookcritics.org')
+        self.assertEqual(hosts['pen_faulkner'], 'www.penfaulkner.org')
         self.assertEqual(hosts['newbery'], 'www.ala.org')
         self.assertEqual(_info('pulitzer').homepage_url, pulitzer.SOURCE_HOME_URL)
         self.assertEqual(_info('nebula').homepage_url, nebula.SOURCE_HOME_URL)
@@ -303,6 +306,7 @@ class SourceInfoScopeAndHomepageTests(unittest.TestCase):
             _info('national_book_critics_circle').homepage_url,
             national_book_critics_circle.SOURCE_HOME_URL,
         )
+        self.assertEqual(_info('pen_faulkner').homepage_url, pen_faulkner.SOURCE_HOME_URL)
         self.assertEqual(_info('newbery').homepage_url, newbery.SOURCE_HOME_URL)
 
     def test_only_documented_sources_have_limitations(self):
@@ -315,6 +319,7 @@ class SourceInfoScopeAndHomepageTests(unittest.TestCase):
                 'miles_franklin',
                 'womens_prize_fiction',
                 'national_book_critics_circle',
+                'pen_faulkner',
                 'newbery',
             }:
                 self.assertIsNotNone(info.limitation)
@@ -441,6 +446,24 @@ class SourceInfoScopeAndHomepageTests(unittest.TestCase):
         self.assertIn('longlisted-only', limitation)
         self.assertIn('fellowships', limitation)
 
+    def test_pen_faulkner_fiction_description_and_limitation(self):
+        info = _info('pen_faulkner')
+        self.assertEqual(info.categories, (pen_faulkner.CATEGORY,))
+        self.assertEqual(info.categories, ('Fiction',))
+        self.assertEqual(info.display_name, 'PEN/Faulkner Award for Fiction')
+        description = info.description.casefold()
+        self.assertIn('pen/faulkner award for fiction', description)
+        self.assertIn('winner', description)
+        self.assertIn('finalist', description)
+        limitation = info.limitation.casefold()
+        self.assertIn('1981', limitation)
+        self.assertIn('ceremony', limitation)
+        self.assertIn('longlisted-only', limitation)
+        self.assertIn('hemingway', limitation)
+        self.assertIn('malamud', limitation)
+        self.assertIn('literary champion', limitation)
+        self.assertIn('no ordinal rank', limitation)
+
     def test_nobel_description_covers_author_and_cited_work_scope(self):
         text = _info('nobel').description.casefold()
         self.assertIn('author', text)
@@ -475,7 +498,7 @@ class SourceInfoImportAndFormatTests(unittest.TestCase):
         with patch.object(urllib.request, 'urlopen') as mocked_open:
             reloaded = importlib.reload(source_info)
             infos = reloaded.SOURCE_INFOS
-            self.assertEqual(len(infos), 13)
+            self.assertEqual(len(infos), 14)
             self.assertEqual(infos[0].key, 'pulitzer')
             self.assertEqual(infos[-1].key, 'newbery')
             mocked_open.assert_not_called()
@@ -577,6 +600,16 @@ class SourceInfoImportAndFormatTests(unittest.TestCase):
         self.assertIn('1975', formatted)
         self.assertIn('Longlisted-only', formatted)
         self.assertNotIn('National Book Awards', formatted)
+
+    def test_format_source_info_includes_pen_faulkner_limitation(self):
+        formatted = format_source_info(_info('pen_faulkner'))
+        self.assertEqual(formatted.splitlines()[0], 'PEN/Faulkner Award for Fiction')
+        self.assertIn('Categories: Fiction', formatted)
+        self.assertIn('Scope: Work awards', formatted)
+        self.assertIn('1981', formatted)
+        self.assertIn('Longlisted-only', formatted)
+        self.assertIn('Hemingway', formatted)
+        self.assertIn('no ordinal rank', formatted.casefold())
 
 
 if __name__ == '__main__':

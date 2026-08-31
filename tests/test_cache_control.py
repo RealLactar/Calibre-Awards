@@ -30,6 +30,7 @@ from awards.sources import (
     nebula,
     newbery,
     nobel,
+    pen_faulkner,
     prix_goncourt,
     pulitzer,
     womens_prize_fiction,
@@ -100,6 +101,7 @@ class CacheControlTestCase(unittest.TestCase):
         nebula._reset_runtime_state()
         newbery._reset_runtime_state()
         nobel._reset_runtime_state()
+        pen_faulkner._reset_runtime_state()
         prix_goncourt._reset_runtime_state()
         pulitzer._reset_runtime_state()
         womens_prize_fiction._reset_runtime_state()
@@ -118,6 +120,7 @@ class CacheControlTestCase(unittest.TestCase):
         nebula._reset_runtime_state()
         newbery._reset_runtime_state()
         nobel._reset_runtime_state()
+        pen_faulkner._reset_runtime_state()
         prix_goncourt._reset_runtime_state()
         pulitzer._reset_runtime_state()
         womens_prize_fiction._reset_runtime_state()
@@ -172,6 +175,7 @@ class ArchiveSourceRefreshTests(CacheControlTestCase):
             'miles_franklin',
             'womens_prize_fiction',
             'national_book_critics_circle',
+            'pen_faulkner',
             'newbery',
         ):
             _save_archive(key)
@@ -188,6 +192,7 @@ class ArchiveSourceRefreshTests(CacheControlTestCase):
             'miles_franklin',
             'womens_prize_fiction',
             'national_book_critics_circle',
+            'pen_faulkner',
             'newbery',
         ):
             self.assertTrue((self.cache_dir / f'{key}.json').is_file(), key)
@@ -258,6 +263,50 @@ class NewberyRefreshTests(CacheControlTestCase):
         self.assertEqual(newbery._detail_author_cache, {})
         self.assertTrue((self.cache_dir / 'nebula.json').is_file())
         self.assertIn('best-novel', nebula._pages_cache)
+
+
+class PenFaulknerRefreshTests(CacheControlTestCase):
+    def test_refresh_pen_faulkner_clears_keyed_cache_and_ram(self):
+        cache.save_cache_entry(
+            'pen_faulkner',
+            'archive',
+            'landing',
+            1,
+            records=[{'award_year': 1981}],
+            source_urls=['https://www.penfaulkner.org/our-awards/pen-faulkner-award/'],
+            coverage={'kind': 'landing'},
+            ttl_seconds=3600,
+        )
+        cache.save_cache_entry(
+            'pen_faulkner',
+            'years',
+            '2026',
+            1,
+            records=[{'award_year': 2026}],
+            source_urls=['https://www.penfaulkner.org/2026/04/06/x/'],
+            coverage={'award_year': 2026, 'state': 'winner'},
+            ttl_seconds=3600,
+        )
+        _save_archive('hugo')
+        dummy = pen_faulkner._YearSnapshot(
+            award_year=2026,
+            state='absent',
+            source_urls=(),
+            records=(),
+        )
+        pen_faulkner._store_year_snapshot(dummy)
+        hugo._archive_records_cache = ()
+        self.assertTrue(refresh_award_source_cache('pen_faulkner'))
+        self.assertIsNone(pen_faulkner._ram_year(2026))
+        self.assertIsNone(pen_faulkner._ram_landing())
+        self.assertIsNone(
+            cache.load_cache_entry('pen_faulkner', 'archive', 'landing', 1)
+        )
+        self.assertIsNone(
+            cache.load_cache_entry('pen_faulkner', 'years', '2026', 1)
+        )
+        self.assertTrue((self.cache_dir / 'hugo.json').is_file())
+        self.assertEqual(hugo._archive_records_cache, ())
 
 
 class RuntimeResetDispatchTests(CacheControlTestCase):
@@ -393,17 +442,20 @@ class NoNetworkTests(CacheControlTestCase):
             patch.object(hugo, 'lookup') as hugo_lookup,
             patch.object(locus, 'lookup') as locus_lookup,
             patch.object(newbery, 'lookup') as newbery_lookup,
+            patch.object(pen_faulkner, 'lookup') as pen_lookup,
             patch('urllib.request.urlopen') as urlopen,
             patch.object(locus, '_request_html') as locus_http,
         ):
             refresh_award_source_cache('nebula')
             refresh_award_source_cache('locus')
             refresh_award_source_cache('newbery')
+            refresh_award_source_cache('pen_faulkner')
         engine_lookup.assert_not_called()
         nebula_lookup.assert_not_called()
         hugo_lookup.assert_not_called()
         locus_lookup.assert_not_called()
         newbery_lookup.assert_not_called()
+        pen_lookup.assert_not_called()
         urlopen.assert_not_called()
         locus_http.assert_not_called()
 

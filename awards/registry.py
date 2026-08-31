@@ -92,6 +92,20 @@ NBCC_FINALIST_POLICY = AwardPolicy(
     ),
 )
 
+PEN_FAULKNER_FINALIST_POLICY = AwardPolicy(
+    award_name='PEN/Faulkner Award for Fiction',
+    category='Fiction',
+    start_year=1981,
+    qualifying_statuses=frozenset({'Finalist'}),
+    notes=(
+        'PEN/Faulkner Award for Fiction Finalists are an official '
+        'published distinction. Finalist qualifies under this '
+        'award-specific policy. Finalist does not imply an ordinal '
+        'rank. Longlisted-only works are not returned. The Winner '
+        'is selected from among the Finalists.'
+    ),
+)
+
 WOMENS_PRIZE_FICTION_POLICY = AwardPolicy(
     award_name="Women's Prize for Fiction",
     category='Fiction',
@@ -114,6 +128,7 @@ AWARD_POLICIES: tuple[AwardPolicy, ...] = (
     MILES_FRANKLIN_POLICY,
     WOMENS_PRIZE_FICTION_POLICY,
     NBCC_FINALIST_POLICY,
+    PEN_FAULKNER_FINALIST_POLICY,
 )
 
 

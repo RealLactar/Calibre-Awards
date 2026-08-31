@@ -20,6 +20,7 @@ from .sources import (
     nebula,
     newbery,
     nobel,
+    pen_faulkner,
     prix_goncourt,
     pulitzer,
     womens_prize_fiction,
@@ -132,6 +133,10 @@ def _womens_prize_fiction_categories() -> tuple[str, ...]:
 
 def _nbcc_categories() -> tuple[str, ...]:
     return national_book_critics_circle._SOURCEINFO_CATEGORIES
+
+
+def _pen_faulkner_categories() -> tuple[str, ...]:
+    return (pen_faulkner.CATEGORY,)
 
 
 def _newbery_categories() -> tuple[str, ...]:
@@ -320,6 +325,26 @@ SOURCE_INFOS: tuple[SourceInfo, ...] = (
             'Biography/Autobiography, and Autobiography/Memoir are preserved. '
             'Longlisted-only works are not returned. Reviewing citations, '
             'lifetime/institution honors, and fellowships are excluded.'
+        ),
+    ),
+    SourceInfo(
+        key='pen_faulkner',
+        display_name='PEN/Faulkner Award for Fiction',
+        categories=_pen_faulkner_categories(),
+        identity_scopes=('work',),
+        homepage_url=pen_faulkner.SOURCE_HOME_URL,
+        description=(
+            'Official PEN/Faulkner Award for Fiction Winners and Finalists. '
+            'Eligible works include novels, novellas, and short-story '
+            'collections.'
+        ),
+        limitation=(
+            'Winner and Finalist coverage begins in 1981. Award year is the '
+            'ceremony/award year, not the eligibility publication year. '
+            'Longlisted-only works are not returned. The PEN/Hemingway Award, '
+            'PEN/Malamud Award, and PEN/Faulkner Literary Champion are '
+            'excluded. Historical Finalist counts vary and no ordinal rank '
+            'is inferred.'
         ),
     ),
     SourceInfo(

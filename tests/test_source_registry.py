@@ -11,6 +11,7 @@ from awards.sources import (
     miles_franklin,
     national_book_critics_circle,
     newbery,
+    pen_faulkner,
     prix_goncourt,
     womens_prize_fiction,
 )
@@ -33,6 +34,7 @@ class AwardSourceRegistryTests(unittest.TestCase):
                 'miles_franklin',
                 'womens_prize_fiction',
                 'national_book_critics_circle',
+                'pen_faulkner',
                 'newbery',
             ),
         )
@@ -53,13 +55,14 @@ class AwardSourceRegistryTests(unittest.TestCase):
                 'Miles Franklin Literary Award',
                 "Women's Prize for Fiction",
                 'National Book Critics Circle Awards',
+                'PEN/Faulkner Award for Fiction',
                 'John Newbery Medal',
             ),
         )
 
     def test_executable_registry_count_excludes_national_book_awards(self):
         keys = [source.key for source in AWARD_SOURCES]
-        self.assertEqual(len(AWARD_SOURCES), 13)
+        self.assertEqual(len(AWARD_SOURCES), 14)
         self.assertNotIn('national_book_awards', keys)
         self.assertNotIn(
             'National Book Awards',
@@ -130,6 +133,12 @@ class AwardSourceRegistryTests(unittest.TestCase):
             if source.key == 'national_book_critics_circle'
         ][0]
         self.assertIs(nbcc_source.lookup, national_book_critics_circle.lookup)
+
+    def test_pen_faulkner_uses_the_public_lookup_function(self):
+        source = [
+            item for item in AWARD_SOURCES if item.key == 'pen_faulkner'
+        ][0]
+        self.assertIs(source.lookup, pen_faulkner.lookup)
 
 
 if __name__ == '__main__':

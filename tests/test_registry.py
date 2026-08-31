@@ -2,8 +2,9 @@
 
 Pulitzer Fiction, Newbery Honor, Booker Shortlisted, Deutscher
 Buchpreis Shortlisted, Prix Goncourt Finalist, Miles Franklin
-Finalist, Women's Prize for Fiction Shortlisted, and National
-Book Critics Circle Finalist are the registered policies.
+Finalist, Women's Prize for Fiction Shortlisted, National
+Book Critics Circle Finalist, and PEN/Faulkner Award for Fiction
+Finalist are the registered policies.
 """
 
 from __future__ import annotations
@@ -18,6 +19,7 @@ from awards.registry import (
     MILES_FRANKLIN_POLICY,
     NBCC_FINALIST_POLICY,
     NEWBERY_POLICY,
+    PEN_FAULKNER_FINALIST_POLICY,
     PRIX_GONCOURT_POLICY,
     PULITZER_FICTION_POLICY,
     WOMENS_PRIZE_FICTION_POLICY,
@@ -90,7 +92,7 @@ def _booker_result(**overrides) -> AwardResult:
 
 
 class AwardPolicyRegistryTests(unittest.TestCase):
-    def test_registered_policies_are_pulitzer_newbery_booker_german_goncourt_miles_womens_nbcc(self):
+    def test_registered_policies_are_pulitzer_newbery_booker_german_goncourt_miles_womens_nbcc_pen_faulkner(self):
         self.assertEqual(
             AWARD_POLICIES,
             (
@@ -102,6 +104,7 @@ class AwardPolicyRegistryTests(unittest.TestCase):
                 MILES_FRANKLIN_POLICY,
                 WOMENS_PRIZE_FICTION_POLICY,
                 NBCC_FINALIST_POLICY,
+                PEN_FAULKNER_FINALIST_POLICY,
             ),
         )
 
@@ -445,6 +448,101 @@ class AwardPolicyRegistryTests(unittest.TestCase):
         )
         self.assertNotIn('longlisted', NBCC_FINALIST_POLICY.qualifying_statuses)
         self.assertIn(NBCC_FINALIST_POLICY, AWARD_POLICIES)
+
+    def test_pen_faulkner_finalist_policy_matches_1981_onward_fiction(self):
+        winner = AwardResult(
+            work_title='How German Is It?',
+            work_author='Walter Abish',
+            award_name='PEN/Faulkner Award for Fiction',
+            award_year=1981,
+            category='Fiction',
+            status='Winner',
+            rank=None,
+            source_name='PEN/Faulkner Foundation',
+            source_url='https://www.penfaulkner.org/our-awards/pen-faulkner-award/',
+        )
+        finalist = AwardResult(
+            work_title='The Transit of Venus',
+            work_author='Shirley Hazzard',
+            award_name='PEN/Faulkner Award for Fiction',
+            award_year=1981,
+            category='Fiction',
+            status='Finalist',
+            rank=None,
+            source_name='PEN/Faulkner Foundation',
+            source_url='https://www.penfaulkner.org/our-awards/pen-faulkner-award/',
+        )
+        pre = AwardResult(
+            work_title='The Ghost Writer',
+            work_author='Philip Roth',
+            award_name='PEN/Faulkner Award for Fiction',
+            award_year=1980,
+            category='Fiction',
+            status='Finalist',
+            rank=None,
+            source_name='PEN/Faulkner Foundation',
+            source_url='https://www.penfaulkner.org/our-awards/pen-faulkner-award/',
+        )
+        longlisted = AwardResult(
+            work_title='King of Ashes',
+            work_author='S.A. Cosby',
+            award_name='PEN/Faulkner Award for Fiction',
+            award_year=2026,
+            category='Fiction',
+            status='Longlisted',
+            rank=None,
+            source_name='PEN/Faulkner Foundation',
+            source_url='https://www.penfaulkner.org/our-awards/pen-faulkner-award/',
+        )
+        nominee = AwardResult(
+            work_title='How German Is It?',
+            work_author='Walter Abish',
+            award_name='PEN/Faulkner Award for Fiction',
+            award_year=1981,
+            category='Fiction',
+            status='Nominee',
+            rank=None,
+            source_name='PEN/Faulkner Foundation',
+            source_url='https://www.penfaulkner.org/our-awards/pen-faulkner-award/',
+        )
+        self.assertIs(find_award_policy(winner), PEN_FAULKNER_FINALIST_POLICY)
+        self.assertIs(find_award_policy(finalist), PEN_FAULKNER_FINALIST_POLICY)
+        self.assertIsNone(find_award_policy(pre))
+        self.assertIs(find_award_policy(longlisted), PEN_FAULKNER_FINALIST_POLICY)
+        self.assertEqual(
+            PEN_FAULKNER_FINALIST_POLICY.qualifying_statuses,
+            frozenset({'finalist'}),
+        )
+        self.assertNotIn(
+            'longlisted',
+            PEN_FAULKNER_FINALIST_POLICY.qualifying_statuses,
+        )
+        self.assertNotIn(
+            'nominee',
+            PEN_FAULKNER_FINALIST_POLICY.qualifying_statuses,
+        )
+        self.assertEqual(PEN_FAULKNER_FINALIST_POLICY.start_year, 1981)
+        self.assertEqual(PEN_FAULKNER_FINALIST_POLICY.category, 'Fiction')
+        self.assertIn(PEN_FAULKNER_FINALIST_POLICY, AWARD_POLICIES)
+        from awards.engine import assess_award_result
+        from awards.qualifier import QualificationDecision
+
+        self.assertEqual(
+            assess_award_result(winner).qualification.decision,
+            QualificationDecision.QUALIFIES,
+        )
+        self.assertEqual(
+            assess_award_result(finalist).qualification.decision,
+            QualificationDecision.QUALIFIES,
+        )
+        self.assertNotEqual(
+            assess_award_result(longlisted).qualification.decision,
+            QualificationDecision.QUALIFIES,
+        )
+        self.assertNotEqual(
+            assess_award_result(nominee).qualification.decision,
+            QualificationDecision.QUALIFIES,
+        )
 
 
 if __name__ == '__main__':
