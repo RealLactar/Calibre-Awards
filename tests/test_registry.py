@@ -1,8 +1,9 @@
 """Offline coverage for the award-policy registry.
 
 Pulitzer Fiction, Newbery Honor, Booker Shortlisted, Deutscher
-Buchpreis Shortlisted, Prix Goncourt Finalist, and Miles Franklin
-Finalist are the registered policies.
+Buchpreis Shortlisted, Prix Goncourt Finalist, Miles Franklin
+Finalist, and Women's Prize for Fiction Shortlisted are the
+registered policies.
 """
 
 from __future__ import annotations
@@ -18,6 +19,7 @@ from awards.registry import (
     NEWBERY_POLICY,
     PRIX_GONCOURT_POLICY,
     PULITZER_FICTION_POLICY,
+    WOMENS_PRIZE_FICTION_POLICY,
     find_award_policy,
 )
 
@@ -87,7 +89,7 @@ def _booker_result(**overrides) -> AwardResult:
 
 
 class AwardPolicyRegistryTests(unittest.TestCase):
-    def test_registered_policies_are_pulitzer_newbery_booker_german_goncourt_miles(self):
+    def test_registered_policies_are_pulitzer_newbery_booker_german_goncourt_miles_womens(self):
         self.assertEqual(
             AWARD_POLICIES,
             (
@@ -97,6 +99,7 @@ class AwardPolicyRegistryTests(unittest.TestCase):
                 GERMAN_BOOK_PRIZE_POLICY,
                 PRIX_GONCOURT_POLICY,
                 MILES_FRANKLIN_POLICY,
+                WOMENS_PRIZE_FICTION_POLICY,
             ),
         )
 
@@ -310,6 +313,54 @@ class AwardPolicyRegistryTests(unittest.TestCase):
         )
         self.assertIsNone(find_award_policy(result))
         self.assertNotIn('longlisted', BOOKER_POLICY.qualifying_statuses)
+
+
+    def test_womens_prize_fiction_policy_matches_2017_onward_fiction(self):
+        winner = AwardResult(
+            work_title='The Power',
+            work_author='Naomi Alderman',
+            award_name="Women's Prize for Fiction",
+            award_year=2017,
+            category='Fiction',
+            status='Winner',
+            rank=None,
+            source_name="Women's Prize for Fiction",
+            source_url='https://womensprize.com/library/the-power/',
+        )
+        shortlisted = AwardResult(
+            work_title='Stay With Me',
+            work_author='Ayọ̀bámi Adébáyọ̀̀',
+            award_name="Women's Prize for Fiction",
+            award_year=2017,
+            category='Fiction',
+            status='Shortlisted',
+            rank=None,
+            source_name="Women's Prize for Fiction",
+            source_url='https://womensprize.com/books/stay-with-me/',
+        )
+        self.assertIs(find_award_policy(winner), WOMENS_PRIZE_FICTION_POLICY)
+        self.assertIs(find_award_policy(shortlisted), WOMENS_PRIZE_FICTION_POLICY)
+        pre = AwardResult(
+            work_title='The Lacuna',
+            work_author='Barbara Kingsolver',
+            award_name="Women's Prize for Fiction",
+            award_year=2010,
+            category='Fiction',
+            status='Shortlisted',
+            rank=None,
+            source_name="Women's Prize for Fiction",
+            source_url='https://womensprize.com/library/the-lacuna/',
+        )
+        self.assertIsNone(find_award_policy(pre))
+        self.assertEqual(
+            WOMENS_PRIZE_FICTION_POLICY.qualifying_statuses,
+            frozenset({'shortlisted'}),
+        )
+        self.assertEqual(WOMENS_PRIZE_FICTION_POLICY.start_year, 2017)
+        self.assertNotIn(
+            'longlisted',
+            WOMENS_PRIZE_FICTION_POLICY.qualifying_statuses,
+        )
 
 
 if __name__ == '__main__':

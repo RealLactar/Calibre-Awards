@@ -285,15 +285,16 @@ SOURCE_INFOS: tuple[SourceInfo, ...] = (
         homepage_url=womens_prize_fiction.SOURCE_HOME_URL,
         description=(
             "Women's Prize for Fiction winners from the official "
-            'previous-prizes archive and current prize page.'
+            'previous-prizes archive and current prize page, plus official '
+            'shortlisted works from first-party shortlist announcements.'
         ),
         limitation=(
             'Official Winner coverage begins in 1996. Historical Orange '
             'Prize for Fiction years are treated as the same prize under '
-            'its current name. Phase 1 returns Winners only; shortlisted '
-            'and longlisted works are not returned. The Women\'s Prize '
-            'for Non-Fiction and other Women\'s Prize Trust programmes '
-            'are excluded.'
+            'its current name. Shortlisted works are covered from 2017 '
+            'onward. Longlisted-only works are not returned. The Women\'s '
+            'Prize for Non-Fiction, Discoveries, and other Women\'s Prize '
+            'programmes are excluded.'
         ),
     ),
     SourceInfo(

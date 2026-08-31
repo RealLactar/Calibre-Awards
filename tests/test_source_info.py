@@ -400,14 +400,16 @@ class SourceInfoScopeAndHomepageTests(unittest.TestCase):
         self.assertIn("women's prize for fiction", description)
         self.assertIn('winner', description)
         self.assertIn('previous-prizes', description)
-        self.assertNotIn('shortlist', description)
+        self.assertIn('shortlist', description)
         limitation = info.limitation.casefold()
         self.assertIn('1996', limitation)
+        self.assertIn('2017', limitation)
         self.assertIn('orange prize', limitation)
         self.assertIn('winner', limitation)
         self.assertIn('shortlisted', limitation)
         self.assertIn('longlisted', limitation)
         self.assertIn('non-fiction', limitation)
+        self.assertIn('discoveries', limitation)
         self.assertNotIn('baileys', limitation)
 
     def test_nobel_description_covers_author_and_cited_work_scope(self):

@@ -78,6 +78,19 @@ MILES_FRANKLIN_POLICY = AwardPolicy(
     ),
 )
 
+WOMENS_PRIZE_FICTION_POLICY = AwardPolicy(
+    award_name="Women's Prize for Fiction",
+    category='Fiction',
+    start_year=2017,
+    qualifying_statuses=frozenset({'Shortlisted'}),
+    notes=(
+        "The Women's Prize for Fiction Shortlist is an official "
+        'published distinction. Shortlisted qualifies under this '
+        'award-specific policy. Shortlisted does not imply an '
+        'ordinal rank. Longlisted-only works are not returned.'
+    ),
+)
+
 AWARD_POLICIES: tuple[AwardPolicy, ...] = (
     PULITZER_FICTION_POLICY,
     NEWBERY_POLICY,
@@ -85,6 +98,7 @@ AWARD_POLICIES: tuple[AwardPolicy, ...] = (
     GERMAN_BOOK_PRIZE_POLICY,
     PRIX_GONCOURT_POLICY,
     MILES_FRANKLIN_POLICY,
+    WOMENS_PRIZE_FICTION_POLICY,
 )
 
 

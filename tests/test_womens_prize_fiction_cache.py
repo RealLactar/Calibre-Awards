@@ -93,8 +93,13 @@ class WomensPrizeFictionPersistentCacheTests(unittest.TestCase):
         self._temp = TemporaryDirectory()
         self.cache_dir = Path(self._temp.name)
         cache.set_cache_directory(self.cache_dir)
+        self._shortlist_stub = patch.object(
+            wpf, '_get_shortlisted_records', return_value=()
+        )
+        self._shortlist_stub.start()
 
     def tearDown(self):
+        self._shortlist_stub.stop()
         wpf._reset_runtime_state()
         cache._reset_runtime_state()
         self._temp.cleanup()
@@ -510,6 +515,489 @@ class WomensPrizeFictionPersistentCacheTests(unittest.TestCase):
         self.assertNotIn('query_title', payload)
         self.assertNotIn('shortlist', payload)
         self.assertNotIn('longlist', payload)
+
+
+def _shortlist_html(year):
+    from tests.test_womens_prize_fiction_parser import (
+        _html_2017,
+        _html_2018,
+        _html_2019,
+        _html_2020,
+        _html_2021,
+        _html_2022,
+        _html_2023,
+        _html_2024,
+        _html_2025,
+        _html_2026,
+    )
+    builders = {
+        2017: _html_2017,
+        2018: _html_2018,
+        2019: _html_2019,
+        2020: _html_2020,
+        2021: _html_2021,
+        2022: _html_2022,
+        2023: _html_2023,
+        2024: _html_2024,
+        2025: _html_2025,
+        2026: _html_2026,
+    }
+    return builders[year]()
+
+
+def _winner_years():
+    return frozenset(range(wpf.ARCHIVE_MIN_YEAR, 2027))
+
+
+def _shortlist_path(cache_dir, year):
+    return cache._entry_cache_path(
+        cache_dir,
+        wpf.SOURCE_KEY,
+        wpf.SHORTLIST_ENTRY_KIND,
+        str(year),
+    )
+
+
+class WomensPrizeFictionShortlistCacheTests(unittest.TestCase):
+    def setUp(self):
+        wpf._reset_runtime_state()
+        cache._reset_runtime_state()
+        self._temp = TemporaryDirectory()
+        self.cache_dir = Path(self._temp.name)
+        cache.set_cache_directory(self.cache_dir)
+
+    def tearDown(self):
+        wpf._reset_runtime_state()
+        cache._reset_runtime_state()
+        self._temp.cleanup()
+
+    def _save_shortlist(self, year, records, *, generated_at=None, ttl=None, state='shortlist', url=None):
+        if url is None:
+            url = wpf.VERIFIED_SHORTLIST_URLS[year]
+        cache.save_cache_entry(
+            wpf.SOURCE_KEY,
+            wpf.SHORTLIST_ENTRY_KIND,
+            str(year),
+            wpf.SHORTLIST_CACHE_VERSION,
+            records=[wpf._record_to_cache_dict(record) for record in records],
+            source_urls=[url] if url else [],
+            coverage={'award_year': year, 'state': state},
+            ttl_seconds=(
+                wpf.HISTORICAL_SHORTLIST_CACHE_TTL_SECONDS if ttl is None else ttl
+            ),
+            generated_at=generated_at,
+        )
+
+    def _records(self, year):
+        return wpf._parse_shortlist_article(
+            _shortlist_html(year),
+            year,
+            wpf.VERIFIED_SHORTLIST_URLS[year],
+        )
+
+    def test_cache_identity_constants(self):
+        self.assertEqual(wpf.SHORTLIST_CACHE_VERSION, 1)
+        self.assertEqual(wpf.SHORTLIST_ENTRY_KIND, 'shortlists')
+        self.assertEqual(wpf.SHORTLIST_MIN_YEAR, 2017)
+        self.assertEqual(wpf.MAX_VERIFIED_SHORTLIST_YEAR, 2026)
+        self.assertEqual(
+            wpf.HISTORICAL_SHORTLIST_CACHE_TTL_SECONDS,
+            180 * 24 * 60 * 60,
+        )
+        self.assertEqual(
+            wpf.CURRENT_SHORTLIST_CACHE_REFRESH_OFFSET_SECONDS,
+            11 * 60 * 60,
+        )
+        self.assertEqual(
+            wpf.CURRENT_SHORTLIST_CACHE_TTL_SECONDS,
+            7 * 24 * 60 * 60 + 11 * 60 * 60,
+        )
+        self.assertEqual(wpf.CACHE_REFRESH_OFFSET_SECONDS, 10 * 60 * 60)
+
+    def test_mapped_historical_year_cold_is_one_article_get(self):
+        fetched = []
+
+        def _fetch(url):
+            fetched.append(url)
+            return _shortlist_html(2017)
+
+        with patch.object(wpf, '_current_calendar_year', return_value=2026):
+            with patch.object(wpf, '_fetch_html', side_effect=_fetch):
+                records = wpf._get_one_shortlist_year(2017, _winner_years())
+        self.assertEqual(fetched, [wpf.VERIFIED_SHORTLIST_URLS[2017]])
+        self.assertEqual(len(records), 6)
+        path = _shortlist_path(self.cache_dir, 2017)
+        payload = json.loads(path.read_text(encoding='utf-8'))
+        self.assertNotIn('<html', json.dumps(payload))
+        self.assertEqual(payload['coverage']['state'], 'shortlist')
+        self.assertEqual(payload['record_count'], 6)
+
+    def test_historical_fresh_is_zero_http(self):
+        records = self._records(2018)
+        self._save_shortlist(2018, records, generated_at=datetime.now(_UTC))
+        wpf._reset_runtime_state()
+        with patch.object(
+            wpf, '_fetch_html', side_effect=AssertionError('network')
+        ):
+            loaded = wpf._get_one_shortlist_year(2018, _winner_years())
+        self.assertEqual(len(loaded), 6)
+
+    def test_historical_stale_slot_won_refreshes_one_year(self):
+        stale = self._records(2019)
+        self._save_shortlist(
+            2019,
+            stale,
+            generated_at=datetime(2020, 1, 1, tzinfo=_UTC),
+            ttl=60,
+        )
+        fetched = []
+
+        def _fetch(url):
+            fetched.append(url)
+            return _shortlist_html(2019)
+
+        with cache.lookup_refresh_budget():
+            with patch.object(wpf, '_fetch_html', side_effect=_fetch):
+                loaded = wpf._get_one_shortlist_year(2019, _winner_years())
+            self.assertFalse(cache.try_claim_stale_refresh())
+        self.assertEqual(fetched, [wpf.VERIFIED_SHORTLIST_URLS[2019]])
+        self.assertEqual(len(loaded), 6)
+
+    def test_historical_stale_slot_denied_is_zero_http(self):
+        records = self._records(2020)
+        self._save_shortlist(
+            2020,
+            records,
+            generated_at=datetime(2020, 1, 1, tzinfo=_UTC),
+            ttl=60,
+        )
+        wpf._reset_runtime_state()
+        with cache.lookup_refresh_budget():
+            self.assertTrue(cache.try_claim_stale_refresh())
+            with patch.object(
+                wpf, '_fetch_html', side_effect=AssertionError('network')
+            ):
+                loaded = wpf._get_one_shortlist_year(2020, _winner_years())
+        self.assertEqual(len(loaded), 6)
+
+    def test_historical_stale_refresh_failure_keeps_stale(self):
+        records = self._records(2022)
+        self._save_shortlist(
+            2022,
+            records,
+            generated_at=datetime(2020, 1, 1, tzinfo=_UTC),
+            ttl=60,
+        )
+        original = _shortlist_path(self.cache_dir, 2022).read_text(encoding='utf-8')
+        with cache.lookup_refresh_budget():
+            with patch.object(
+                wpf,
+                '_fetch_html',
+                side_effect=wpf.WomensPrizeFictionSourceError('down'),
+            ):
+                loaded = wpf._get_one_shortlist_year(2022, _winner_years())
+        self.assertEqual(len(loaded), 6)
+        self.assertEqual(
+            _shortlist_path(self.cache_dir, 2022).read_text(encoding='utf-8'),
+            original,
+        )
+
+    def test_malformed_historical_requires_live(self):
+        records = self._records(2023)
+        self._save_shortlist(2023, records, generated_at=datetime.now(_UTC))
+        path = _shortlist_path(self.cache_dir, 2023)
+        payload = json.loads(path.read_text(encoding='utf-8'))
+        payload['records'] = payload['records'][:3]
+        path.write_text(json.dumps(payload), encoding='utf-8')
+        fetched = []
+
+        def _fetch(url):
+            fetched.append(url)
+            return _shortlist_html(2023)
+
+        with patch.object(wpf, '_fetch_html', side_effect=_fetch):
+            loaded = wpf._get_one_shortlist_year(2023, _winner_years())
+        self.assertEqual(fetched, [wpf.VERIFIED_SHORTLIST_URLS[2023]])
+        self.assertEqual(len(loaded), 6)
+
+    def test_exact_six_required_before_save(self):
+        with self.assertRaises(wpf.WomensPrizeFictionSourceError):
+            wpf._records_from_shortlist_pairs(
+                2024,
+                [('A', 'One', 'https://womensprize.com/library/a/')],
+                wpf.VERIFIED_SHORTLIST_URLS[2024],
+            )
+        path = _shortlist_path(self.cache_dir, 2024)
+        self.assertFalse(path.is_file())
+
+    def test_year_keys_are_independent(self):
+        self._save_shortlist(2017, self._records(2017), generated_at=datetime.now(_UTC))
+        self._save_shortlist(2018, self._records(2018), generated_at=datetime.now(_UTC))
+        self.assertTrue(_shortlist_path(self.cache_dir, 2017).is_file())
+        self.assertTrue(_shortlist_path(self.cache_dir, 2018).is_file())
+        _shortlist_path(self.cache_dir, 2017).unlink()
+        self.assertTrue(_shortlist_path(self.cache_dir, 2018).is_file())
+
+    def test_failed_year_does_not_erase_winners_or_sibling_year(self):
+        winners = _complete_archive(current_year=2026)
+        self._save_shortlist(2017, self._records(2017), generated_at=datetime.now(_UTC))
+        fetched = []
+
+        def _fetch(url):
+            fetched.append(url)
+            if url == wpf.VERIFIED_SHORTLIST_URLS[2018]:
+                raise wpf.WomensPrizeFictionSourceError('2018 down')
+            if url in wpf.VERIFIED_SHORTLIST_URLS.values():
+                year = [
+                    key for key, value in wpf.VERIFIED_SHORTLIST_URLS.items()
+                    if value == url
+                ][0]
+                return _shortlist_html(year)
+            raise AssertionError(url)
+
+        with patch.object(wpf, '_current_calendar_year', return_value=2026):
+            with patch.object(wpf, '_get_archive_records', return_value=winners):
+                with patch.object(wpf, '_fetch_html', side_effect=_fetch):
+                    dunmore = wpf.lookup('A Spell of Winter', 'Helen Dunmore')
+                    stay = wpf.lookup('Stay With Me', 'Ayọ̀bámi Adébáyọ̀̀')
+        self.assertEqual(len(dunmore), 1)
+        self.assertEqual(dunmore[0].status, 'Winner')
+        self.assertEqual(len(stay), 1)
+        self.assertEqual(stay[0].status, 'Shortlisted')
+        self.assertTrue(_shortlist_path(self.cache_dir, 2017).is_file())
+
+    def test_future_discovery_uses_sitemap_then_article(self):
+        url_2027 = 'https://womensprize.com/announcing-the-2027-womens-prize-for-fiction-shortlist/'
+        sitemap = (
+            '<urlset><url><loc>'
+            f'{url_2027}'
+            '</loc></url>'
+            '<url><loc>https://womensprize.com/announcing-the-2027-womens-prize-for-non-fiction-shortlist/</loc></url>'
+            '<url><loc>https://womensprize.com/announcing-the-2027-discoveries-shortlist/</loc></url>'
+            '</urlset>'
+        )
+        article = (
+            '<html><body>'
+            '<h1 class="product_title entry-title">Announcing the 2027 '
+            'Women&#8217;s Prize for Fiction shortlist!</h1>'
+            '<div class="main-content"><section class="wysiwyg-layout">'
+            '<p>The Women’s Prize for Fiction shortlist.</p>'
+            '<ul>'
+            '<li><em><a href="https://womensprize.com/library/one/">One</a></em> by A</li>'
+            '<li><em><a href="https://womensprize.com/library/two/">Two</a></em> by B</li>'
+            '<li><em><a href="https://womensprize.com/library/three/">Three</a></em> by C</li>'
+            '<li><em><a href="https://womensprize.com/library/four/">Four</a></em> by D</li>'
+            '<li><em><a href="https://womensprize.com/library/five/">Five</a></em> by E</li>'
+            '<li><em><a href="https://womensprize.com/library/six/">Six</a></em> by F</li>'
+            '</ul></section></div></body></html>'
+        )
+        fetched = []
+
+        def _fetch(url):
+            fetched.append(url)
+            if url == wpf.POST_SITEMAP_URL:
+                return sitemap
+            if url == url_2027:
+                return article
+            raise AssertionError(url)
+
+        with patch.object(wpf, '_current_calendar_year', return_value=2027):
+            with patch.object(wpf, '_fetch_html', side_effect=_fetch):
+                records = wpf._get_one_shortlist_year(2027, _winner_years())
+        self.assertEqual(fetched, [wpf.POST_SITEMAP_URL, url_2027])
+        self.assertEqual(len(records), 6)
+
+    def test_future_discovery_falls_back_to_rest(self):
+        url_2028 = 'https://womensprize.com/revealing-the-2028-womens-prize-for-fiction-shortlist/'
+        article = (
+            '<html><body>'
+            '<h1 class="product_title entry-title">Revealing the 2028 '
+            'Women’s Prize for Fiction Shortlist</h1>'
+            '<div class="main-content"><section class="wysiwyg-layout">'
+            '<p>The Women’s Prize for Fiction shortlist.</p>'
+            '<ul>'
+            '<li><em><a href="https://womensprize.com/library/one/">One</a></em> by A</li>'
+            '<li><em><a href="https://womensprize.com/library/two/">Two</a></em> by B</li>'
+            '<li><em><a href="https://womensprize.com/library/three/">Three</a></em> by C</li>'
+            '<li><em><a href="https://womensprize.com/library/four/">Four</a></em> by D</li>'
+            '<li><em><a href="https://womensprize.com/library/five/">Five</a></em> by E</li>'
+            '<li><em><a href="https://womensprize.com/library/six/">Six</a></em> by F</li>'
+            '</ul></section></div></body></html>'
+        )
+        fetched = []
+
+        def _fetch(url):
+            fetched.append(url)
+            if url == wpf.POST_SITEMAP_URL:
+                return '<urlset></urlset>'
+            if url.startswith(wpf.REST_POSTS_SEARCH_URL):
+                return json.dumps([{'link': url_2028}])
+            if url == url_2028:
+                return article
+            raise AssertionError(url)
+
+        with patch.object(wpf, '_current_calendar_year', return_value=2028):
+            with patch.object(wpf, '_fetch_html', side_effect=_fetch):
+                records = wpf._get_one_shortlist_year(
+                    2028, frozenset(range(1996, 2028))
+                )
+        self.assertEqual(fetched[0], wpf.POST_SITEMAP_URL)
+        self.assertTrue(fetched[1].startswith(wpf.REST_POSTS_SEARCH_URL))
+        self.assertEqual(fetched[2], url_2028)
+        self.assertEqual(len(records), 6)
+
+    def test_ambiguous_discovery_fails_closed(self):
+        sitemap = (
+            '<urlset>'
+            '<url><loc>https://womensprize.com/announcing-the-2027-womens-prize-for-fiction-shortlist/</loc></url>'
+            '<url><loc>https://womensprize.com/revealing-the-2027-womens-prize-for-fiction-shortlist/</loc></url>'
+            '</urlset>'
+        )
+        with patch.object(wpf, '_current_calendar_year', return_value=2027):
+            with patch.object(wpf, '_fetch_html', return_value=sitemap):
+                with self.assertRaises(wpf.WomensPrizeFictionSourceError):
+                    wpf._discover_future_shortlist_url(2027)
+
+    def test_current_year_absent_is_cached(self):
+        fetched = []
+
+        def _fetch(url):
+            fetched.append(url)
+            if url == wpf.POST_SITEMAP_URL:
+                return '<urlset></urlset>'
+            if url.startswith(wpf.REST_POSTS_SEARCH_URL):
+                return '[]'
+            raise AssertionError(url)
+
+        winners = frozenset(range(1996, 2027))
+        with patch.object(wpf, '_current_calendar_year', return_value=2027):
+            with patch.object(wpf, '_fetch_html', side_effect=_fetch):
+                records = wpf._get_one_shortlist_year(2027, winners)
+            self.assertEqual(records, ())
+            path = _shortlist_path(self.cache_dir, 2027)
+            payload = json.loads(path.read_text(encoding='utf-8'))
+            self.assertEqual(payload['coverage']['state'], 'absent')
+            self.assertEqual(payload['records'], [])
+            first = list(fetched)
+            wpf._reset_runtime_state()
+            with patch.object(
+                wpf, '_fetch_html', side_effect=AssertionError('network')
+            ):
+                again = wpf._get_one_shortlist_year(2027, winners)
+            self.assertEqual(again, ())
+            self.assertEqual(first[0], wpf.POST_SITEMAP_URL)
+
+    def test_completed_year_cached_absent_is_invalid(self):
+        cache.save_cache_entry(
+            wpf.SOURCE_KEY,
+            wpf.SHORTLIST_ENTRY_KIND,
+            '2026',
+            wpf.SHORTLIST_CACHE_VERSION,
+            records=[],
+            source_urls=[],
+            coverage={'award_year': 2026, 'state': 'absent'},
+            ttl_seconds=wpf.CURRENT_SHORTLIST_CACHE_TTL_SECONDS,
+            generated_at=datetime.now(_UTC),
+        )
+        fetched = []
+
+        def _fetch(url):
+            fetched.append(url)
+            return _shortlist_html(2026)
+
+        with patch.object(wpf, '_fetch_html', side_effect=_fetch):
+            records = wpf._get_one_shortlist_year(2026, _winner_years())
+        self.assertEqual(fetched, [wpf.VERIFIED_SHORTLIST_URLS[2026]])
+        self.assertEqual(len(records), 6)
+
+    def test_current_shortlist_becomes_historical_ttl_after_winner(self):
+        records = self._records(2026)
+        snapshot = wpf._ShortlistYearSnapshot(
+            award_year=2026,
+            state='shortlist',
+            source_url=wpf.VERIFIED_SHORTLIST_URLS[2026],
+            records=records,
+        )
+        wpf._save_persistent_shortlist_year(snapshot, frozenset())
+        without_winner = json.loads(
+            _shortlist_path(self.cache_dir, 2026).read_text(encoding='utf-8')
+        )
+        self.assertEqual(
+            without_winner['ttl_seconds'],
+            wpf.CURRENT_SHORTLIST_CACHE_TTL_SECONDS,
+        )
+        wpf._save_persistent_shortlist_year(snapshot, _winner_years())
+        with_winner = json.loads(
+            _shortlist_path(self.cache_dir, 2026).read_text(encoding='utf-8')
+        )
+        self.assertEqual(
+            with_winner['ttl_seconds'],
+            wpf.HISTORICAL_SHORTLIST_CACHE_TTL_SECONDS,
+        )
+
+    def test_manual_refresh_clears_winner_and_shortlist_and_is_zero_http(self):
+        winners = _complete_archive(current_year=2026)
+        with patch.object(wpf, '_current_calendar_year', return_value=2026):
+            cache.save_source_cache(
+                wpf.SOURCE_KEY,
+                wpf.CACHE_VERSION,
+                records=[wpf._record_to_cache_dict(record) for record in winners],
+                source_urls=wpf._archive_source_urls(),
+                coverage=wpf._coverage_from_snapshot(
+                    _snapshot(winners, current_year=2026)
+                ),
+                ttl_seconds=wpf.CACHE_TTL_SECONDS,
+            )
+        self._save_shortlist(2017, self._records(2017), generated_at=datetime.now(_UTC))
+        wpf._archive_records_cache = winners
+        wpf._shortlist_year_cache[2017] = self._records(2017)
+        hugo._archive_records_cache = ()
+        cache.save_source_cache(
+            'hugo',
+            1,
+            records=[{'title': 'hugo', 'year': 2020}],
+            source_urls=['https://example.test/hugo'],
+            coverage={'source': 'hugo'},
+            ttl_seconds=3600,
+        )
+        with patch.object(
+            wpf, '_fetch_html', side_effect=AssertionError('network')
+        ):
+            self.assertTrue(refresh_award_source_cache('womens_prize_fiction'))
+        self.assertFalse((self.cache_dir / 'womens_prize_fiction.json').exists())
+        self.assertFalse(_shortlist_path(self.cache_dir, 2017).exists())
+        self.assertIsNone(wpf._archive_records_cache)
+        self.assertEqual(wpf._shortlist_year_cache, {})
+        self.assertTrue((self.cache_dir / 'hugo.json').is_file())
+        self.assertEqual(hugo._archive_records_cache, ())
+
+    def test_cold_2026_lookup_is_twelve_gets(self):
+        fetched = []
+
+        def _fetch(url):
+            fetched.append(url)
+            if url == wpf.PREVIOUS_PRIZES_URL:
+                return archive_html(max_year=2025)
+            if url == wpf.SOURCE_HOME_URL:
+                return home_html()
+            for year, mapped in wpf.VERIFIED_SHORTLIST_URLS.items():
+                if url == mapped:
+                    return _shortlist_html(year)
+            raise AssertionError(url)
+
+        with patch.object(wpf, '_current_calendar_year', return_value=2026):
+            with patch.object(wpf, '_fetch_html', side_effect=_fetch):
+                results = wpf.lookup('Kingfisher', 'Rozie Kelly')
+        self.assertEqual(fetched[:2], [wpf.PREVIOUS_PRIZES_URL, wpf.SOURCE_HOME_URL])
+        self.assertEqual(
+            fetched[2:],
+            [wpf.VERIFIED_SHORTLIST_URLS[year] for year in range(2017, 2027)],
+        )
+        self.assertEqual(len(fetched), 12)
+        self.assertNotIn(wpf.POST_SITEMAP_URL, fetched)
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0].status, 'Shortlisted')
+        self.assertIsNone(results[0].rank)
 
 
 if __name__ == '__main__':

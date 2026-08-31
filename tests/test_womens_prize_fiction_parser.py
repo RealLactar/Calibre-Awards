@@ -432,7 +432,7 @@ class WomensPrizeFictionResultSchemaTests(unittest.TestCase):
                 "Baileys Women's Prize for Fiction",
             )
 
-    def test_winner_qualifies_without_source_policy(self):
+    def test_winner_qualifies_with_source_policy_still_generic(self):
         merged, _archive, _current, _archive_max = _merged(
             archive_html(),
             home_html(),
@@ -443,11 +443,7 @@ class WomensPrizeFictionResultSchemaTests(unittest.TestCase):
             assessment.qualification.decision,
             QualificationDecision.QUALIFIES,
         )
-        self.assertFalse(
-            hasattr(__import__('awards.registry', fromlist=['x']),
-                    'WOMENS_PRIZE_FICTION_POLICY')
-        )
-        self.assertFalse(
+        self.assertTrue(
             any(
                 policy.award_name == "Women's Prize for Fiction"
                 for policy in AWARD_POLICIES
@@ -460,15 +456,681 @@ class WomensPrizeFictionResultSchemaTests(unittest.TestCase):
             home_html(),
         )
         with patch.object(wpf, '_get_archive_records', return_value=merged):
-            homes = wpf.lookup('May We Be Forgiven', 'A. M. Homes')
-            ofarrell = wpf.lookup('Hamnet', "Maggie O’Farrell")
-            obreht = wpf.lookup("The Tiger's Wife", 'Téa Obreht')
+            with patch.object(wpf, '_get_shortlisted_records', return_value=()):
+                homes = wpf.lookup('May We Be Forgiven', 'A. M. Homes')
+                ofarrell = wpf.lookup('Hamnet', "Maggie O’Farrell")
+                obreht = wpf.lookup("The Tiger's Wife", 'Téa Obreht')
         self.assertEqual(len(homes), 1)
         self.assertEqual(homes[0].work_author, 'A.M. Homes')
         self.assertEqual(len(ofarrell), 1)
         self.assertEqual(ofarrell[0].work_author, "Maggie O'Farrell")
         self.assertEqual(len(obreht), 1)
         self.assertEqual(obreht[0].work_author, 'Téa Obreht')
+
+
+def _shortlist_article(heading: str, body: str, *, extra='') -> str:
+    return (
+        '<html><body>'
+        f'<h1 class="product_title entry-title">{heading}</h1>'
+        '<div class="main-content">'
+        f'{body}'
+        '<nav class="navigation post-navigation" aria-label="Posts"></nav>'
+        '</div>'
+        '<h5><a href="https://womensprize.com/announcing-the-2026-discoveries-shortlist/">'
+        'Announcing the 2026 Discoveries shortlist</a></h5>'
+        f'{extra}'
+        '</body></html>'
+    )
+
+
+def _wysiwyg(inner: str) -> str:
+    return f'<section class="wysiwyg-layout"><div>{inner}</div></section>'
+
+
+def _feature_card(title: str, author: str, slug: str) -> str:
+    return (
+        '<section class="book-feature-layout">'
+        '<div class="feature-book-card">'
+        f'<div class="book"></div>'
+        '<div class="book-content">'
+        f'<h2>{title}</h2><p>by {author}</p>'
+        f'<a href="https://womensprize.com/library/{slug}/" class="explore-link">'
+        'Find out more</a>'
+        '</div></div></section>'
+    )
+
+
+def _html_2017() -> str:
+    return _shortlist_article(
+        'Revealing the 2017 Shortlist…',
+        _wysiwyg(
+            '<p>We’re absolutely thrilled to reveal the 2017 Baileys Women’s '
+            'Prize for Fiction shortlist.</p>'
+            '<p><strong>The shortlisted books are as follows:</strong></p>'
+            '<p>'
+            '<a href="https://womensprize.com/books/stay-with-me/">'
+            '<em>Stay With Me</em></a> by Ayọ̀bámi Adébáyọ̀̀<br />'
+            '<a href="https://womensprize.com/books/the-power/">'
+            '<em>The Power</em></a>  Naomi Alderman<br />'
+            '<a href="https://womensprize.com/books/the-dark-circle/">'
+            '<em>The Dark Circle</em></a> by Linda Grant<br />'
+            '<a href="https://womensprize.com/books/the-sport-of-kings/">'
+            '<em>The Sport of Kings</em></a> by C.E. Morgan<br />'
+            '<a href="https://womensprize.com/books/797/">'
+            '<em>First Love</em></a> by Gwendoline Riley<br />'
+            '<a href="https://womensprize.com/books/do-not-say-we-have-nothing/">'
+            '<em>Do Not Say We Have Nothing</em></a> by Madeleine Thien</p>'
+        ),
+    )
+
+
+def _html_2018() -> str:
+    return _shortlist_article(
+        'Revealing the 2018 Women’s Prize shortlist…',
+        _wysiwyg(
+            '<h3>We’re absolutely delighted to reveal the six books which '
+            'make up the 2018 Women’s Prize for Fiction shortlist!</h3>'
+            '<p>The shortlist is as follows:</p>'
+            '<p>Elif Batuman, '
+            '<a href="https://womensprize.com/books/the-idiot/">The Idiot</a><br />'
+            'Imogen Hermes Gowar, '
+            '<a href="https://womensprize.com/books/the-mermaid-and-mrs-hancock/">'
+            'The Mermaid and Mrs Hancock</a><br />'
+            'Jessie Greengrass, '
+            '<a href="https://womensprize.com/books/sight/">Sight</a><br />'
+            'Meena Kandasamy, '
+            '<a href="https://womensprize.com/books/when-i-hit-you-or-a-portrait-of-the-writer-as-a-young-wife/">'
+            'When I Hit You: Or, A Portrait of the Writer as a Young Wife</a><br />'
+            'Kamila Shamsie, '
+            '<a href="https://womensprize.com/books/home-fire/">Home Fire</a><br />'
+            'Jesmyn Ward, '
+            '<a href="https://womensprize.com/books/sing-unburied-sing/">'
+            'Sing, Unburied, Sing</a></p>'
+        ),
+    )
+
+
+def _html_2019() -> str:
+    return _shortlist_article(
+        'Revealing the 2019 Women’s Prize for Fiction Shortlist',
+        _wysiwyg(
+            '<h3>We’re delighted to reveal this year’s Women’s Prize for '
+            'Fiction shortlist, as chosen by our 2019 judges.</h3>'
+            '<p><em><a href="https://womensprize.com/books/the-silence-of-the-girls/">'
+            'The Silence of the Girls</a></em> by Pat Barker</p>'
+            '<p><em><a href="https://womensprize.com/books/my-sister-the-serial-killer/">'
+            'My Sister, the Serial Killer</a></em> by Oyinkan Braithwaite</p>'
+            '<p><em><a href="https://womensprize.com/books/milkman/">'
+            'Milkman</a></em> by Anna Burns</p>'
+            '<p><em><a href="https://womensprize.com/books/ordinary-people/">'
+            'Ordinary People</a></em> by Diana Evans</p>'
+            '<p><em><a href="https://womensprize.com/books/an-american-marriage/">'
+            'An American Marriage</a></em> by Tayari Jones</p>'
+            '<p><em><a href="https://womensprize.com/books/circe/">'
+            'Circe</a></em> by Madeline Miller</p>'
+        ),
+    )
+
+
+def _html_2020() -> str:
+    return _shortlist_article(
+        'Announcing the 2020 Women’s Prize for Fiction shortlist',
+        _wysiwyg(
+            '<p>We are absolutely thrilled to reveal this year’s Women’s Prize '
+            'for Fiction shortlist.</p>'
+            '<p>The 2020 shortlist is as follows.</p>'
+            '<p>'
+            '<a href="https://womensprize.com/books/dominicana/">Dominicana</a> '
+            'by Angie Cruz<br />'
+            '<a href="https://womensprize.com/books/girl-woman-other/">'
+            'Girl, Woman, Other</a> by Bernardine Evaristo<br />'
+            '<a href="https://womensprize.com/books/a-thousand-ships/">'
+            'A Thousand Ships</a> by Natalie Haynes<br />'
+            '<a href="https://womensprize.com/books/the-mirror-and-the-light/">'
+            'The Mirror and the Light</a> by Hilary Mantel<br />'
+            '<a href="https://womensprize.com/books/hamnet/">Hamnet</a> '
+            'by Maggie O’ Farrell<br />'
+            '<a href="https://womensprize.com/books/weather/">Weather</a> '
+            'by Jenny Offill</p>'
+            '<p>Our brilliant judging panel will now whittle these 16 books '
+            'down to a shortlist of just 6 novels, announced on April 22nd.</p>'
+        ),
+    )
+
+
+def _html_2021() -> str:
+    body = _wysiwyg(
+        '<p>We are delighted to reveal this year’s Women’s Prize for Fiction '
+        'shortlist.</p>'
+        '<p>The six shortlisted books are as follows:</p>'
+    )
+    body += ''.join([
+        _feature_card('The Vanishing Half', 'Brit Bennett', 'the-vanishing-half'),
+        _feature_card('Piranesi', 'Susanna Clarke', 'piranesi'),
+        _feature_card('Unsettled Ground', 'Claire Fuller', 'unsettled-ground'),
+        _feature_card('Transcendent Kingdom', 'Yaa Gyasi', 'transcendent-kingdom'),
+        _feature_card(
+            'How the One-Armed Sister Sweeps Her House',
+            'Cherie Jones',
+            'how-the-one-armed-sister-sweeps-her-house',
+        ),
+        _feature_card(
+            'No One is Talking about This',
+            'Patricia Lockwood',
+            'no-one-is-talking-about-this',
+        ),
+    ])
+    return _shortlist_article(
+        'Announcing the 2021 Women’s Prize shortlist',
+        body,
+    )
+
+
+def _html_2022() -> str:
+    return _shortlist_article(
+        'Announcing the 2022 Women’s Prize shortlist!',
+        _wysiwyg(
+            '<p>The six shortlisted books are as follows:</p>'
+            '<p><a href="https://womensprize.com/books/great-circle/">'
+            '<em>Great Circle</em></a> by Maggie Shipstead</p>'
+            '<p><a href="https://womensprize.com/books/sorrow-and-bliss/">'
+            '<em>Sorrow and Bliss</em></a> by Meg Mason</p>'
+            '<p><a href="https://womensprize.com/books/the-book-of-form-and-emptiness/">'
+            '<em>The Book of Form and Emptiness</em></a> by Ruth Ozeki</p>'
+            '<p><em><a href="https://womensprize.com/books/the-bread-the-devil-knead/">'
+            'The Bread the Devil Knead</a></em> by Lisa Allen-Agostini</p>'
+            '<p><a href="https://womensprize.com/books/the-island-of-missing-trees/">'
+            '<em>The Island of Missing Trees</em></a> by Elif Shafak</p>'
+            '<p><a href="https://womensprize.com/books/the-sentence/">'
+            '<em>The Sentence</em></a> by Louise Erdrich</p>'
+            '<p>The winner of this year’s Women’s Prize for Fiction will be '
+            'awarded on Wednesday 15 June 2022.</p>'
+        ),
+    )
+
+
+def _html_2023() -> str:
+    return _shortlist_article(
+        'Announcing the 2023 Women’s Prize shortlist',
+        _wysiwyg(
+            '<p>We are delighted to share with you the 2023 Women’s Prize for '
+            'Fiction shortlist!</p>'
+            '<p>The six shortlisted books are as follows:</p>'
+            '<p><a href="https://womensprize.com/books/black-butterflies/">'
+            '<em>Black Butterflies</em></a> by Priscilla Morris</p>'
+            '<p><a href="https://womensprize.com/books/pod/"><em>Pod</em></a> '
+            'by Laline Paull</p>'
+            '<p><a href="https://womensprize.com/books/fire-rush/">'
+            '<em>Fire Rush</em></a> by Jacqueline Crooks</p>'
+            '<p><a href="https://womensprize.com/books/trespasses/">'
+            '<em>Trespasses</em></a> by Louise Kennedy</p>'
+            '<p><a href="https://womensprize.com/books/the-marriage-portrait/">'
+            '<em>The Marriage Portrait</em></a> by Maggie O\'Farrell</p>'
+            '<p><a href="https://womensprize.com/books/demon-copperhead/">'
+            '<em>Demon Copperhead</em></a> by Barbara Kingsolver</p>'
+        ),
+    )
+
+
+def _html_2024() -> str:
+    return _shortlist_article(
+        'Announcing the 2024 Women&#8217;s Prize for Fiction shortlist!',
+        _wysiwyg(
+            '<p>The full list in alphabetical order by author surname is:</p>'
+            '<ul>'
+            '<li><em><a href="https://womensprize.com/library/the-wren-the-wren/">'
+            'The Wren, The Wren</a></em> by Anne Enright, published by Jonathan Cape</li>'
+            '<li><em><a href="https://womensprize.com/library/brotherless-night/">'
+            'Brotherless Night</a></em> by V. V. Ganeshananthan, published by Viking</li>'
+            '<li><em><a href="https://womensprize.com/library/restless-dolly-maunder/">'
+            'Restless Dolly Maunder</a></em> by Kate Grenville, published by Canongate Books</li>'
+            '<li><em><a href="https://womensprize.com/library/enter-ghost/">'
+            'Enter Ghost</a></em> by Isabella Hammad, published by Jonathan Cape</li>'
+            '<li><em><a href="https://womensprize.com/library/soldier-sailor/">'
+            'Soldier Sailor</a></em> by Claire Kilroy, published by Faber &amp; Faber</li>'
+            '<li><em><a href="https://womensprize.com/library/river-east-river-west/">'
+            'River East, River West</a></em> by Aube Rey Lescure, published by Duckworth</li>'
+            '</ul>'
+        ),
+    )
+
+
+def _html_2025() -> str:
+    carousel = (
+        '<a class="book_card" href="https://womensprize.com/library/good-girl/">'
+        '<img alt="Good Girl" /></a>'
+        '<a class="book_card" href="https://womensprize.com/library/all-fours/">'
+        '<img alt="All Fours" /></a>'
+        '<a class="book_card" href="https://womensprize.com/library/the-persians/">'
+        '<img alt="The Persians" /></a>'
+        '<a class="book_card" href="https://womensprize.com/library/tell-me-everything/">'
+        '<img alt="Tell Me Everything" /></a>'
+        '<a class="book_card" href="https://womensprize.com/library/the-safekeep/">'
+        '<img alt="The Safekeep" /></a>'
+        '<a class="book_card" href="https://womensprize.com/library/fundamentally/">'
+        '<img alt="Fundamentally" /></a>'
+        '<a class="book_card" href="https://womensprize.com/library/an-extra-seventh/">'
+        '<img alt="Seventh Fake" /></a>'
+    )
+    return _shortlist_article(
+        'Announcing the 2025 Women&#8217;s Prize for Fiction shortlist!',
+        carousel + _wysiwyg(
+            '<p>The 2025 shortlisted titles for the Women’s Prize for Fiction '
+            'are as follows (alphabetical by authors surname):</p>'
+            '<ul>'
+            '<li><em><a href="https://womensprize.com/library/good-girl/">'
+            'Good Girl</a></em> by Aria Aber (published by Bloomsbury Publishing)</li>'
+            '<li><em><a href="https://womensprize.com/library/all-fours/">'
+            'All Fours</a></em> by Miranda July (published by Canongate Books)</li>'
+            '<li><em><a href="https://womensprize.com/library/the-persians/">'
+            'The Persians</a></em> by Sanam Mahloudji '
+            '(published by 4th Estate, HarperCollins)</li>'
+            '<li><em><a href="https://womensprize.com/library/tell-me-everything/">'
+            'Tell Me Everything</a></em> by Elizabeth Strout '
+            '(published by Viking, Penguin General, Penguin Random House)</li>'
+            '<li><em><a href="https://womensprize.com/library/the-safekeep/">'
+            'The Safekeep</a></em> by Yael van der Wouden '
+            '(published by Viking, Penguin General, Penguin Random House)</li>'
+            '<li><em><a href="https://womensprize.com/library/fundamentally/">'
+            'Fundamentally</a></em> by Nussaibah Younis '
+            '(published by Weidenfeld &amp; Nicolson)</li>'
+            '</ul>'
+        ),
+    )
+
+
+def _html_2026() -> str:
+    return _shortlist_article(
+        'Revealing the 2026 Women’s Prize for Fiction Shortlist',
+        _wysiwyg(
+            '<p>We are delighted to reveal the six books that make up the 2026 '
+            'Women’s Prize for Fiction shortlist.</p>'
+            '<p>The full list in alphabetical order by author surname is:</p>'
+            '<ul>'
+            '<li><em><a href="https://womensprize.com/library/flashlight/">'
+            'Flashlight</a></em> by Susan Choi '
+            '(Jonathan Cape, Vintage, Penguin Random House UK)</li>'
+            '<li><em><a href="https://womensprize.com/library/dominion/">'
+            'Dominion</a></em> by Addie E. Citchens '
+            '(Corsair, Little, Brown Book Group)</li>'
+            '<li><em><a href="https://womensprize.com/library/the-correspondent/">'
+            'The Correspondent</a></em> by Virginia Evans (Penguin)</li>'
+            '<li><em><a href="https://womensprize.com/library/the-mercy-step/">'
+            'The Mercy Step</a></em> by Marcia Hutchinson '
+            '(Michael Joseph, Penguin Random House UK)</li>'
+            '<li><em><a href="https://womensprize.com/library/kingfisher/">'
+            'Kingfisher</a></em> by Rozie Kelly (Saraband)</li>'
+            '<li><em><a href="https://womensprize.com/library/heart-the-lover/">'
+            'Heart the Lover</a></em> by Lily King (Grove Press)</li>'
+            '</ul>'
+        ),
+    )
+
+
+def _parse_year(year: int, html: str, url: str | None = None):
+    if url is None:
+        url = wpf.VERIFIED_SHORTLIST_URLS[year]
+    return wpf._parse_shortlist_article(html, year, url)
+
+
+def _titles(records):
+    return [record.work_title for record in records]
+
+
+def _authors(records):
+    return [record.work_author for record in records]
+
+
+class WomensPrizeFictionShortlistParserTests(unittest.TestCase):
+    def test_2017_six_and_missing_by_fallback(self):
+        records = _parse_year(2017, _html_2017())
+        self.assertEqual(len(records), 6)
+        self.assertEqual(
+            _titles(records)[0:2],
+            ['Stay With Me', 'The Power'],
+        )
+        self.assertEqual(records[0].work_author, 'Ayọ̀bámi Adébáyọ̀̀')
+        self.assertEqual(records[1].work_author, 'Naomi Alderman')
+        self.assertEqual(records[1].source_url, 'https://womensprize.com/books/the-power/')
+        self.assertTrue(all(record.status == 'Shortlisted' for record in records))
+        self.assertTrue(all(record.rank is None for record in (
+            wpf._to_award_result(record) for record in records
+        )))
+
+    def test_2018_author_comma_title_keeps_title_commas(self):
+        records = _parse_year(2018, _html_2018())
+        self.assertEqual(len(records), 6)
+        kandasamy = [r for r in records if r.work_author == 'Meena Kandasamy'][0]
+        self.assertEqual(
+            kandasamy.work_title,
+            'When I Hit You: Or, A Portrait of the Writer as a Young Wife',
+        )
+        self.assertEqual(records[0].work_author, 'Elif Batuman')
+        self.assertEqual(records[0].work_title, 'The Idiot')
+
+    def test_2019_title_by_author(self):
+        records = _parse_year(2019, _html_2019())
+        self.assertEqual(len(records), 6)
+        self.assertEqual(records[0].work_title, 'The Silence of the Girls')
+        self.assertEqual(records[0].work_author, 'Pat Barker')
+
+    def test_2020_ignores_leftover_sixteen_books_sentence(self):
+        records = _parse_year(2020, _html_2020())
+        self.assertEqual(len(records), 6)
+        hamnet = [r for r in records if r.work_title == 'Hamnet'][0]
+        self.assertEqual(hamnet.work_author, 'Maggie O’ Farrell')
+        self.assertNotIn('16', ' '.join(_titles(records)))
+        self.assertEqual(len(records), 6)
+
+    def test_2021_feature_book_cards(self):
+        records = _parse_year(2021, _html_2021())
+        self.assertEqual(len(records), 6)
+        piranesi = [r for r in records if r.work_title == 'Piranesi'][0]
+        self.assertEqual(piranesi.work_author, 'Susanna Clarke')
+        self.assertEqual(
+            piranesi.source_url,
+            'https://womensprize.com/library/piranesi/',
+        )
+
+    def test_2022_book_of_form_and_emptiness(self):
+        records = _parse_year(2022, _html_2022())
+        self.assertEqual(len(records), 6)
+        ozeki = [r for r in records if r.work_author == 'Ruth Ozeki'][0]
+        self.assertEqual(ozeki.work_title, 'The Book of Form and Emptiness')
+
+    def test_2023_marriage_portrait(self):
+        records = _parse_year(2023, _html_2023())
+        self.assertEqual(len(records), 6)
+        portrait = [r for r in records if 'Marriage Portrait' in r.work_title][0]
+        self.assertEqual(portrait.work_author, "Maggie O'Farrell")
+
+    def test_2024_modern_list_items(self):
+        records = _parse_year(2024, _html_2024())
+        self.assertEqual(len(records), 6)
+        enright = [r for r in records if r.work_author == 'Anne Enright'][0]
+        self.assertEqual(enright.work_title, 'The Wren, The Wren')
+        self.assertEqual(
+            enright.source_url,
+            'https://womensprize.com/library/the-wren-the-wren/',
+        )
+
+    def test_2025_ignores_title_only_carousel(self):
+        records = _parse_year(2025, _html_2025())
+        self.assertEqual(len(records), 6)
+        aber = [r for r in records if r.work_author == 'Aria Aber'][0]
+        self.assertEqual(aber.work_title, 'Good Girl')
+        self.assertNotIn('Seventh Fake', _titles(records))
+
+    def test_2026_includes_correspondent_and_kingfisher(self):
+        records = _parse_year(2026, _html_2026())
+        self.assertEqual(len(records), 6)
+        self.assertIn('The Correspondent', _titles(records))
+        self.assertIn('Kingfisher', _titles(records))
+        kelly = [r for r in records if r.work_title == 'Kingfisher'][0]
+        self.assertEqual(kelly.work_author, 'Rozie Kelly')
+
+    def test_2015_and_2016_incomplete_pages_rejected(self):
+        incomplete_2015 = _shortlist_article(
+            'Baileys Women’s prize for Fiction announce 2015 shortlist',
+            _wysiwyg(
+                '<p>The Baileys Women’s Prize for Fiction is delighted to '
+                'announce the 2015 shortlist. This year’s six shortlisted '
+                'books were whittled down from a twenty-strong longlist.</p>'
+            ),
+        )
+        incomplete_2016 = _shortlist_article(
+            "Bailey's Women's Prize for Fiction 2016 shortlist",
+            _wysiwyg(
+                '<p>The Baileys Women’s Prize for Fiction today announces '
+                'the 2016 shortlist.</p>'
+            ),
+        )
+        with self.assertRaises(wpf.WomensPrizeFictionSourceError):
+            wpf._parse_shortlist_article(
+                incomplete_2015,
+                2017,
+                wpf.VERIFIED_SHORTLIST_URLS[2017],
+            )
+        with self.assertRaises(wpf.WomensPrizeFictionSourceError):
+            wpf._parse_shortlist_article(
+                incomplete_2016,
+                2017,
+                wpf.VERIFIED_SHORTLIST_URLS[2017],
+            )
+
+    def test_non_fiction_and_discoveries_pages_rejected(self):
+        nf = _shortlist_article(
+            'Announcing the 2024 Women’s Prize for Non-Fiction shortlist!',
+            _wysiwyg('<p>The Women’s Prize for Non-Fiction shortlist.</p>'),
+        )
+        discoveries = _shortlist_article(
+            'Announcing the 2026 Discoveries shortlist',
+            _wysiwyg('<p>The Discoveries shortlist.</p>'),
+        )
+        with self.assertRaises(wpf.WomensPrizeFictionSourceError):
+            wpf._parse_shortlist_article(
+                nf,
+                2024,
+                'https://womensprize.com/announcing-the-2024-womens-prize-for-non-fiction-shortlist/',
+            )
+        with self.assertRaises(wpf.WomensPrizeFictionSourceError):
+            wpf._parse_shortlist_article(
+                discoveries,
+                2026,
+                'https://womensprize.com/announcing-the-2026-discoveries-shortlist/',
+            )
+
+    def test_wrong_count_is_rejected(self):
+        five = _shortlist_article(
+            'Announcing the 2024 Women’s Prize for Fiction shortlist!',
+            _wysiwyg(
+                '<ul>'
+                '<li><em><a href="https://womensprize.com/library/a/">A</a></em> by One</li>'
+                '<li><em><a href="https://womensprize.com/library/b/">B</a></em> by Two</li>'
+                '<li><em><a href="https://womensprize.com/library/c/">C</a></em> by Three</li>'
+                '<li><em><a href="https://womensprize.com/library/d/">D</a></em> by Four</li>'
+                '<li><em><a href="https://womensprize.com/library/e/">E</a></em> by Five</li>'
+                '</ul>'
+            ),
+        )
+        with self.assertRaises(wpf.WomensPrizeFictionSourceError):
+            _parse_year(2024, five)
+
+    def test_related_discoveries_teaser_is_ignored(self):
+        records = _parse_year(2024, _html_2024())
+        self.assertEqual(len(records), 6)
+        self.assertNotIn('Discoveries', ' '.join(_titles(records)))
+
+    def test_ofarrell_author_compare_collapses_space_after_apostrophe(self):
+        self.assertTrue(
+            wpf._authors_match("Maggie O'Farrell", 'Maggie O’ Farrell')
+        )
+        self.assertTrue(
+            wpf._authors_match("Maggie O' Farrell", "Maggie O'Farrell")
+        )
+
+    def test_winner_overlay_keeps_winner_spelling(self):
+        winners = (
+            wpf._ParsedRecord(
+                award_year=2020,
+                category='Fiction',
+                status='Winner',
+                work_title='Hamnet',
+                work_author="Maggie O'Farrell",
+                source_url='https://womensprize.com/library/hamnet/',
+            ),
+            wpf._ParsedRecord(
+                award_year=2024,
+                category='Fiction',
+                status='Winner',
+                work_title='Brotherless Night',
+                work_author='V. V. Ganeshananthan',
+                source_url='https://womensprize.com/library/brotherless-night/',
+            ),
+            wpf._ParsedRecord(
+                award_year=2025,
+                category='Fiction',
+                status='Winner',
+                work_title='The Safekeep',
+                work_author='Yael van der Wouden',
+                source_url='https://womensprize.com/library/the-safekeep/',
+            ),
+            wpf._ParsedRecord(
+                award_year=2026,
+                category='Fiction',
+                status='Winner',
+                work_title='The Correspondent',
+                work_author='Virginia Evans',
+                source_url='https://womensprize.com/library/the-correspondent/',
+            ),
+        )
+        shortlisted = (
+            wpf._ParsedRecord(
+                award_year=2020,
+                category='Fiction',
+                status='Shortlisted',
+                work_title='Hamnet',
+                work_author='Maggie O’ Farrell',
+                source_url='https://womensprize.com/books/hamnet/',
+            ),
+            wpf._ParsedRecord(
+                award_year=2024,
+                category='Fiction',
+                status='Shortlisted',
+                work_title='Brotherless Night',
+                work_author='V. V. Ganeshananthan',
+                source_url='https://womensprize.com/library/brotherless-night/',
+            ),
+            wpf._ParsedRecord(
+                award_year=2025,
+                category='Fiction',
+                status='Shortlisted',
+                work_title='The Safekeep',
+                work_author='Yael van der Wouden',
+                source_url='https://womensprize.com/library/the-safekeep/',
+            ),
+            wpf._ParsedRecord(
+                award_year=2026,
+                category='Fiction',
+                status='Shortlisted',
+                work_title='The Correspondent',
+                work_author='Virginia Evans',
+                source_url='https://womensprize.com/library/the-correspondent/',
+            ),
+            wpf._ParsedRecord(
+                award_year=2025,
+                category='Fiction',
+                status='Shortlisted',
+                work_title='Good Girl',
+                work_author='Aria Aber',
+                source_url='https://womensprize.com/library/good-girl/',
+            ),
+        )
+        merged = wpf._merge_winners_and_shortlisted(winners, shortlisted)
+        hamnets = [r for r in merged if r.work_title == 'Hamnet']
+        self.assertEqual(len(hamnets), 1)
+        self.assertEqual(hamnets[0].status, 'Winner')
+        self.assertEqual(hamnets[0].work_author, "Maggie O'Farrell")
+        for title in (
+            'Brotherless Night',
+            'The Safekeep',
+            'The Correspondent',
+        ):
+            rows = [r for r in merged if r.work_title == title]
+            self.assertEqual(len(rows), 1)
+            self.assertEqual(rows[0].status, 'Winner')
+        good = [r for r in merged if r.work_title == 'Good Girl'][0]
+        result = wpf._to_award_result(good)
+        assessment = assess_award_result(result)
+        self.assertEqual(result.status, 'Shortlisted')
+        self.assertIsNone(result.rank)
+        self.assertEqual(
+            assessment.qualification.decision,
+            QualificationDecision.QUALIFIES,
+        )
+
+    def test_pre_2017_synthetic_shortlisted_does_not_use_policy(self):
+        result = wpf._to_award_result(
+            wpf._ParsedRecord(
+                award_year=2013,
+                category='Fiction',
+                status='Shortlisted',
+                work_title='Life After Life',
+                work_author='Kate Atkinson',
+                source_url='https://womensprize.com/books/life-after-life/',
+            )
+        )
+        assessment = assess_award_result(result)
+        self.assertEqual(
+            assessment.qualification.decision,
+            QualificationDecision.REVIEW,
+        )
+
+    def test_lookup_merge_and_longlist_negative(self):
+        winners = (
+            wpf._ParsedRecord(
+                award_year=2020,
+                category='Fiction',
+                status='Winner',
+                work_title='Hamnet',
+                work_author="Maggie O'Farrell",
+                source_url='https://womensprize.com/library/hamnet/',
+            ),
+            wpf._ParsedRecord(
+                award_year=2026,
+                category='Fiction',
+                status='Winner',
+                work_title='The Correspondent',
+                work_author='Virginia Evans',
+                source_url='https://womensprize.com/library/the-correspondent/',
+            ),
+        )
+        shortlisted = _parse_year(2026, _html_2026()) + (
+            wpf._ParsedRecord(
+                award_year=2025,
+                category='Fiction',
+                status='Shortlisted',
+                work_title='Good Girl',
+                work_author='Aria Aber',
+                source_url='https://womensprize.com/library/good-girl/',
+            ),
+            wpf._ParsedRecord(
+                award_year=2020,
+                category='Fiction',
+                status='Shortlisted',
+                work_title='Hamnet',
+                work_author='Maggie O’ Farrell',
+                source_url='https://womensprize.com/books/hamnet/',
+            ),
+        )
+        with patch.object(wpf, '_get_archive_records', return_value=winners):
+            with patch.object(
+                wpf, '_get_shortlisted_records', return_value=shortlisted
+            ):
+                correspondent = wpf.lookup(
+                    'The Correspondent', 'Virginia Evans'
+                )
+                kingfisher = wpf.lookup('Kingfisher', 'Rozie Kelly')
+                good = wpf.lookup('Good Girl', 'Aria Aber')
+                hamnet = wpf.lookup('Hamnet', "Maggie O'Farrell")
+                others = wpf.lookup('The Others', 'Sheena Kalayil')
+        self.assertEqual(len(correspondent), 1)
+        self.assertEqual(correspondent[0].status, 'Winner')
+        self.assertEqual(len(kingfisher), 1)
+        self.assertEqual(kingfisher[0].status, 'Shortlisted')
+        self.assertIsNone(kingfisher[0].rank)
+        self.assertEqual(
+            assess_award_result(kingfisher[0]).qualification.decision,
+            QualificationDecision.QUALIFIES,
+        )
+        self.assertEqual(good[0].status, 'Shortlisted')
+        self.assertEqual(
+            assess_award_result(good[0]).qualification.decision,
+            QualificationDecision.QUALIFIES,
+        )
+        self.assertEqual(len(hamnet), 1)
+        self.assertEqual(hamnet[0].status, 'Winner')
+        self.assertEqual(others, [])
 
 
 if __name__ == '__main__':
