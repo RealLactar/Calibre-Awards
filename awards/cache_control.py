@@ -18,6 +18,7 @@ from .sources import (
     hugo,
     locus,
     miles_franklin,
+    national_book_critics_circle,
     nebula,
     newbery,
     nobel,
@@ -42,6 +43,9 @@ _SOURCE_RUNTIME_RESETS = {
     'hugo': hugo._reset_runtime_state,
     'locus': locus._reset_runtime_state,
     'miles_franklin': miles_franklin._reset_runtime_state,
+    'national_book_critics_circle': (
+        national_book_critics_circle._reset_runtime_state
+    ),
     'nebula': nebula._reset_runtime_state,
     'newbery': newbery._reset_runtime_state,
     'nobel': nobel._reset_runtime_state,

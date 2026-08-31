@@ -18,6 +18,9 @@ from .sources.hugo import lookup as hugo_lookup
 from .sources.prix_goncourt import lookup as prix_goncourt_lookup
 from .sources.locus import lookup as locus_lookup
 from .sources.miles_franklin import lookup as miles_franklin_lookup
+from .sources.national_book_critics_circle import (
+    lookup as national_book_critics_circle_lookup,
+)
 from .sources.nebula import lookup as nebula_lookup
 from .sources.newbery import lookup as newbery_lookup
 from .sources.nobel import lookup as nobel_lookup
@@ -101,6 +104,11 @@ AWARD_SOURCES: tuple[AwardSource, ...] = (
         key='womens_prize_fiction',
         display_name="Women's Prize for Fiction",
         lookup=womens_prize_fiction_lookup,
+    ),
+    AwardSource(
+        key='national_book_critics_circle',
+        display_name='National Book Critics Circle Awards',
+        lookup=national_book_critics_circle_lookup,
     ),
     AwardSource(
         key='newbery',

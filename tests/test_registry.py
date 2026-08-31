@@ -2,8 +2,8 @@
 
 Pulitzer Fiction, Newbery Honor, Booker Shortlisted, Deutscher
 Buchpreis Shortlisted, Prix Goncourt Finalist, Miles Franklin
-Finalist, and Women's Prize for Fiction Shortlisted are the
-registered policies.
+Finalist, Women's Prize for Fiction Shortlisted, and National
+Book Critics Circle Finalist are the registered policies.
 """
 
 from __future__ import annotations
@@ -16,6 +16,7 @@ from awards.registry import (
     BOOKER_POLICY,
     GERMAN_BOOK_PRIZE_POLICY,
     MILES_FRANKLIN_POLICY,
+    NBCC_FINALIST_POLICY,
     NEWBERY_POLICY,
     PRIX_GONCOURT_POLICY,
     PULITZER_FICTION_POLICY,
@@ -89,7 +90,7 @@ def _booker_result(**overrides) -> AwardResult:
 
 
 class AwardPolicyRegistryTests(unittest.TestCase):
-    def test_registered_policies_are_pulitzer_newbery_booker_german_goncourt_miles_womens(self):
+    def test_registered_policies_are_pulitzer_newbery_booker_german_goncourt_miles_womens_nbcc(self):
         self.assertEqual(
             AWARD_POLICIES,
             (
@@ -100,6 +101,7 @@ class AwardPolicyRegistryTests(unittest.TestCase):
                 PRIX_GONCOURT_POLICY,
                 MILES_FRANKLIN_POLICY,
                 WOMENS_PRIZE_FICTION_POLICY,
+                NBCC_FINALIST_POLICY,
             ),
         )
 
@@ -361,6 +363,88 @@ class AwardPolicyRegistryTests(unittest.TestCase):
             'longlisted',
             WOMENS_PRIZE_FICTION_POLICY.qualifying_statuses,
         )
+
+    def test_nbcc_finalist_policy_matches_1976_onward_any_work_category(self):
+        fiction = AwardResult(
+            work_title='Freedom',
+            work_author='Jonathan Franzen',
+            award_name='National Book Critics Circle Award',
+            award_year=2010,
+            category='Fiction',
+            status='Finalist',
+            rank=None,
+            source_name='National Book Critics Circle',
+            source_url='https://www.bookcritics.org/past-awards/2010/',
+        )
+        general = AwardResult(
+            work_title='Nothing to Envy',
+            work_author='Barbara Demick',
+            award_name='National Book Critics Circle Award',
+            award_year=2010,
+            category='General Nonfiction',
+            status='Finalist',
+            rank=None,
+            source_name='National Book Critics Circle',
+            source_url='https://www.bookcritics.org/past-awards/2010/',
+        )
+        leonard = AwardResult(
+            work_title='Crown',
+            work_author='Evanthia Bromiley',
+            award_name='National Book Critics Circle Award',
+            award_year=2025,
+            category='John Leonard Prize',
+            status='Finalist',
+            rank=None,
+            source_name='National Book Critics Circle',
+            source_url='https://www.bookcritics.org/past-awards/2025/',
+        )
+        barrios = AwardResult(
+            work_title='Heart Lamp',
+            work_author='Banu Mushtaq',
+            award_name='National Book Critics Circle Award',
+            award_year=2025,
+            category='Gregg Barrios Book in Translation',
+            status='Finalist',
+            rank=None,
+            source_name='National Book Critics Circle',
+            source_url='https://www.bookcritics.org/past-awards/2025/',
+        )
+        winner = AwardResult(
+            work_title='We Do Not Part',
+            work_author='Han Kang',
+            award_name='National Book Critics Circle Award',
+            award_year=2025,
+            category='Fiction',
+            status='Winner',
+            rank=None,
+            source_name='National Book Critics Circle',
+            source_url='https://www.bookcritics.org/past-awards/2025/',
+        )
+        pre = AwardResult(
+            work_title='Ragtime',
+            work_author='E.L. Doctorow',
+            award_name='National Book Critics Circle Award',
+            award_year=1975,
+            category='Fiction',
+            status='Finalist',
+            rank=None,
+            source_name='National Book Critics Circle',
+            source_url='https://www.bookcritics.org/past-awards/1975/',
+        )
+        self.assertIs(find_award_policy(fiction), NBCC_FINALIST_POLICY)
+        self.assertIs(find_award_policy(general), NBCC_FINALIST_POLICY)
+        self.assertIs(find_award_policy(leonard), NBCC_FINALIST_POLICY)
+        self.assertIs(find_award_policy(barrios), NBCC_FINALIST_POLICY)
+        self.assertIs(find_award_policy(winner), NBCC_FINALIST_POLICY)
+        self.assertIsNone(find_award_policy(pre))
+        self.assertIsNone(NBCC_FINALIST_POLICY.category)
+        self.assertEqual(NBCC_FINALIST_POLICY.start_year, 1976)
+        self.assertEqual(
+            NBCC_FINALIST_POLICY.qualifying_statuses,
+            frozenset({'finalist'}),
+        )
+        self.assertNotIn('longlisted', NBCC_FINALIST_POLICY.qualifying_statuses)
+        self.assertIn(NBCC_FINALIST_POLICY, AWARD_POLICIES)
 
 
 if __name__ == '__main__':

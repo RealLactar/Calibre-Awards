@@ -16,6 +16,7 @@ from .sources import (
     hugo,
     locus,
     miles_franklin,
+    national_book_critics_circle,
     nebula,
     newbery,
     nobel,
@@ -127,6 +128,10 @@ def _miles_franklin_categories() -> tuple[str, ...]:
 
 def _womens_prize_fiction_categories() -> tuple[str, ...]:
     return (womens_prize_fiction.CATEGORY,)
+
+
+def _nbcc_categories() -> tuple[str, ...]:
+    return national_book_critics_circle._SOURCEINFO_CATEGORIES
 
 
 def _newbery_categories() -> tuple[str, ...]:
@@ -295,6 +300,26 @@ SOURCE_INFOS: tuple[SourceInfo, ...] = (
             'onward. Longlisted-only works are not returned. The Women\'s '
             'Prize for Non-Fiction, Discoveries, and other Women\'s Prize '
             'programmes are excluded.'
+        ),
+    ),
+    SourceInfo(
+        key='national_book_critics_circle',
+        display_name='National Book Critics Circle Awards',
+        categories=_nbcc_categories(),
+        identity_scopes=('work',),
+        homepage_url=national_book_critics_circle.SOURCE_HOME_URL,
+        description=(
+            'Official National Book Critics Circle year archive: Winners and '
+            'Finalists in the core book categories, plus the John Leonard '
+            'Prize and Gregg Barrios Book in Translation Prize.'
+        ),
+        limitation=(
+            "Award year is the book's publication/archive year, not the later "
+            'ceremony date. Winner coverage begins in 1975; Finalists begin in '
+            '1976. Historical category labels such as General Nonfiction, '
+            'Biography/Autobiography, and Autobiography/Memoir are preserved. '
+            'Longlisted-only works are not returned. Reviewing citations, '
+            'lifetime/institution honors, and fellowships are excluded.'
         ),
     ),
     SourceInfo(

@@ -78,6 +78,20 @@ MILES_FRANKLIN_POLICY = AwardPolicy(
     ),
 )
 
+NBCC_FINALIST_POLICY = AwardPolicy(
+    award_name='National Book Critics Circle Award',
+    category=None,
+    start_year=1976,
+    qualifying_statuses=frozenset({'Finalist'}),
+    notes=(
+        'National Book Critics Circle Finalists are an official '
+        'published distinction in the year archive. Finalist qualifies '
+        'under this award-specific policy. Finalist does not imply an '
+        'ordinal rank. Longlisted-only works are not returned. '
+        'The 1975 archive lists Winners only.'
+    ),
+)
+
 WOMENS_PRIZE_FICTION_POLICY = AwardPolicy(
     award_name="Women's Prize for Fiction",
     category='Fiction',
@@ -99,6 +113,7 @@ AWARD_POLICIES: tuple[AwardPolicy, ...] = (
     PRIX_GONCOURT_POLICY,
     MILES_FRANKLIN_POLICY,
     WOMENS_PRIZE_FICTION_POLICY,
+    NBCC_FINALIST_POLICY,
 )
 
 
