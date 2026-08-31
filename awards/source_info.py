@@ -21,6 +21,7 @@ from .sources import (
     newbery,
     nobel,
     pen_faulkner,
+    pen_hemingway,
     prix_goncourt,
     pulitzer,
     womens_prize_fiction,
@@ -137,6 +138,10 @@ def _nbcc_categories() -> tuple[str, ...]:
 
 def _pen_faulkner_categories() -> tuple[str, ...]:
     return (pen_faulkner.CATEGORY,)
+
+
+def _pen_hemingway_categories() -> tuple[str, ...]:
+    return (pen_hemingway.CATEGORY,)
 
 
 def _newbery_categories() -> tuple[str, ...]:
@@ -345,6 +350,30 @@ SOURCE_INFOS: tuple[SourceInfo, ...] = (
             'PEN/Malamud Award, and PEN/Faulkner Literary Champion are '
             'excluded. Historical Finalist counts vary and no ordinal rank '
             'is inferred.'
+        ),
+    ),
+    SourceInfo(
+        key='pen_hemingway',
+        display_name='PEN/Hemingway Award for Debut Novel',
+        categories=_pen_hemingway_categories(),
+        identity_scopes=('work',),
+        homepage_url=pen_hemingway.SOURCE_HOME_URL,
+        description=(
+            'Official PEN/Hemingway Award for Debut Novel Winners, plus '
+            'Finalists from the PEN/Faulkner administration. Historical '
+            'winners include first books of fiction; current guidelines '
+            'are for debut novels.'
+        ),
+        limitation=(
+            'Winner coverage begins in 1976. Award year is the '
+            'ceremony/award year, not the eligibility publication year. '
+            'Finalists are included from 2026, when administration '
+            'transferred to the PEN/Faulkner Foundation. Historical '
+            'Finalists, Runners-up, and Honorable Mentions from prior '
+            'administrators are not returned in this phase. '
+            'Longlisted-only works are not returned. The PEN/Faulkner '
+            'Award for Fiction, PEN/Malamud Award, and PEN/Faulkner '
+            'Literary Champion are excluded. No ordinal rank is inferred.'
         ),
     ),
     SourceInfo(

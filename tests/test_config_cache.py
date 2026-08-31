@@ -54,6 +54,7 @@ _EXPECTED_SOURCE_ORDER = (
     'womens_prize_fiction',
     'national_book_critics_circle',
     'pen_faulkner',
+    'pen_hemingway',
     'newbery',
 )
 
@@ -239,6 +240,7 @@ class AwardSourcesLayoutTests(unittest.TestCase):
         self.assertEqual(by_key['miles_franklin'], 'Miles Franklin Literary Award')
         self.assertEqual(by_key['womens_prize_fiction'], "Women's Prize for Fiction")
         self.assertEqual(by_key['pen_faulkner'], 'PEN/Faulkner Award for Fiction')
+        self.assertEqual(by_key['pen_hemingway'], 'PEN/Hemingway Award for Debut Novel')
         self.assertEqual(by_key['newbery'], 'John Newbery Medal')
 
     def test_config_widget_row_path_creates_all_sources_including_prix_goncourt(self):
@@ -266,10 +268,12 @@ class AwardSourcesLayoutTests(unittest.TestCase):
         self.assertIn('womens_prize_fiction', panel.source_checkboxes)
         self.assertIn('national_book_critics_circle', panel.source_checkboxes)
         self.assertIn('pen_faulkner', panel.source_checkboxes)
+        self.assertIn('pen_hemingway', panel.source_checkboxes)
         self.assertIn('prix_goncourt', panel.source_refresh_buttons)
         self.assertIn('womens_prize_fiction', panel.source_refresh_buttons)
         self.assertIn('national_book_critics_circle', panel.source_refresh_buttons)
         self.assertIn('pen_faulkner', panel.source_refresh_buttons)
+        self.assertIn('pen_hemingway', panel.source_refresh_buttons)
         self.assertEqual(
             panel.source_checkboxes['prix_goncourt'].text,
             'Prix Goncourt',
@@ -290,6 +294,10 @@ class AwardSourcesLayoutTests(unittest.TestCase):
             panel.source_checkboxes['pen_faulkner'].text,
             'PEN/Faulkner Award for Fiction',
         )
+        self.assertEqual(
+            panel.source_checkboxes['pen_hemingway'].text,
+            'PEN/Hemingway Award for Debut Novel',
+        )
         goncourt = _EXPECTED_SOURCE_ORDER.index('prix_goncourt')
         self.assertEqual(panel.inserted_source_rows[goncourt - 1], 'german_book_prize')
         self.assertEqual(panel.inserted_source_rows[goncourt + 1], 'miles_franklin')
@@ -303,7 +311,9 @@ class AwardSourcesLayoutTests(unittest.TestCase):
         nbcc = _EXPECTED_SOURCE_ORDER.index('national_book_critics_circle')
         self.assertEqual(panel.inserted_source_rows[nbcc + 1], 'pen_faulkner')
         pen = _EXPECTED_SOURCE_ORDER.index('pen_faulkner')
-        self.assertEqual(panel.inserted_source_rows[pen + 1], 'newbery')
+        self.assertEqual(panel.inserted_source_rows[pen + 1], 'pen_hemingway')
+        hemingway = _EXPECTED_SOURCE_ORDER.index('pen_hemingway')
+        self.assertEqual(panel.inserted_source_rows[hemingway + 1], 'newbery')
 
     def test_one_refresh_button_per_registered_source(self):
         panel = FakeAwardSourcesPanel()
@@ -362,8 +372,8 @@ class AwardSourcesUnavailableRowTests(unittest.TestCase):
 
     def test_executable_rows_retain_checkbox_and_refresh(self):
         panel = FakeAwardSourcesPanel()
-        self.assertEqual(len(panel.source_checkboxes), 14)
-        self.assertEqual(len(panel.source_refresh_buttons), 14)
+        self.assertEqual(len(panel.source_checkboxes), 15)
+        self.assertEqual(len(panel.source_refresh_buttons), 15)
         for source_key, display_name in cache_refresh_source_rows():
             self.assertIn(source_key, panel.source_checkboxes)
             self.assertIn(source_key, panel.source_refresh_buttons)

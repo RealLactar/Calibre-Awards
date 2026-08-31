@@ -24,6 +24,7 @@ from .sources.national_book_critics_circle import (
 from .sources.nebula import lookup as nebula_lookup
 from .sources.newbery import lookup as newbery_lookup
 from .sources.pen_faulkner import lookup as pen_faulkner_lookup
+from .sources.pen_hemingway import lookup as pen_hemingway_lookup
 from .sources.nobel import lookup as nobel_lookup
 from .sources.pulitzer import lookup as pulitzer_lookup
 from .sources.womens_prize_fiction import lookup as womens_prize_fiction_lookup
@@ -115,6 +116,11 @@ AWARD_SOURCES: tuple[AwardSource, ...] = (
         key='pen_faulkner',
         display_name='PEN/Faulkner Award for Fiction',
         lookup=pen_faulkner_lookup,
+    ),
+    AwardSource(
+        key='pen_hemingway',
+        display_name='PEN/Hemingway Award for Debut Novel',
+        lookup=pen_hemingway_lookup,
     ),
     AwardSource(
         key='newbery',

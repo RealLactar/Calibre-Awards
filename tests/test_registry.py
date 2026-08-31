@@ -3,8 +3,9 @@
 Pulitzer Fiction, Newbery Honor, Booker Shortlisted, Deutscher
 Buchpreis Shortlisted, Prix Goncourt Finalist, Miles Franklin
 Finalist, Women's Prize for Fiction Shortlisted, National
-Book Critics Circle Finalist, and PEN/Faulkner Award for Fiction
-Finalist are the registered policies.
+Book Critics Circle Finalist, PEN/Faulkner Award for Fiction
+Finalist, and PEN/Hemingway Award for Debut Novel Finalist
+are the registered policies.
 """
 
 from __future__ import annotations
@@ -20,6 +21,7 @@ from awards.registry import (
     NBCC_FINALIST_POLICY,
     NEWBERY_POLICY,
     PEN_FAULKNER_FINALIST_POLICY,
+    PEN_HEMINGWAY_FINALIST_POLICY,
     PRIX_GONCOURT_POLICY,
     PULITZER_FICTION_POLICY,
     WOMENS_PRIZE_FICTION_POLICY,
@@ -92,7 +94,7 @@ def _booker_result(**overrides) -> AwardResult:
 
 
 class AwardPolicyRegistryTests(unittest.TestCase):
-    def test_registered_policies_are_pulitzer_newbery_booker_german_goncourt_miles_womens_nbcc_pen_faulkner(self):
+    def test_registered_policies_are_pulitzer_newbery_booker_german_goncourt_miles_womens_nbcc_pen_faulkner_pen_hemingway(self):
         self.assertEqual(
             AWARD_POLICIES,
             (
@@ -105,6 +107,7 @@ class AwardPolicyRegistryTests(unittest.TestCase):
                 WOMENS_PRIZE_FICTION_POLICY,
                 NBCC_FINALIST_POLICY,
                 PEN_FAULKNER_FINALIST_POLICY,
+                PEN_HEMINGWAY_FINALIST_POLICY,
             ),
         )
 
@@ -541,6 +544,122 @@ class AwardPolicyRegistryTests(unittest.TestCase):
         )
         self.assertNotEqual(
             assess_award_result(nominee).qualification.decision,
+            QualificationDecision.QUALIFIES,
+        )
+
+    def test_pen_hemingway_finalist_policy_matches_2026_onward(self):
+        winner = AwardResult(
+            work_title='The Correspondent',
+            work_author='Virginia Evans',
+            award_name='PEN/Hemingway Award for Debut Novel',
+            award_year=2026,
+            category='Fiction',
+            status='Winner',
+            rank=None,
+            source_name='PEN/Faulkner Foundation',
+            source_url='https://www.penfaulkner.org/2026/03/16/announcing-the-winner-of-the-pen-hemingway-award-for-debut-novel/',
+        )
+        finalist = AwardResult(
+            work_title='Awake in the Floating City',
+            work_author='Susanna Kwan',
+            award_name='PEN/Hemingway Award for Debut Novel',
+            award_year=2026,
+            category='Fiction',
+            status='Finalist',
+            rank=None,
+            source_name='PEN/Faulkner Foundation',
+            source_url='https://www.penfaulkner.org/2026/02/17/announcing-the-finalists-for-the-2026-pen-hemingway-award-for-debut-novel/',
+        )
+        historical_winner = AwardResult(
+            work_title='Parthian Shot',
+            work_author='Loyd Little',
+            award_name='PEN/Hemingway Award for Debut Novel',
+            award_year=1976,
+            category='Fiction',
+            status='Winner',
+            rank=None,
+            source_name='PEN/Faulkner Foundation',
+            source_url='https://www.penfaulkner.org/our-awards/the-pen-hemingway-award/',
+        )
+        pre_admin_finalist = AwardResult(
+            work_title='Dead in Long Beach, California',
+            work_author='Venita Blackburn',
+            award_name='PEN/Hemingway Award for Debut Novel',
+            award_year=2025,
+            category='Fiction',
+            status='Finalist',
+            rank=None,
+            source_name='PEN/Faulkner Foundation',
+            source_url='https://www.penfaulkner.org/our-awards/the-pen-hemingway-award/',
+        )
+        honorable = AwardResult(
+            work_title='Dog Run Moon',
+            work_author='Callan Wink',
+            award_name='PEN/Hemingway Award for Debut Novel',
+            award_year=2017,
+            category='Fiction',
+            status='Honorable Mention',
+            rank=None,
+            source_name='The Hemingway Society',
+            source_url='https://www.hemingwaysociety.org/list-penhemingway-winners',
+        )
+        runner_up = AwardResult(
+            work_title='Stay and Fight',
+            work_author='Madeline ffitch',
+            award_name='PEN/Hemingway Award for Debut Novel',
+            award_year=2020,
+            category='Fiction',
+            status='Runner-up',
+            rank=None,
+            source_name='The Hemingway Society',
+            source_url='https://www.hemingwaysociety.org/list-penhemingway-winners',
+        )
+        self.assertIs(find_award_policy(winner), PEN_HEMINGWAY_FINALIST_POLICY)
+        self.assertIs(find_award_policy(finalist), PEN_HEMINGWAY_FINALIST_POLICY)
+        self.assertIsNone(find_award_policy(historical_winner))
+        self.assertIsNone(find_award_policy(pre_admin_finalist))
+        self.assertIsNone(find_award_policy(honorable))
+        self.assertIsNone(find_award_policy(runner_up))
+        self.assertEqual(
+            PEN_HEMINGWAY_FINALIST_POLICY.qualifying_statuses,
+            frozenset({'finalist'}),
+        )
+        self.assertNotIn(
+            'honorable mention',
+            PEN_HEMINGWAY_FINALIST_POLICY.qualifying_statuses,
+        )
+        self.assertNotIn(
+            'runner-up',
+            PEN_HEMINGWAY_FINALIST_POLICY.qualifying_statuses,
+        )
+        self.assertEqual(PEN_HEMINGWAY_FINALIST_POLICY.start_year, 2026)
+        self.assertEqual(PEN_HEMINGWAY_FINALIST_POLICY.category, 'Fiction')
+        self.assertIn(PEN_HEMINGWAY_FINALIST_POLICY, AWARD_POLICIES)
+        from awards.engine import assess_award_result
+        from awards.qualifier import QualificationDecision
+
+        self.assertEqual(
+            assess_award_result(winner).qualification.decision,
+            QualificationDecision.QUALIFIES,
+        )
+        self.assertEqual(
+            assess_award_result(finalist).qualification.decision,
+            QualificationDecision.QUALIFIES,
+        )
+        self.assertEqual(
+            assess_award_result(historical_winner).qualification.decision,
+            QualificationDecision.QUALIFIES,
+        )
+        self.assertNotEqual(
+            assess_award_result(pre_admin_finalist).qualification.decision,
+            QualificationDecision.QUALIFIES,
+        )
+        self.assertNotEqual(
+            assess_award_result(honorable).qualification.decision,
+            QualificationDecision.QUALIFIES,
+        )
+        self.assertNotEqual(
+            assess_award_result(runner_up).qualification.decision,
             QualificationDecision.QUALIFIES,
         )
 

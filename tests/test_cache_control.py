@@ -31,6 +31,7 @@ from awards.sources import (
     newbery,
     nobel,
     pen_faulkner,
+    pen_hemingway,
     prix_goncourt,
     pulitzer,
     womens_prize_fiction,
@@ -102,6 +103,7 @@ class CacheControlTestCase(unittest.TestCase):
         newbery._reset_runtime_state()
         nobel._reset_runtime_state()
         pen_faulkner._reset_runtime_state()
+        pen_hemingway._reset_runtime_state()
         prix_goncourt._reset_runtime_state()
         pulitzer._reset_runtime_state()
         womens_prize_fiction._reset_runtime_state()
@@ -121,6 +123,7 @@ class CacheControlTestCase(unittest.TestCase):
         newbery._reset_runtime_state()
         nobel._reset_runtime_state()
         pen_faulkner._reset_runtime_state()
+        pen_hemingway._reset_runtime_state()
         prix_goncourt._reset_runtime_state()
         pulitzer._reset_runtime_state()
         womens_prize_fiction._reset_runtime_state()
@@ -176,6 +179,7 @@ class ArchiveSourceRefreshTests(CacheControlTestCase):
             'womens_prize_fiction',
             'national_book_critics_circle',
             'pen_faulkner',
+            'pen_hemingway',
             'newbery',
         ):
             _save_archive(key)
@@ -193,6 +197,7 @@ class ArchiveSourceRefreshTests(CacheControlTestCase):
             'womens_prize_fiction',
             'national_book_critics_circle',
             'pen_faulkner',
+            'pen_hemingway',
             'newbery',
         ):
             self.assertTrue((self.cache_dir / f'{key}.json').is_file(), key)
@@ -304,6 +309,50 @@ class PenFaulknerRefreshTests(CacheControlTestCase):
         )
         self.assertIsNone(
             cache.load_cache_entry('pen_faulkner', 'years', '2026', 1)
+        )
+        self.assertTrue((self.cache_dir / 'hugo.json').is_file())
+        self.assertEqual(hugo._archive_records_cache, ())
+
+
+class PenHemingwayRefreshTests(CacheControlTestCase):
+    def test_refresh_pen_hemingway_clears_keyed_cache_and_ram(self):
+        cache.save_cache_entry(
+            'pen_hemingway',
+            'archive',
+            'landing',
+            1,
+            records=[{'award_year': 1976}],
+            source_urls=['https://www.penfaulkner.org/our-awards/the-pen-hemingway-award/'],
+            coverage={'kind': 'landing'},
+            ttl_seconds=3600,
+        )
+        cache.save_cache_entry(
+            'pen_hemingway',
+            'years',
+            '2026',
+            1,
+            records=[{'award_year': 2026}],
+            source_urls=['https://www.penfaulkner.org/2026/03/16/x/'],
+            coverage={'award_year': 2026, 'state': 'winner'},
+            ttl_seconds=3600,
+        )
+        _save_archive('hugo')
+        dummy = pen_hemingway._YearSnapshot(
+            award_year=2026,
+            state='absent',
+            source_urls=(),
+            records=(),
+        )
+        pen_hemingway._store_year_snapshot(dummy)
+        hugo._archive_records_cache = ()
+        self.assertTrue(refresh_award_source_cache('pen_hemingway'))
+        self.assertIsNone(pen_hemingway._ram_year(2026))
+        self.assertIsNone(pen_hemingway._ram_landing())
+        self.assertIsNone(
+            cache.load_cache_entry('pen_hemingway', 'archive', 'landing', 1)
+        )
+        self.assertIsNone(
+            cache.load_cache_entry('pen_hemingway', 'years', '2026', 1)
         )
         self.assertTrue((self.cache_dir / 'hugo.json').is_file())
         self.assertEqual(hugo._archive_records_cache, ())
@@ -443,6 +492,7 @@ class NoNetworkTests(CacheControlTestCase):
             patch.object(locus, 'lookup') as locus_lookup,
             patch.object(newbery, 'lookup') as newbery_lookup,
             patch.object(pen_faulkner, 'lookup') as pen_lookup,
+            patch.object(pen_hemingway, 'lookup') as hemingway_lookup,
             patch('urllib.request.urlopen') as urlopen,
             patch.object(locus, '_request_html') as locus_http,
         ):
@@ -450,12 +500,14 @@ class NoNetworkTests(CacheControlTestCase):
             refresh_award_source_cache('locus')
             refresh_award_source_cache('newbery')
             refresh_award_source_cache('pen_faulkner')
+            refresh_award_source_cache('pen_hemingway')
         engine_lookup.assert_not_called()
         nebula_lookup.assert_not_called()
         hugo_lookup.assert_not_called()
         locus_lookup.assert_not_called()
         newbery_lookup.assert_not_called()
         pen_lookup.assert_not_called()
+        hemingway_lookup.assert_not_called()
         urlopen.assert_not_called()
         locus_http.assert_not_called()
 

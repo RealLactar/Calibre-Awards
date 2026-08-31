@@ -106,6 +106,21 @@ PEN_FAULKNER_FINALIST_POLICY = AwardPolicy(
     ),
 )
 
+PEN_HEMINGWAY_FINALIST_POLICY = AwardPolicy(
+    award_name='PEN/Hemingway Award for Debut Novel',
+    category='Fiction',
+    start_year=2026,
+    qualifying_statuses=frozenset({'Finalist'}),
+    notes=(
+        'PEN/Hemingway Award for Debut Novel Finalists are an '
+        'official published distinction under the PEN/Faulkner '
+        'administration. Finalist qualifies under this award-specific '
+        'policy. Finalist does not imply an ordinal rank. Historical '
+        'secondary distinctions from prior administrators are not '
+        'returned in this phase. Longlisted-only works are not returned.'
+    ),
+)
+
 WOMENS_PRIZE_FICTION_POLICY = AwardPolicy(
     award_name="Women's Prize for Fiction",
     category='Fiction',
@@ -129,6 +144,7 @@ AWARD_POLICIES: tuple[AwardPolicy, ...] = (
     WOMENS_PRIZE_FICTION_POLICY,
     NBCC_FINALIST_POLICY,
     PEN_FAULKNER_FINALIST_POLICY,
+    PEN_HEMINGWAY_FINALIST_POLICY,
 )
 
 
