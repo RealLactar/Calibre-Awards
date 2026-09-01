@@ -30,6 +30,7 @@ from awards.sources import (
     pulitzer,
     womens_prize_fiction,
     world_fantasy,
+    bram_stoker,
 )
 
 
@@ -128,7 +129,7 @@ class SourceInfoRegistryConsistencyTests(unittest.TestCase):
             tuple(source.display_name for source in AWARD_SOURCES),
         )
         self.assertEqual(len(SOURCE_INFOS), len(AWARD_SOURCES))
-        self.assertEqual(len(SOURCE_INFOS), 16)
+        self.assertEqual(len(SOURCE_INFOS), 17)
         self.assertNotIn(
             'national_book_awards',
             [info.key for info in SOURCE_INFOS],
@@ -210,6 +211,17 @@ class SourceInfoCategoryTests(unittest.TestCase):
             ('Novel', 'Novella', 'Short Fiction', 'Collection'),
         )
 
+    def test_bram_stoker_categories_and_limitation(self):
+        info = _info('bram_stoker')
+        self.assertEqual(info.categories, bram_stoker.SOURCEINFO_CATEGORIES)
+        self.assertIn('Novel', info.categories)
+        self.assertIn('First Novel', info.categories)
+        self.assertIn('Young Adult Novel', info.categories)
+        self.assertIsNotNone(info.limitation)
+        self.assertIn('1987', info.limitation)
+        self.assertIn('Final Ballot', info.limitation)
+        self.assertIn('Preliminary', info.limitation)
+
     def test_nobel_literature_only(self):
         info = _info('nobel')
         self.assertEqual(info.display_name, 'Nobel Award')
@@ -244,6 +256,7 @@ class SourceInfoScopeAndHomepageTests(unittest.TestCase):
             'hugo': ('work', 'series'),
             'locus': ('work',),
             'world_fantasy': ('work',),
+            'bram_stoker': ('work',),
             'nobel': ('author', 'work'),
             'booker': ('work',),
             'german_book_prize': ('work',),
@@ -271,6 +284,7 @@ class SourceInfoScopeAndHomepageTests(unittest.TestCase):
         self.assertEqual(hosts['hugo'], 'www.thehugoawards.org')
         self.assertEqual(hosts['locus'], 'www.sfadb.com')
         self.assertEqual(hosts['world_fantasy'], 'worldfantasy.org')
+        self.assertEqual(hosts['bram_stoker'], 'bramstokerawards.horror.org')
         self.assertEqual(hosts['nobel'], 'www.nobelprize.org')
         self.assertEqual(hosts['booker'], 'thebookerprizes.com')
         self.assertEqual(hosts['german_book_prize'], 'www.deutscher-buchpreis.de')
@@ -290,6 +304,7 @@ class SourceInfoScopeAndHomepageTests(unittest.TestCase):
             _info('world_fantasy').homepage_url,
             world_fantasy.SOURCE_HOME_URL,
         )
+        self.assertEqual(_info('bram_stoker').homepage_url, bram_stoker.SOURCE_HOME_URL)
         self.assertEqual(_info('nobel').homepage_url, nobel.SOURCE_HOME_URL)
         self.assertEqual(_info('booker').homepage_url, booker.SOURCE_HOME_URL)
         self.assertEqual(
@@ -331,6 +346,7 @@ class SourceInfoScopeAndHomepageTests(unittest.TestCase):
                 'pen_hemingway',
                 'ipaf',
                 'newbery',
+                'bram_stoker',
             }:
                 self.assertIsNotNone(info.limitation)
             else:
@@ -549,7 +565,7 @@ class SourceInfoImportAndFormatTests(unittest.TestCase):
         with patch.object(urllib.request, 'urlopen') as mocked_open:
             reloaded = importlib.reload(source_info)
             infos = reloaded.SOURCE_INFOS
-            self.assertEqual(len(infos), 16)
+            self.assertEqual(len(infos), 17)
             self.assertEqual(infos[0].key, 'pulitzer')
             self.assertEqual(infos[-1].key, 'newbery')
             mocked_open.assert_not_called()
@@ -686,6 +702,17 @@ class SourceInfoImportAndFormatTests(unittest.TestCase):
         self.assertIn('2020', formatted)
         self.assertIn('Longlisted-only', formatted)
         self.assertIn('transliteration', formatted.casefold())
+
+    def test_format_source_info_includes_bram_stoker_limitation(self):
+        formatted = format_source_info(_info('bram_stoker'))
+        self.assertEqual(formatted.splitlines()[0], 'Bram Stoker Awards')
+        self.assertIn('Categories: Novel', formatted)
+        self.assertIn('Scope: Work awards', formatted)
+        self.assertIn('Horror Writers Association', formatted)
+        self.assertIn('1987', formatted)
+        self.assertIn('Final Ballot', formatted)
+        self.assertIn('Preliminary', formatted)
+        self.assertIn('no ordinal rank', formatted.casefold())
 
 
 if __name__ == '__main__':

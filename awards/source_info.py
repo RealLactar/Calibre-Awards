@@ -12,6 +12,7 @@ from urllib.parse import urlparse
 
 from .sources import (
     booker,
+    bram_stoker,
     german_book_prize,
     hugo,
     ipaf,
@@ -107,6 +108,10 @@ def _locus_categories() -> tuple[str, ...]:
 
 def _world_fantasy_categories() -> tuple[str, ...]:
     return world_fantasy._CANONICAL_CATEGORIES
+
+
+def _bram_stoker_categories() -> tuple[str, ...]:
+    return bram_stoker.SOURCEINFO_CATEGORIES
 
 
 def _nobel_categories() -> tuple[str, ...]:
@@ -222,6 +227,28 @@ SOURCE_INFOS: tuple[SourceInfo, ...] = (
         homepage_url=world_fantasy.SOURCE_HOME_URL,
         description=(
             'World Fantasy work awards in the supported literary categories.'
+        ),
+    ),
+    SourceInfo(
+        key='bram_stoker',
+        display_name='Bram Stoker Awards',
+        categories=_bram_stoker_categories(),
+        identity_scopes=('work',),
+        homepage_url=bram_stoker.SOURCE_HOME_URL,
+        description=(
+            'Horror Writers Association awards for superior achievement in '
+            'horror and dark literature. Returns Winners and official Final '
+            'Ballot works in bibliographic categories.'
+        ),
+        limitation=(
+            'Coverage begins with the 1987 award cycle. Award year is the '
+            'publication year, although Winners are announced the following '
+            'year. Final Ballot works are returned as Finalists; Preliminary '
+            'Ballot and recommendation list appearances are ignored. '
+            'Screenplay, other-media, Lifetime Achievement, service, and '
+            'press honors are excluded. Historical category names are '
+            'preserved and ties may produce multiple Winners. No ordinal '
+            'rank is inferred.'
         ),
     ),
     SourceInfo(

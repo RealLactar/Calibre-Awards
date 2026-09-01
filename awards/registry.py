@@ -121,6 +121,19 @@ PEN_HEMINGWAY_FINALIST_POLICY = AwardPolicy(
     ),
 )
 
+BRAM_STOKER_FINALIST_POLICY = AwardPolicy(
+    award_name='Bram Stoker Award',
+    category=None,
+    start_year=1987,
+    qualifying_statuses=frozenset({'Finalist'}),
+    notes=(
+        'Horror Writers Association Final Ballot works are official '
+        'Bram Stoker nominees/finalists. Finalist qualifies under this '
+        'award-specific policy. Preliminary Ballot and recommendation '
+        'list appearances are not returned. No ordinal rank is inferred.'
+    ),
+)
+
 IPAF_SHORTLISTED_POLICY = AwardPolicy(
     award_name='International Prize for Arabic Fiction',
     category='Fiction',
@@ -162,6 +175,7 @@ AWARD_POLICIES: tuple[AwardPolicy, ...] = (
     PEN_FAULKNER_FINALIST_POLICY,
     PEN_HEMINGWAY_FINALIST_POLICY,
     IPAF_SHORTLISTED_POLICY,
+    BRAM_STOKER_FINALIST_POLICY,
 )
 
 

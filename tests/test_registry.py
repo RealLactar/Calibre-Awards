@@ -16,6 +16,7 @@ from awards.model import AwardResult
 from awards.registry import (
     AWARD_POLICIES,
     BOOKER_POLICY,
+    BRAM_STOKER_FINALIST_POLICY,
     GERMAN_BOOK_PRIZE_POLICY,
     IPAF_SHORTLISTED_POLICY,
     MILES_FRANKLIN_POLICY,
@@ -110,6 +111,7 @@ class AwardPolicyRegistryTests(unittest.TestCase):
                 PEN_FAULKNER_FINALIST_POLICY,
                 PEN_HEMINGWAY_FINALIST_POLICY,
                 IPAF_SHORTLISTED_POLICY,
+                BRAM_STOKER_FINALIST_POLICY,
             ),
         )
 
@@ -759,6 +761,117 @@ class AwardPolicyRegistryTests(unittest.TestCase):
         )
         self.assertIsNone(winner.rank)
         self.assertIsNone(shortlisted_2026.rank)
+
+    def test_bram_stoker_finalist_policy_matches_1987_onward(self):
+        winner = AwardResult(
+            work_title='Misery',
+            work_author='Stephen King',
+            award_name='Bram Stoker Award',
+            award_year=1987,
+            category='Novel',
+            status='Winner',
+            rank=None,
+            source_name='Horror Writers Association',
+            source_url='https://bramstokerawards.horror.org/about-the-awards/1987-bram-stoker-award-nominees-winner/',
+        )
+        finalist_1987 = AwardResult(
+            work_title='Live Girls',
+            work_author='Ray Garton',
+            award_name='Bram Stoker Award',
+            award_year=1987,
+            category='Novel',
+            status='Finalist',
+            rank=None,
+            source_name='Horror Writers Association',
+            source_url='https://bramstokerawards.horror.org/about-the-awards/1987-bram-stoker-award-nominees-winner/',
+        )
+        finalist_2025 = AwardResult(
+            work_title='Witchcraft for Wayward Girls',
+            work_author='Grady Hendrix',
+            award_name='Bram Stoker Award',
+            award_year=2025,
+            category='Novel',
+            status='Finalist',
+            rank=None,
+            source_name='Horror Writers Association',
+            source_url='https://bramstokerawards.horror.org/front-page/6370/',
+        )
+        preliminary = AwardResult(
+            work_title='Bat Eater and Other Names for Cora Zeng',
+            work_author='Kylie Lee Baker',
+            award_name='Bram Stoker Award',
+            award_year=2025,
+            category='Novel',
+            status='Preliminary',
+            rank=None,
+            source_name='Horror Writers Association',
+            source_url='https://bramstokerawards.horror.org/news/preliminary/',
+        )
+        nominee = AwardResult(
+            work_title='Live Girls',
+            work_author='Ray Garton',
+            award_name='Bram Stoker Award',
+            award_year=1987,
+            category='Novel',
+            status='Nominee',
+            rank=None,
+            source_name='Horror Writers Association',
+            source_url='https://bramstokerawards.horror.org/about-the-awards/1987-bram-stoker-award-nominees-winner/',
+        )
+        self.assertIs(find_award_policy(winner), BRAM_STOKER_FINALIST_POLICY)
+        self.assertIs(find_award_policy(finalist_1987), BRAM_STOKER_FINALIST_POLICY)
+        self.assertIs(find_award_policy(finalist_2025), BRAM_STOKER_FINALIST_POLICY)
+        self.assertEqual(
+            BRAM_STOKER_FINALIST_POLICY.qualifying_statuses,
+            frozenset({'finalist'}),
+        )
+        self.assertNotIn('nominee', BRAM_STOKER_FINALIST_POLICY.qualifying_statuses)
+        self.assertNotIn(
+            'preliminary',
+            BRAM_STOKER_FINALIST_POLICY.qualifying_statuses,
+        )
+        self.assertNotIn(
+            'recommendation',
+            BRAM_STOKER_FINALIST_POLICY.qualifying_statuses,
+        )
+        self.assertIsNone(BRAM_STOKER_FINALIST_POLICY.category)
+        self.assertEqual(BRAM_STOKER_FINALIST_POLICY.start_year, 1987)
+        self.assertIn(BRAM_STOKER_FINALIST_POLICY, AWARD_POLICIES)
+        self.assertEqual(
+            [
+                policy.award_name
+                for policy in AWARD_POLICIES
+                if 'nominee' in policy.qualifying_statuses
+                and policy.award_name == 'Bram Stoker Award'
+            ],
+            [],
+        )
+        from awards.engine import assess_award_result
+        from awards.qualifier import QualificationDecision
+
+        self.assertEqual(
+            assess_award_result(winner).qualification.decision,
+            QualificationDecision.QUALIFIES,
+        )
+        self.assertEqual(
+            assess_award_result(finalist_1987).qualification.decision,
+            QualificationDecision.QUALIFIES,
+        )
+        self.assertEqual(
+            assess_award_result(finalist_2025).qualification.decision,
+            QualificationDecision.QUALIFIES,
+        )
+        self.assertNotEqual(
+            assess_award_result(preliminary).qualification.decision,
+            QualificationDecision.QUALIFIES,
+        )
+        self.assertNotEqual(
+            assess_award_result(nominee).qualification.decision,
+            QualificationDecision.QUALIFIES,
+        )
+        self.assertIsNone(winner.rank)
+        self.assertIsNone(finalist_1987.rank)
+        self.assertIsNone(finalist_2025.rank)
 
 
 if __name__ == '__main__':

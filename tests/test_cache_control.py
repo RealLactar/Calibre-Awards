@@ -22,6 +22,7 @@ from awards.source_info import SOURCE_INFOS
 from awards.source_registry import AWARD_SOURCES
 from awards.sources import (
     booker,
+    bram_stoker,
     german_book_prize,
     hugo,
     ipaf,
@@ -95,6 +96,7 @@ class CacheControlTestCase(unittest.TestCase):
     def setUp(self):
         cache._reset_runtime_state()
         booker._reset_runtime_state()
+        bram_stoker._reset_runtime_state()
         german_book_prize._reset_runtime_state()
         hugo._reset_runtime_state()
         ipaf._reset_runtime_state()
@@ -116,6 +118,7 @@ class CacheControlTestCase(unittest.TestCase):
 
     def tearDown(self):
         booker._reset_runtime_state()
+        bram_stoker._reset_runtime_state()
         german_book_prize._reset_runtime_state()
         hugo._reset_runtime_state()
         ipaf._reset_runtime_state()
@@ -174,6 +177,7 @@ class ArchiveSourceRefreshTests(CacheControlTestCase):
             'nebula',
             'hugo',
             'world_fantasy',
+            'bram_stoker',
             'nobel',
             'booker',
             'german_book_prize',
@@ -193,6 +197,7 @@ class ArchiveSourceRefreshTests(CacheControlTestCase):
             'pulitzer',
             'nebula',
             'world_fantasy',
+            'bram_stoker',
             'nobel',
             'booker',
             'german_book_prize',
@@ -407,6 +412,57 @@ class IpafRefreshTests(CacheControlTestCase):
         self.assertEqual(hugo._archive_records_cache, ())
 
 
+class BramStokerRefreshTests(CacheControlTestCase):
+    def test_refresh_bram_stoker_clears_keyed_cache_and_ram(self):
+        cache.save_cache_entry(
+            'bram_stoker',
+            'index',
+            'years',
+            1,
+            records=[],
+            source_urls=['https://bramstokerawards.horror.org/'],
+            coverage={
+                'kind': 'years',
+                'latest_completed_year': 2025,
+                'year_urls': {
+                    '2025': 'https://bramstokerawards.horror.org/front-page/6370/',
+                },
+                'winner_urls': {},
+            },
+            ttl_seconds=3600,
+        )
+        cache.save_cache_entry(
+            'bram_stoker',
+            'years',
+            '2025',
+            1,
+            records=[{'award_year': 2025}],
+            source_urls=['https://bramstokerawards.horror.org/front-page/6370/'],
+            coverage={'award_year': 2025, 'state': 'winner'},
+            ttl_seconds=3600,
+        )
+        _save_archive('hugo')
+        dummy = bram_stoker._YearSnapshot(
+            award_year=2025,
+            state='winner',
+            source_urls=('https://bramstokerawards.horror.org/front-page/6370/',),
+            records=(),
+        )
+        bram_stoker._store_year_snapshot(dummy)
+        hugo._archive_records_cache = ()
+        self.assertTrue(refresh_award_source_cache('bram_stoker'))
+        self.assertIsNone(bram_stoker._ram_year(2025))
+        self.assertIsNone(bram_stoker._ram_index())
+        self.assertIsNone(
+            cache.load_cache_entry('bram_stoker', 'index', 'years', 1)
+        )
+        self.assertIsNone(
+            cache.load_cache_entry('bram_stoker', 'years', '2025', 1)
+        )
+        self.assertTrue((self.cache_dir / 'hugo.json').is_file())
+        self.assertEqual(hugo._archive_records_cache, ())
+
+
 class RuntimeResetDispatchTests(CacheControlTestCase):
     def test_refresh_calls_only_matching_runtime_reset(self):
         called = []
@@ -543,6 +599,7 @@ class NoNetworkTests(CacheControlTestCase):
             patch.object(pen_faulkner, 'lookup') as pen_lookup,
             patch.object(pen_hemingway, 'lookup') as hemingway_lookup,
             patch.object(ipaf, 'lookup') as ipaf_lookup,
+            patch.object(bram_stoker, 'lookup') as bram_stoker_lookup,
             patch('urllib.request.urlopen') as urlopen,
             patch.object(locus, '_request_html') as locus_http,
         ):
@@ -552,6 +609,7 @@ class NoNetworkTests(CacheControlTestCase):
             refresh_award_source_cache('pen_faulkner')
             refresh_award_source_cache('pen_hemingway')
             refresh_award_source_cache('ipaf')
+            refresh_award_source_cache('bram_stoker')
         engine_lookup.assert_not_called()
         nebula_lookup.assert_not_called()
         hugo_lookup.assert_not_called()
@@ -560,6 +618,7 @@ class NoNetworkTests(CacheControlTestCase):
         pen_lookup.assert_not_called()
         hemingway_lookup.assert_not_called()
         ipaf_lookup.assert_not_called()
+        bram_stoker_lookup.assert_not_called()
         urlopen.assert_not_called()
         locus_http.assert_not_called()
 

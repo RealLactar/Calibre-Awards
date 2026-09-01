@@ -14,6 +14,7 @@ from . import cache
 from .source_info import SOURCE_INFOS
 from .sources import (
     booker,
+    bram_stoker,
     german_book_prize,
     hugo,
     ipaf,
@@ -42,6 +43,7 @@ SOURCES_GROUP_HINT = (
 # AWARD_SOURCES without a mapping here is caught by tests.
 _SOURCE_RUNTIME_RESETS = {
     'booker': booker._reset_runtime_state,
+    'bram_stoker': bram_stoker._reset_runtime_state,
     'german_book_prize': german_book_prize._reset_runtime_state,
     'hugo': hugo._reset_runtime_state,
     'ipaf': ipaf._reset_runtime_state,
