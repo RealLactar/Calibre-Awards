@@ -17,6 +17,7 @@ from awards.registry import (
     AWARD_POLICIES,
     BOOKER_POLICY,
     GERMAN_BOOK_PRIZE_POLICY,
+    IPAF_SHORTLISTED_POLICY,
     MILES_FRANKLIN_POLICY,
     NBCC_FINALIST_POLICY,
     NEWBERY_POLICY,
@@ -94,7 +95,7 @@ def _booker_result(**overrides) -> AwardResult:
 
 
 class AwardPolicyRegistryTests(unittest.TestCase):
-    def test_registered_policies_are_pulitzer_newbery_booker_german_goncourt_miles_womens_nbcc_pen_faulkner_pen_hemingway(self):
+    def test_registered_policies_are_pulitzer_newbery_booker_german_goncourt_miles_womens_nbcc_pen_faulkner_pen_hemingway_ipaf(self):
         self.assertEqual(
             AWARD_POLICIES,
             (
@@ -108,6 +109,7 @@ class AwardPolicyRegistryTests(unittest.TestCase):
                 NBCC_FINALIST_POLICY,
                 PEN_FAULKNER_FINALIST_POLICY,
                 PEN_HEMINGWAY_FINALIST_POLICY,
+                IPAF_SHORTLISTED_POLICY,
             ),
         )
 
@@ -662,6 +664,101 @@ class AwardPolicyRegistryTests(unittest.TestCase):
             assess_award_result(runner_up).qualification.decision,
             QualificationDecision.QUALIFIES,
         )
+
+    def test_ipaf_shortlisted_policy_matches_2020_onward(self):
+        winner = AwardResult(
+            work_title='Swimming Against the Tide',
+            work_author='Said Khatibi',
+            award_name='International Prize for Arabic Fiction',
+            award_year=2026,
+            category='Fiction',
+            status='Winner',
+            rank=None,
+            source_name='International Prize for Arabic Fiction',
+            source_url='https://en.arabicfiction.org/prize-years/ipaf-2026',
+        )
+        shortlisted_2026 = AwardResult(
+            work_title='The Origin of Species',
+            work_author='Ahmad Abdulatif',
+            award_name='International Prize for Arabic Fiction',
+            award_year=2026,
+            category='Fiction',
+            status='Shortlisted',
+            rank=None,
+            source_name='International Prize for Arabic Fiction',
+            source_url='https://en.arabicfiction.org/prize-years/ipaf-2026',
+        )
+        shortlisted_2020 = AwardResult(
+            work_title='Firewood of Sarajevo',
+            work_author='Said Khatibi',
+            award_name='International Prize for Arabic Fiction',
+            award_year=2020,
+            category='Fiction',
+            status='Shortlisted',
+            rank=None,
+            source_name='International Prize for Arabic Fiction',
+            source_url='https://en.arabicfiction.org/prize-years/ipaf-2020',
+        )
+        pre_coverage = AwardResult(
+            work_title='Sunset Oasis',
+            work_author='Bahaa Taher',
+            award_name='International Prize for Arabic Fiction',
+            award_year=2019,
+            category='Fiction',
+            status='Shortlisted',
+            rank=None,
+            source_name='International Prize for Arabic Fiction',
+            source_url='https://en.arabicfiction.org/prize-years/ipaf-2019',
+        )
+        longlisted = AwardResult(
+            work_title="Grandma Touma's Cord",
+            work_author='Abdelouahab Aissaoui',
+            award_name='International Prize for Arabic Fiction',
+            award_year=2026,
+            category='Fiction',
+            status='Longlisted',
+            rank=None,
+            source_name='International Prize for Arabic Fiction',
+            source_url='https://en.arabicfiction.org/prize-years/ipaf-2026',
+        )
+        self.assertIs(find_award_policy(winner), IPAF_SHORTLISTED_POLICY)
+        self.assertIs(find_award_policy(shortlisted_2026), IPAF_SHORTLISTED_POLICY)
+        self.assertIs(find_award_policy(shortlisted_2020), IPAF_SHORTLISTED_POLICY)
+        self.assertIsNone(find_award_policy(pre_coverage))
+        self.assertIs(find_award_policy(longlisted), IPAF_SHORTLISTED_POLICY)
+        self.assertEqual(
+            IPAF_SHORTLISTED_POLICY.qualifying_statuses,
+            frozenset({'shortlisted'}),
+        )
+        self.assertNotIn('longlisted', IPAF_SHORTLISTED_POLICY.qualifying_statuses)
+        self.assertEqual(IPAF_SHORTLISTED_POLICY.start_year, 2020)
+        self.assertEqual(IPAF_SHORTLISTED_POLICY.category, 'Fiction')
+        self.assertIn(IPAF_SHORTLISTED_POLICY, AWARD_POLICIES)
+        from awards.engine import assess_award_result
+        from awards.qualifier import QualificationDecision
+
+        self.assertEqual(
+            assess_award_result(winner).qualification.decision,
+            QualificationDecision.QUALIFIES,
+        )
+        self.assertEqual(
+            assess_award_result(shortlisted_2026).qualification.decision,
+            QualificationDecision.QUALIFIES,
+        )
+        self.assertEqual(
+            assess_award_result(shortlisted_2020).qualification.decision,
+            QualificationDecision.QUALIFIES,
+        )
+        self.assertNotEqual(
+            assess_award_result(pre_coverage).qualification.decision,
+            QualificationDecision.QUALIFIES,
+        )
+        self.assertNotEqual(
+            assess_award_result(longlisted).qualification.decision,
+            QualificationDecision.QUALIFIES,
+        )
+        self.assertIsNone(winner.rank)
+        self.assertIsNone(shortlisted_2026.rank)
 
 
 if __name__ == '__main__':

@@ -24,6 +24,7 @@ from awards.sources import (
     booker,
     german_book_prize,
     hugo,
+    ipaf,
     locus,
     miles_franklin,
     national_book_critics_circle,
@@ -96,6 +97,7 @@ class CacheControlTestCase(unittest.TestCase):
         booker._reset_runtime_state()
         german_book_prize._reset_runtime_state()
         hugo._reset_runtime_state()
+        ipaf._reset_runtime_state()
         locus._reset_runtime_state()
         miles_franklin._reset_runtime_state()
         national_book_critics_circle._reset_runtime_state()
@@ -116,6 +118,7 @@ class CacheControlTestCase(unittest.TestCase):
         booker._reset_runtime_state()
         german_book_prize._reset_runtime_state()
         hugo._reset_runtime_state()
+        ipaf._reset_runtime_state()
         locus._reset_runtime_state()
         miles_franklin._reset_runtime_state()
         national_book_critics_circle._reset_runtime_state()
@@ -180,6 +183,7 @@ class ArchiveSourceRefreshTests(CacheControlTestCase):
             'national_book_critics_circle',
             'pen_faulkner',
             'pen_hemingway',
+            'ipaf',
             'newbery',
         ):
             _save_archive(key)
@@ -198,6 +202,7 @@ class ArchiveSourceRefreshTests(CacheControlTestCase):
             'national_book_critics_circle',
             'pen_faulkner',
             'pen_hemingway',
+            'ipaf',
             'newbery',
         ):
             self.assertTrue((self.cache_dir / f'{key}.json').is_file(), key)
@@ -358,6 +363,50 @@ class PenHemingwayRefreshTests(CacheControlTestCase):
         self.assertEqual(hugo._archive_records_cache, ())
 
 
+class IpafRefreshTests(CacheControlTestCase):
+    def test_refresh_ipaf_clears_keyed_cache_and_ram(self):
+        cache.save_cache_entry(
+            'ipaf',
+            'index',
+            'prize-years',
+            1,
+            records=[],
+            source_urls=['https://en.arabicfiction.org/prize-years'],
+            coverage={'kind': 'prize-years', 'supported_years': [2020]},
+            ttl_seconds=3600,
+        )
+        cache.save_cache_entry(
+            'ipaf',
+            'years',
+            '2026',
+            1,
+            records=[{'award_year': 2026}],
+            source_urls=['https://en.arabicfiction.org/prize-years/ipaf-2026'],
+            coverage={'award_year': 2026, 'state': 'winner'},
+            ttl_seconds=3600,
+        )
+        _save_archive('hugo')
+        dummy = ipaf._YearSnapshot(
+            award_year=2026,
+            state='winner',
+            source_urls=('https://en.arabicfiction.org/prize-years/ipaf-2026',),
+            records=(),
+        )
+        ipaf._store_year_snapshot(dummy)
+        hugo._archive_records_cache = ()
+        self.assertTrue(refresh_award_source_cache('ipaf'))
+        self.assertIsNone(ipaf._ram_year(2026))
+        self.assertIsNone(ipaf._ram_index())
+        self.assertIsNone(
+            cache.load_cache_entry('ipaf', 'index', 'prize-years', 1)
+        )
+        self.assertIsNone(
+            cache.load_cache_entry('ipaf', 'years', '2026', 1)
+        )
+        self.assertTrue((self.cache_dir / 'hugo.json').is_file())
+        self.assertEqual(hugo._archive_records_cache, ())
+
+
 class RuntimeResetDispatchTests(CacheControlTestCase):
     def test_refresh_calls_only_matching_runtime_reset(self):
         called = []
@@ -493,6 +542,7 @@ class NoNetworkTests(CacheControlTestCase):
             patch.object(newbery, 'lookup') as newbery_lookup,
             patch.object(pen_faulkner, 'lookup') as pen_lookup,
             patch.object(pen_hemingway, 'lookup') as hemingway_lookup,
+            patch.object(ipaf, 'lookup') as ipaf_lookup,
             patch('urllib.request.urlopen') as urlopen,
             patch.object(locus, '_request_html') as locus_http,
         ):
@@ -501,6 +551,7 @@ class NoNetworkTests(CacheControlTestCase):
             refresh_award_source_cache('newbery')
             refresh_award_source_cache('pen_faulkner')
             refresh_award_source_cache('pen_hemingway')
+            refresh_award_source_cache('ipaf')
         engine_lookup.assert_not_called()
         nebula_lookup.assert_not_called()
         hugo_lookup.assert_not_called()
@@ -508,6 +559,7 @@ class NoNetworkTests(CacheControlTestCase):
         newbery_lookup.assert_not_called()
         pen_lookup.assert_not_called()
         hemingway_lookup.assert_not_called()
+        ipaf_lookup.assert_not_called()
         urlopen.assert_not_called()
         locus_http.assert_not_called()
 

@@ -17,6 +17,7 @@ from awards.sources import (
     booker,
     german_book_prize,
     hugo,
+    ipaf,
     locus,
     miles_franklin,
     national_book_critics_circle,
@@ -127,7 +128,7 @@ class SourceInfoRegistryConsistencyTests(unittest.TestCase):
             tuple(source.display_name for source in AWARD_SOURCES),
         )
         self.assertEqual(len(SOURCE_INFOS), len(AWARD_SOURCES))
-        self.assertEqual(len(SOURCE_INFOS), 15)
+        self.assertEqual(len(SOURCE_INFOS), 16)
         self.assertNotIn(
             'national_book_awards',
             [info.key for info in SOURCE_INFOS],
@@ -252,6 +253,7 @@ class SourceInfoScopeAndHomepageTests(unittest.TestCase):
             'national_book_critics_circle': ('work',),
             'pen_faulkner': ('work',),
             'pen_hemingway': ('work',),
+            'ipaf': ('work',),
             'newbery': ('work',),
         }
         self.assertEqual(
@@ -278,6 +280,7 @@ class SourceInfoScopeAndHomepageTests(unittest.TestCase):
         self.assertEqual(hosts['national_book_critics_circle'], 'www.bookcritics.org')
         self.assertEqual(hosts['pen_faulkner'], 'www.penfaulkner.org')
         self.assertEqual(hosts['pen_hemingway'], 'www.penfaulkner.org')
+        self.assertEqual(hosts['ipaf'], 'en.arabicfiction.org')
         self.assertEqual(hosts['newbery'], 'www.ala.org')
         self.assertEqual(_info('pulitzer').homepage_url, pulitzer.SOURCE_HOME_URL)
         self.assertEqual(_info('nebula').homepage_url, nebula.SOURCE_HOME_URL)
@@ -311,6 +314,7 @@ class SourceInfoScopeAndHomepageTests(unittest.TestCase):
         )
         self.assertEqual(_info('pen_faulkner').homepage_url, pen_faulkner.SOURCE_HOME_URL)
         self.assertEqual(_info('pen_hemingway').homepage_url, pen_hemingway.SOURCE_HOME_URL)
+        self.assertEqual(_info('ipaf').homepage_url, ipaf.SOURCE_HOME_URL)
         self.assertEqual(_info('newbery').homepage_url, newbery.SOURCE_HOME_URL)
 
     def test_only_documented_sources_have_limitations(self):
@@ -325,6 +329,7 @@ class SourceInfoScopeAndHomepageTests(unittest.TestCase):
                 'national_book_critics_circle',
                 'pen_faulkner',
                 'pen_hemingway',
+                'ipaf',
                 'newbery',
             }:
                 self.assertIsNotNone(info.limitation)
@@ -489,6 +494,27 @@ class SourceInfoScopeAndHomepageTests(unittest.TestCase):
         self.assertIn('literary champion', limitation)
         self.assertIn('no ordinal rank', limitation)
 
+    def test_ipaf_description_and_limitation(self):
+        info = _info('ipaf')
+        self.assertEqual(info.categories, (ipaf.CATEGORY,))
+        self.assertEqual(info.categories, ('Fiction',))
+        self.assertEqual(info.display_name, 'International Prize for Arabic Fiction')
+        description = info.description.casefold()
+        self.assertIn('international prize for arabic fiction', description)
+        self.assertIn('winner', description)
+        self.assertIn('shortlist', description)
+        self.assertIn('arabic', description)
+        self.assertIn('translation', description)
+        self.assertNotIn('arabic booker', description)
+        limitation = info.limitation.casefold()
+        self.assertIn('2020', limitation)
+        self.assertIn('2008', limitation)
+        self.assertIn('2019', limitation)
+        self.assertIn('longlisted-only', limitation)
+        self.assertIn('english', limitation)
+        self.assertIn('transliteration', limitation)
+        self.assertIn('ordinal rank', limitation)
+
     def test_nobel_description_covers_author_and_cited_work_scope(self):
         text = _info('nobel').description.casefold()
         self.assertIn('author', text)
@@ -523,7 +549,7 @@ class SourceInfoImportAndFormatTests(unittest.TestCase):
         with patch.object(urllib.request, 'urlopen') as mocked_open:
             reloaded = importlib.reload(source_info)
             infos = reloaded.SOURCE_INFOS
-            self.assertEqual(len(infos), 15)
+            self.assertEqual(len(infos), 16)
             self.assertEqual(infos[0].key, 'pulitzer')
             self.assertEqual(infos[-1].key, 'newbery')
             mocked_open.assert_not_called()
@@ -648,6 +674,18 @@ class SourceInfoImportAndFormatTests(unittest.TestCase):
         self.assertIn('2026', formatted)
         self.assertIn('Longlisted-only', formatted)
         self.assertIn('no ordinal rank', formatted.casefold())
+
+    def test_format_source_info_includes_ipaf_limitation(self):
+        formatted = format_source_info(_info('ipaf'))
+        self.assertEqual(
+            formatted.splitlines()[0],
+            'International Prize for Arabic Fiction',
+        )
+        self.assertIn('Categories: Fiction', formatted)
+        self.assertIn('Scope: Work awards', formatted)
+        self.assertIn('2020', formatted)
+        self.assertIn('Longlisted-only', formatted)
+        self.assertIn('transliteration', formatted.casefold())
 
 
 if __name__ == '__main__':

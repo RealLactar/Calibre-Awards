@@ -8,6 +8,7 @@ from awards.source_registry import AWARD_SOURCES, AwardSource
 from awards.sources import (
     booker,
     german_book_prize,
+    ipaf,
     miles_franklin,
     national_book_critics_circle,
     newbery,
@@ -37,6 +38,7 @@ class AwardSourceRegistryTests(unittest.TestCase):
                 'national_book_critics_circle',
                 'pen_faulkner',
                 'pen_hemingway',
+                'ipaf',
                 'newbery',
             ),
         )
@@ -59,13 +61,14 @@ class AwardSourceRegistryTests(unittest.TestCase):
                 'National Book Critics Circle Awards',
                 'PEN/Faulkner Award for Fiction',
                 'PEN/Hemingway Award for Debut Novel',
+                'International Prize for Arabic Fiction',
                 'John Newbery Medal',
             ),
         )
 
     def test_executable_registry_count_excludes_national_book_awards(self):
         keys = [source.key for source in AWARD_SOURCES]
-        self.assertEqual(len(AWARD_SOURCES), 15)
+        self.assertEqual(len(AWARD_SOURCES), 16)
         self.assertNotIn('national_book_awards', keys)
         self.assertNotIn(
             'National Book Awards',
@@ -148,6 +151,10 @@ class AwardSourceRegistryTests(unittest.TestCase):
             item for item in AWARD_SOURCES if item.key == 'pen_hemingway'
         ][0]
         self.assertIs(source.lookup, pen_hemingway.lookup)
+
+    def test_ipaf_uses_the_public_lookup_function(self):
+        source = [item for item in AWARD_SOURCES if item.key == 'ipaf'][0]
+        self.assertIs(source.lookup, ipaf.lookup)
 
 
 if __name__ == '__main__':

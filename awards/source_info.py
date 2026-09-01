@@ -14,6 +14,7 @@ from .sources import (
     booker,
     german_book_prize,
     hugo,
+    ipaf,
     locus,
     miles_franklin,
     national_book_critics_circle,
@@ -142,6 +143,10 @@ def _pen_faulkner_categories() -> tuple[str, ...]:
 
 def _pen_hemingway_categories() -> tuple[str, ...]:
     return (pen_hemingway.CATEGORY,)
+
+
+def _ipaf_categories() -> tuple[str, ...]:
+    return (ipaf.CATEGORY,)
 
 
 def _newbery_categories() -> tuple[str, ...]:
@@ -374,6 +379,28 @@ SOURCE_INFOS: tuple[SourceInfo, ...] = (
             'Longlisted-only works are not returned. The PEN/Faulkner '
             'Award for Fiction, PEN/Malamud Award, and PEN/Faulkner '
             'Literary Champion are excluded. No ordinal rank is inferred.'
+        ),
+    ),
+    SourceInfo(
+        key='ipaf',
+        display_name='International Prize for Arabic Fiction',
+        categories=_ipaf_categories(),
+        identity_scopes=('work',),
+        homepage_url=ipaf.SOURCE_HOME_URL,
+        description=(
+            'Official Winners and Shortlisted novels originally written '
+            'in Arabic for the International Prize for Arabic Fiction. '
+            'IPAF also supports international translation of recognized '
+            'novels.'
+        ),
+        limitation=(
+            'Coverage currently follows populated official English '
+            'prize-year pages from 2020 onward; IPAF\'s earlier 2008-2019 '
+            'archive has not yet been migrated to the current site. '
+            'Longlisted-only works are not returned. Titles and author '
+            'names use IPAF\'s official English forms and may differ from '
+            'earlier announcements or later published translations. No '
+            'generated transliteration or ordinal rank is used.'
         ),
     ),
     SourceInfo(

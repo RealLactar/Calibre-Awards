@@ -15,6 +15,7 @@ from .model import AwardResult
 from .sources.booker import lookup as booker_lookup
 from .sources.german_book_prize import lookup as german_book_prize_lookup
 from .sources.hugo import lookup as hugo_lookup
+from .sources.ipaf import lookup as ipaf_lookup
 from .sources.prix_goncourt import lookup as prix_goncourt_lookup
 from .sources.locus import lookup as locus_lookup
 from .sources.miles_franklin import lookup as miles_franklin_lookup
@@ -121,6 +122,11 @@ AWARD_SOURCES: tuple[AwardSource, ...] = (
         key='pen_hemingway',
         display_name='PEN/Hemingway Award for Debut Novel',
         lookup=pen_hemingway_lookup,
+    ),
+    AwardSource(
+        key='ipaf',
+        display_name='International Prize for Arabic Fiction',
+        lookup=ipaf_lookup,
     ),
     AwardSource(
         key='newbery',

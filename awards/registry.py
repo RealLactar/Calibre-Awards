@@ -121,6 +121,22 @@ PEN_HEMINGWAY_FINALIST_POLICY = AwardPolicy(
     ),
 )
 
+IPAF_SHORTLISTED_POLICY = AwardPolicy(
+    award_name='International Prize for Arabic Fiction',
+    category='Fiction',
+    start_year=2020,
+    qualifying_statuses=frozenset({'Shortlisted'}),
+    notes=(
+        'The International Prize for Arabic Fiction publishes a formal '
+        'six-book shortlist from which the Winner is selected. '
+        'Shortlisted qualifies under this award-specific policy. '
+        'No ordinal rank is inferred. Longlisted-only works are not '
+        'returned. Current production coverage begins in 2020 because '
+        'earlier official English archive pages have not yet been '
+        'migrated to the current site.'
+    ),
+)
+
 WOMENS_PRIZE_FICTION_POLICY = AwardPolicy(
     award_name="Women's Prize for Fiction",
     category='Fiction',
@@ -145,6 +161,7 @@ AWARD_POLICIES: tuple[AwardPolicy, ...] = (
     NBCC_FINALIST_POLICY,
     PEN_FAULKNER_FINALIST_POLICY,
     PEN_HEMINGWAY_FINALIST_POLICY,
+    IPAF_SHORTLISTED_POLICY,
 )
 
 

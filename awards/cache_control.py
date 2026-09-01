@@ -16,6 +16,7 @@ from .sources import (
     booker,
     german_book_prize,
     hugo,
+    ipaf,
     locus,
     miles_franklin,
     national_book_critics_circle,
@@ -43,6 +44,7 @@ _SOURCE_RUNTIME_RESETS = {
     'booker': booker._reset_runtime_state,
     'german_book_prize': german_book_prize._reset_runtime_state,
     'hugo': hugo._reset_runtime_state,
+    'ipaf': ipaf._reset_runtime_state,
     'locus': locus._reset_runtime_state,
     'miles_franklin': miles_franklin._reset_runtime_state,
     'national_book_critics_circle': (
