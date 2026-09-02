@@ -21,7 +21,8 @@ _PLACEHOLDER_PATTERN = re.compile(
 _MISSING_PLACEMENT = '<placement missing>'
 _MISSING_YEAR = '<year missing>'
 _MISSING_AWARD = '<award missing>'
-_MISSING_CATEGORY = '<category missing>'
+_ABSENT_CATEGORY_DASH_SEGMENT = re.compile(r'\s+-\s*<category>')
+_ABSENT_CATEGORY_BRACKET_SEGMENT = re.compile(r'\[\s*<category>\s*\]')
 
 
 def _ordinal(rank: int) -> str:
@@ -65,25 +66,38 @@ def _format_award(result) -> str:
 
 
 def _format_category(result) -> str:
+    """Return category text, or empty when the award has no category.
+
+    Category is optional. None or blank is omitted from display rather than
+    rendered as a missing-field diagnostic. Year, award name, and placement
+    remain required diagnostics when absent.
+    """
     category = _nonempty_text(getattr(result, 'category', None))
     identity_kind = getattr(result, 'identity_kind', 'work')
     if identity_kind == 'series':
         series_name = _nonempty_text(getattr(result, 'work_title', None))
         if category is None:
-            return _MISSING_CATEGORY
+            return ''
         if series_name is None:
             return category
         return f'{category} [{series_name}]'
     if identity_kind == 'author':
         author_name = _nonempty_text(getattr(result, 'work_author', None))
         if category is None:
-            return _MISSING_CATEGORY
+            return ''
         if author_name is None:
             return category
         return f'{category} [Author: {author_name}]'
     if category is not None:
         return category
-    return _MISSING_CATEGORY
+    return ''
+
+
+def _template_without_absent_category(template: str) -> str:
+    """Drop an unused category placeholder and its default separator."""
+    updated = _ABSENT_CATEGORY_BRACKET_SEGMENT.sub('', template, count=1)
+    updated = _ABSENT_CATEGORY_DASH_SEGMENT.sub('', updated, count=1)
+    return updated.replace('<category>', '')
 
 
 def format_award_result(
@@ -94,14 +108,24 @@ def format_award_result(
 
     Known placeholders in the original template are substituted exactly once.
     Placeholder-looking text inside substituted values is left unchanged.
+    An absent optional category does not render a diagnostic marker or a
+    dangling separator.
     """
+    category_text = _format_category(result)
     values = {
         '<placement>': _format_placement(result),
         '<year>': _format_year(result),
         '<award>': _format_award(result),
-        '<category>': _format_category(result),
+        '<category>': category_text,
     }
-    return _PLACEHOLDER_PATTERN.sub(lambda match: values[match.group(0)], template)
+    used_template = template
+    if not category_text:
+        used_template = _template_without_absent_category(template)
+    formatted = _PLACEHOLDER_PATTERN.sub(
+        lambda match: values[match.group(0)],
+        used_template,
+    )
+    return formatted.strip()
 
 
 def _format_failure_block(failures) -> str:

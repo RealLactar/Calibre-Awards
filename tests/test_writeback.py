@@ -217,7 +217,7 @@ class QualifyingAwardFormattingTests(unittest.TestCase):
             ['Pulitzer Prize (1988): Winner'],
         )
 
-    def test_missing_value_markers_are_unchanged(self):
+    def test_missing_year_marker_is_unchanged_when_category_is_absent(self):
         result = _result(award_year=None, category=None)
         report = AwardLookupReport(
             assessments=(_assessment(result),),
@@ -230,7 +230,34 @@ class QualifyingAwardFormattingTests(unittest.TestCase):
         )
         self.assertEqual(
             formatted,
-            ['Winner - <year missing> Pulitzer Prize - <category missing>'],
+            ['Winner - <year missing> Pulitzer Prize'],
+        )
+        self.assertNotIn('<category missing>', formatted[0])
+
+    def test_writeback_omits_optional_none_category(self):
+        result = _result(
+            work_title='More Than Friendship',
+            work_author='Mary Howard',
+            award_name='Romantic Novel of the Year Award',
+            award_year=1960,
+            category=None,
+            status='Winner',
+            rank=None,
+            source_name="Romantic Novelists' Association",
+            source_url='https://romanticnovelistsassociation.org/past-winners/more-than-friendship',
+        )
+        report = AwardLookupReport(
+            assessments=(_assessment(result),),
+            failures=(),
+        )
+        formatted = formatted_qualifying_awards(report)
+        self.assertEqual(
+            formatted,
+            ['Winner - 1960 Romantic Novel of the Year Award'],
+        )
+        self.assertEqual(
+            formatted,
+            [format_award_result(result, DEFAULT_AWARD_OUTPUT_TEMPLATE)],
         )
 
 

@@ -122,19 +122,64 @@ class AwardResultFormattingTests(unittest.TestCase):
             'Winner - <year missing> Pulitzer Prize - Fiction',
         )
 
-    def test_missing_category_uses_marker(self):
-        result = _result(category=None)
+    def test_missing_year_keeps_marker_when_category_is_absent(self):
+        result = _result(award_year=None, category=None)
+        formatted = format_award_result(result)
+        self.assertEqual(formatted, 'Winner - <year missing> Pulitzer Prize')
+        self.assertIn('<year missing>', formatted)
+        self.assertNotIn('<category missing>', formatted)
+
+    def test_present_category_keeps_default_segment(self):
+        result = _result(
+            work_title='The Poet',
+            work_author='Michael Connelly',
+            award_name='Edgar Award',
+            award_year=2026,
+            category='Best Novel',
+            status='Winner',
+            rank=None,
+            source_name='Mystery Writers of America',
+            source_url='https://edgarawards.com/',
+        )
         self.assertEqual(
             format_award_result(result),
-            'Winner - 1988 Pulitzer Prize - <category missing>',
+            'Winner - 2026 Edgar Award - Best Novel',
         )
 
-    def test_empty_category_uses_marker(self):
-        result = _result(category='   ')
-        self.assertEqual(
-            format_award_result(result),
-            'Winner - 1988 Pulitzer Prize - <category missing>',
+    def test_none_category_omits_segment_and_separator(self):
+        result = _result(
+            work_title='More Than Friendship',
+            work_author='Mary Howard',
+            award_name='Romantic Novel of the Year Award',
+            award_year=1960,
+            category=None,
+            status='Winner',
+            rank=None,
+            source_name="Romantic Novelists' Association",
+            source_url='https://romanticnovelistsassociation.org/past-winners/more-than-friendship',
         )
+        formatted = format_award_result(result)
+        self.assertEqual(
+            formatted,
+            'Winner - 1960 Romantic Novel of the Year Award',
+        )
+        self.assertNotIn('<category missing>', formatted)
+        self.assertNotIn('Overall', formatted)
+        self.assertFalse(formatted.endswith(' -'))
+        self.assertFalse(formatted.endswith(' '))
+
+    def test_empty_category_omits_segment_and_separator(self):
+        result = _result(category='')
+        formatted = format_award_result(result)
+        self.assertEqual(formatted, 'Winner - 1988 Pulitzer Prize')
+        self.assertNotIn('<category missing>', formatted)
+        self.assertFalse(formatted.endswith(' -'))
+
+    def test_whitespace_category_omits_segment_and_separator(self):
+        result = _result(category='   ')
+        formatted = format_award_result(result)
+        self.assertEqual(formatted, 'Winner - 1988 Pulitzer Prize')
+        self.assertNotIn('<category missing>', formatted)
 
     def test_default_template_constant_and_output(self):
         self.assertEqual(
@@ -159,6 +204,16 @@ class AwardResultFormattingTests(unittest.TestCase):
                 template='<award> (<year>): <placement> [<category>]',
             ),
             'Pulitzer Prize (1991): Finalist [Fiction]',
+        )
+
+    def test_custom_template_omits_absent_category_without_empty_brackets(self):
+        result = _result(category=None)
+        self.assertEqual(
+            format_award_result(
+                result,
+                template='<award> (<year>): <placement> [<category>]',
+            ),
+            'Pulitzer Prize (1988): Winner',
         )
 
     def test_placeholder_text_inside_status_is_not_replaced(self):
