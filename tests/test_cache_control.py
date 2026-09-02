@@ -23,6 +23,7 @@ from awards.source_registry import AWARD_SOURCES
 from awards.sources import (
     booker,
     bram_stoker,
+    edgar,
     german_book_prize,
     hugo,
     ipaf,
@@ -97,6 +98,7 @@ class CacheControlTestCase(unittest.TestCase):
         cache._reset_runtime_state()
         booker._reset_runtime_state()
         bram_stoker._reset_runtime_state()
+        edgar._reset_runtime_state()
         german_book_prize._reset_runtime_state()
         hugo._reset_runtime_state()
         ipaf._reset_runtime_state()
@@ -119,6 +121,7 @@ class CacheControlTestCase(unittest.TestCase):
     def tearDown(self):
         booker._reset_runtime_state()
         bram_stoker._reset_runtime_state()
+        edgar._reset_runtime_state()
         german_book_prize._reset_runtime_state()
         hugo._reset_runtime_state()
         ipaf._reset_runtime_state()
@@ -178,6 +181,7 @@ class ArchiveSourceRefreshTests(CacheControlTestCase):
             'hugo',
             'world_fantasy',
             'bram_stoker',
+            'edgar',
             'nobel',
             'booker',
             'german_book_prize',
@@ -198,6 +202,7 @@ class ArchiveSourceRefreshTests(CacheControlTestCase):
             'nebula',
             'world_fantasy',
             'bram_stoker',
+            'edgar',
             'nobel',
             'booker',
             'german_book_prize',

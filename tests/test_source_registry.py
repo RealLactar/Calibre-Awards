@@ -8,6 +8,7 @@ from awards.source_registry import AWARD_SOURCES, AwardSource
 from awards.sources import (
     booker,
     bram_stoker,
+    edgar,
     german_book_prize,
     ipaf,
     miles_franklin,
@@ -31,6 +32,7 @@ class AwardSourceRegistryTests(unittest.TestCase):
                 'locus',
                 'world_fantasy',
                 'bram_stoker',
+                'edgar',
                 'nobel',
                 'booker',
                 'german_book_prize',
@@ -55,6 +57,7 @@ class AwardSourceRegistryTests(unittest.TestCase):
                 'Locus Awards',
                 'World Fantasy Awards',
                 'Bram Stoker Awards',
+                'Edgar Awards',
                 'Nobel Award',
                 'The Booker Prize',
                 'Deutscher Buchpreis',
@@ -71,7 +74,7 @@ class AwardSourceRegistryTests(unittest.TestCase):
 
     def test_executable_registry_count_excludes_national_book_awards(self):
         keys = [source.key for source in AWARD_SOURCES]
-        self.assertEqual(len(AWARD_SOURCES), 17)
+        self.assertEqual(len(AWARD_SOURCES), 18)
         self.assertNotIn('national_book_awards', keys)
         self.assertNotIn(
             'National Book Awards',
@@ -164,6 +167,10 @@ class AwardSourceRegistryTests(unittest.TestCase):
             item for item in AWARD_SOURCES if item.key == 'bram_stoker'
         ][0]
         self.assertIs(source.lookup, bram_stoker.lookup)
+
+    def test_edgar_uses_the_public_lookup_function(self):
+        source = [item for item in AWARD_SOURCES if item.key == 'edgar'][0]
+        self.assertIs(source.lookup, edgar.lookup)
 
 
 if __name__ == '__main__':

@@ -47,6 +47,7 @@ _EXPECTED_SOURCE_ORDER = (
     'locus',
     'world_fantasy',
     'bram_stoker',
+    'edgar',
     'nobel',
     'booker',
     'german_book_prize',
@@ -236,6 +237,7 @@ class AwardSourcesLayoutTests(unittest.TestCase):
         self.assertEqual(by_key['locus'], 'Locus Awards')
         self.assertEqual(by_key['world_fantasy'], 'World Fantasy Awards')
         self.assertEqual(by_key['bram_stoker'], 'Bram Stoker Awards')
+        self.assertEqual(by_key['edgar'], 'Edgar Awards')
         self.assertEqual(by_key['nobel'], 'Nobel Award')
         self.assertEqual(by_key['booker'], 'The Booker Prize')
         self.assertEqual(by_key['german_book_prize'], 'Deutscher Buchpreis')
@@ -309,6 +311,12 @@ class AwardSourcesLayoutTests(unittest.TestCase):
             panel.source_checkboxes['bram_stoker'].text,
             'Bram Stoker Awards',
         )
+        self.assertIn('edgar', panel.source_checkboxes)
+        self.assertIn('edgar', panel.source_refresh_buttons)
+        self.assertEqual(
+            panel.source_checkboxes['edgar'].text,
+            'Edgar Awards',
+        )
         self.assertEqual(
             panel.source_checkboxes['ipaf'].text,
             'International Prize for Arabic Fiction',
@@ -316,7 +324,9 @@ class AwardSourcesLayoutTests(unittest.TestCase):
         wfa = _EXPECTED_SOURCE_ORDER.index('world_fantasy')
         self.assertEqual(panel.inserted_source_rows[wfa + 1], 'bram_stoker')
         stoker = _EXPECTED_SOURCE_ORDER.index('bram_stoker')
-        self.assertEqual(panel.inserted_source_rows[stoker + 1], 'nobel')
+        self.assertEqual(panel.inserted_source_rows[stoker + 1], 'edgar')
+        edgar_row = _EXPECTED_SOURCE_ORDER.index('edgar')
+        self.assertEqual(panel.inserted_source_rows[edgar_row + 1], 'nobel')
         goncourt = _EXPECTED_SOURCE_ORDER.index('prix_goncourt')
         self.assertEqual(panel.inserted_source_rows[goncourt - 1], 'german_book_prize')
         self.assertEqual(panel.inserted_source_rows[goncourt + 1], 'miles_franklin')
@@ -393,8 +403,8 @@ class AwardSourcesUnavailableRowTests(unittest.TestCase):
 
     def test_executable_rows_retain_checkbox_and_refresh(self):
         panel = FakeAwardSourcesPanel()
-        self.assertEqual(len(panel.source_checkboxes), 17)
-        self.assertEqual(len(panel.source_refresh_buttons), 17)
+        self.assertEqual(len(panel.source_checkboxes), 18)
+        self.assertEqual(len(panel.source_refresh_buttons), 18)
         for source_key, display_name in cache_refresh_source_rows():
             self.assertIn(source_key, panel.source_checkboxes)
             self.assertIn(source_key, panel.source_refresh_buttons)

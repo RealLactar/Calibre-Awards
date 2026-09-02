@@ -13,6 +13,7 @@ from urllib.parse import urlparse
 from .sources import (
     booker,
     bram_stoker,
+    edgar,
     german_book_prize,
     hugo,
     ipaf,
@@ -112,6 +113,10 @@ def _world_fantasy_categories() -> tuple[str, ...]:
 
 def _bram_stoker_categories() -> tuple[str, ...]:
     return bram_stoker.SOURCEINFO_CATEGORIES
+
+
+def _edgar_categories() -> tuple[str, ...]:
+    return edgar.SOURCEINFO_CATEGORIES
 
 
 def _nobel_categories() -> tuple[str, ...]:
@@ -249,6 +254,26 @@ SOURCE_INFOS: tuple[SourceInfo, ...] = (
             'press honors are excluded. Historical category names are '
             'preserved and ties may produce multiple Winners. No ordinal '
             'rank is inferred.'
+        ),
+    ),
+    SourceInfo(
+        key='edgar',
+        display_name='Edgar Awards',
+        categories=_edgar_categories(),
+        identity_scopes=('work',),
+        homepage_url=edgar.SOURCE_HOME_URL,
+        description=(
+            'Mystery Writers of America Edgar Awards for mystery and crime '
+            'fiction and nonfiction. Returns official Winners and Nominees '
+            'in bibliographic categories.'
+        ),
+        limitation=(
+            'Coverage begins in 1946. Award year is the ceremony year and '
+            'generally honors prior-year publication. Nominees are official '
+            'announced nominee slates and do not imply rank. Early years are '
+            'often winner-only. Robert L. Fish Nominees appear in the official '
+            'database only from 2024. Media, screen, stage, person, service, '
+            'design, and Special Edgar categories are excluded.'
         ),
     ),
     SourceInfo(

@@ -17,6 +17,7 @@ from awards.registry import (
     AWARD_POLICIES,
     BOOKER_POLICY,
     BRAM_STOKER_FINALIST_POLICY,
+    EDGAR_NOMINEE_POLICY,
     GERMAN_BOOK_PRIZE_POLICY,
     IPAF_SHORTLISTED_POLICY,
     MILES_FRANKLIN_POLICY,
@@ -112,6 +113,7 @@ class AwardPolicyRegistryTests(unittest.TestCase):
                 PEN_HEMINGWAY_FINALIST_POLICY,
                 IPAF_SHORTLISTED_POLICY,
                 BRAM_STOKER_FINALIST_POLICY,
+                EDGAR_NOMINEE_POLICY,
             ),
         )
 
@@ -872,6 +874,68 @@ class AwardPolicyRegistryTests(unittest.TestCase):
         self.assertIsNone(winner.rank)
         self.assertIsNone(finalist_1987.rank)
         self.assertIsNone(finalist_2025.rank)
+
+    def test_edgar_nominee_policy_matches_1946_onward(self):
+        winner = AwardResult(
+            work_title='The Big Empty',
+            work_author='Robert Crais',
+            award_name='Edgar Award',
+            award_year=2026,
+            category='Best Novel',
+            status='Winner',
+            rank=None,
+            source_name='Mystery Writers of America',
+            source_url='https://edgarawards.com/search-the-database/',
+        )
+        nominee = AwardResult(
+            work_title='Fagin the Thief',
+            work_author='Allison Epstein',
+            award_name='Edgar Award',
+            award_year=2026,
+            category='Best Novel',
+            status='Nominee',
+            rank=None,
+            source_name='Mystery Writers of America',
+            source_url='https://edgarawards.com/search-the-database/',
+        )
+        hugo_nominee = AwardResult(
+            work_title='The Graveyard Book',
+            work_author='Neil Gaiman',
+            award_name='Hugo Award',
+            award_year=2009,
+            category='Best Novel',
+            status='Nominee',
+            rank=None,
+            source_name='The Hugo Awards',
+            source_url='https://www.thehugoawards.org/hugo-history/2009-hugo-awards/',
+        )
+        self.assertIs(find_award_policy(winner), EDGAR_NOMINEE_POLICY)
+        self.assertIs(find_award_policy(nominee), EDGAR_NOMINEE_POLICY)
+        self.assertIsNone(find_award_policy(hugo_nominee))
+        self.assertEqual(
+            EDGAR_NOMINEE_POLICY.qualifying_statuses,
+            frozenset({'nominee'}),
+        )
+        self.assertIsNone(EDGAR_NOMINEE_POLICY.category)
+        self.assertEqual(EDGAR_NOMINEE_POLICY.start_year, 1946)
+        self.assertIn(EDGAR_NOMINEE_POLICY, AWARD_POLICIES)
+        from awards.engine import assess_award_result
+        from awards.qualifier import QualificationDecision
+
+        self.assertEqual(
+            assess_award_result(winner).qualification.decision,
+            QualificationDecision.QUALIFIES,
+        )
+        self.assertEqual(
+            assess_award_result(nominee).qualification.decision,
+            QualificationDecision.QUALIFIES,
+        )
+        self.assertEqual(
+            assess_award_result(hugo_nominee).qualification.decision,
+            QualificationDecision.REVIEW,
+        )
+        self.assertIsNone(winner.rank)
+        self.assertIsNone(nominee.rank)
 
 
 if __name__ == '__main__':

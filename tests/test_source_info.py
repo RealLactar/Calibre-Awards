@@ -31,6 +31,7 @@ from awards.sources import (
     womens_prize_fiction,
     world_fantasy,
     bram_stoker,
+    edgar,
 )
 
 
@@ -129,7 +130,7 @@ class SourceInfoRegistryConsistencyTests(unittest.TestCase):
             tuple(source.display_name for source in AWARD_SOURCES),
         )
         self.assertEqual(len(SOURCE_INFOS), len(AWARD_SOURCES))
-        self.assertEqual(len(SOURCE_INFOS), 17)
+        self.assertEqual(len(SOURCE_INFOS), 18)
         self.assertNotIn(
             'national_book_awards',
             [info.key for info in SOURCE_INFOS],
@@ -222,6 +223,32 @@ class SourceInfoCategoryTests(unittest.TestCase):
         self.assertIn('Final Ballot', info.limitation)
         self.assertIn('Preliminary', info.limitation)
 
+    def test_edgar_categories_and_limitation(self):
+        info = _info('edgar')
+        self.assertEqual(info.display_name, 'Edgar Awards')
+        self.assertEqual(info.categories, edgar.SOURCEINFO_CATEGORIES)
+        self.assertIn('Best Novel', info.categories)
+        self.assertIn('Best First Novel', info.categories)
+        self.assertIn('Best Paperback Original', info.categories)
+        self.assertIn('Best Fact Crime', info.categories)
+        self.assertIn('Best Critical/Biographical Work', info.categories)
+        self.assertIn('Best Short Story', info.categories)
+        self.assertIn('Best Juvenile', info.categories)
+        self.assertIn('Best Young Adult', info.categories)
+        self.assertIn('Robert L. Fish Memorial Award', info.categories)
+        self.assertIn('Mary Higgins Clark Award', info.categories)
+        self.assertIn('Sue Grafton Memorial Award', info.categories)
+        self.assertIn('Lilian Jackson Braun Memorial Award', info.categories)
+        self.assertIn('Mystery Writers of America', info.description)
+        self.assertIn('Nominees', info.description)
+        self.assertIsNotNone(info.limitation)
+        self.assertIn('1946', info.limitation)
+        self.assertIn('ceremony', info.limitation.casefold())
+        self.assertIn('rank', info.limitation.casefold())
+        self.assertIn('2024', info.limitation)
+        self.assertNotIn('participants-list', info.limitation.casefold())
+        self.assertNotIn('38', info.limitation)
+
     def test_nobel_literature_only(self):
         info = _info('nobel')
         self.assertEqual(info.display_name, 'Nobel Award')
@@ -257,6 +284,7 @@ class SourceInfoScopeAndHomepageTests(unittest.TestCase):
             'locus': ('work',),
             'world_fantasy': ('work',),
             'bram_stoker': ('work',),
+            'edgar': ('work',),
             'nobel': ('author', 'work'),
             'booker': ('work',),
             'german_book_prize': ('work',),
@@ -285,6 +313,7 @@ class SourceInfoScopeAndHomepageTests(unittest.TestCase):
         self.assertEqual(hosts['locus'], 'www.sfadb.com')
         self.assertEqual(hosts['world_fantasy'], 'worldfantasy.org')
         self.assertEqual(hosts['bram_stoker'], 'bramstokerawards.horror.org')
+        self.assertEqual(hosts['edgar'], 'edgarawards.com')
         self.assertEqual(hosts['nobel'], 'www.nobelprize.org')
         self.assertEqual(hosts['booker'], 'thebookerprizes.com')
         self.assertEqual(hosts['german_book_prize'], 'www.deutscher-buchpreis.de')
@@ -305,6 +334,7 @@ class SourceInfoScopeAndHomepageTests(unittest.TestCase):
             world_fantasy.SOURCE_HOME_URL,
         )
         self.assertEqual(_info('bram_stoker').homepage_url, bram_stoker.SOURCE_HOME_URL)
+        self.assertEqual(_info('edgar').homepage_url, edgar.SOURCE_HOME_URL)
         self.assertEqual(_info('nobel').homepage_url, nobel.SOURCE_HOME_URL)
         self.assertEqual(_info('booker').homepage_url, booker.SOURCE_HOME_URL)
         self.assertEqual(
@@ -347,6 +377,7 @@ class SourceInfoScopeAndHomepageTests(unittest.TestCase):
                 'ipaf',
                 'newbery',
                 'bram_stoker',
+                'edgar',
             }:
                 self.assertIsNotNone(info.limitation)
             else:
@@ -565,7 +596,7 @@ class SourceInfoImportAndFormatTests(unittest.TestCase):
         with patch.object(urllib.request, 'urlopen') as mocked_open:
             reloaded = importlib.reload(source_info)
             infos = reloaded.SOURCE_INFOS
-            self.assertEqual(len(infos), 17)
+            self.assertEqual(len(infos), 18)
             self.assertEqual(infos[0].key, 'pulitzer')
             self.assertEqual(infos[-1].key, 'newbery')
             mocked_open.assert_not_called()
@@ -713,6 +744,16 @@ class SourceInfoImportAndFormatTests(unittest.TestCase):
         self.assertIn('Final Ballot', formatted)
         self.assertIn('Preliminary', formatted)
         self.assertIn('no ordinal rank', formatted.casefold())
+
+    def test_format_source_info_includes_edgar_limitation(self):
+        formatted = format_source_info(_info('edgar'))
+        self.assertEqual(formatted.splitlines()[0], 'Edgar Awards')
+        self.assertIn('Categories: Best Novel', formatted)
+        self.assertIn('Scope: Work awards', formatted)
+        self.assertIn('Mystery Writers of America', formatted)
+        self.assertIn('1946', formatted)
+        self.assertIn('Nominees', formatted)
+        self.assertNotIn('participants-list', formatted.casefold())
 
 
 if __name__ == '__main__':

@@ -134,6 +134,19 @@ BRAM_STOKER_FINALIST_POLICY = AwardPolicy(
     ),
 )
 
+EDGAR_NOMINEE_POLICY = AwardPolicy(
+    award_name='Edgar Award',
+    category=None,
+    start_year=1946,
+    qualifying_statuses=frozenset({'Nominee'}),
+    notes=(
+        'Mystery Writers of America publishes official announced nominee '
+        'slates from which the Winner is selected. Nominee qualifies under '
+        'this Edgar-specific policy. Nomination does not imply an ordinal '
+        'rank. Submissions are a separate earlier pool and are not returned.'
+    ),
+)
+
 IPAF_SHORTLISTED_POLICY = AwardPolicy(
     award_name='International Prize for Arabic Fiction',
     category='Fiction',
@@ -176,6 +189,7 @@ AWARD_POLICIES: tuple[AwardPolicy, ...] = (
     PEN_HEMINGWAY_FINALIST_POLICY,
     IPAF_SHORTLISTED_POLICY,
     BRAM_STOKER_FINALIST_POLICY,
+    EDGAR_NOMINEE_POLICY,
 )
 
 

@@ -15,6 +15,7 @@ from .source_info import SOURCE_INFOS
 from .sources import (
     booker,
     bram_stoker,
+    edgar,
     german_book_prize,
     hugo,
     ipaf,
@@ -44,6 +45,7 @@ SOURCES_GROUP_HINT = (
 _SOURCE_RUNTIME_RESETS = {
     'booker': booker._reset_runtime_state,
     'bram_stoker': bram_stoker._reset_runtime_state,
+    'edgar': edgar._reset_runtime_state,
     'german_book_prize': german_book_prize._reset_runtime_state,
     'hugo': hugo._reset_runtime_state,
     'ipaf': ipaf._reset_runtime_state,
