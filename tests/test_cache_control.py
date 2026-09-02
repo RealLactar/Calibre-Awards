@@ -37,6 +37,7 @@ from awards.sources import (
     pen_hemingway,
     prix_goncourt,
     pulitzer,
+    romantic_novel_awards,
     womens_prize_fiction,
     world_fantasy,
 )
@@ -99,6 +100,7 @@ class CacheControlTestCase(unittest.TestCase):
         booker._reset_runtime_state()
         bram_stoker._reset_runtime_state()
         edgar._reset_runtime_state()
+        romantic_novel_awards._reset_runtime_state()
         german_book_prize._reset_runtime_state()
         hugo._reset_runtime_state()
         ipaf._reset_runtime_state()
@@ -122,6 +124,7 @@ class CacheControlTestCase(unittest.TestCase):
         booker._reset_runtime_state()
         bram_stoker._reset_runtime_state()
         edgar._reset_runtime_state()
+        romantic_novel_awards._reset_runtime_state()
         german_book_prize._reset_runtime_state()
         hugo._reset_runtime_state()
         ipaf._reset_runtime_state()
@@ -182,6 +185,7 @@ class ArchiveSourceRefreshTests(CacheControlTestCase):
             'world_fantasy',
             'bram_stoker',
             'edgar',
+            'romantic_novel_awards',
             'nobel',
             'booker',
             'german_book_prize',
@@ -203,6 +207,7 @@ class ArchiveSourceRefreshTests(CacheControlTestCase):
             'world_fantasy',
             'bram_stoker',
             'edgar',
+            'romantic_novel_awards',
             'nobel',
             'booker',
             'german_book_prize',
@@ -465,6 +470,67 @@ class BramStokerRefreshTests(CacheControlTestCase):
             cache.load_cache_entry('bram_stoker', 'years', '2025', 1)
         )
         self.assertTrue((self.cache_dir / 'hugo.json').is_file())
+        self.assertEqual(hugo._archive_records_cache, ())
+
+
+class RomanticNovelAwardsRefreshTests(CacheControlTestCase):
+    def test_refresh_romantic_novel_awards_clears_keyed_cache_and_ram(self):
+        cache.save_cache_entry(
+            'romantic_novel_awards',
+            'winners',
+            'archive',
+            1,
+            records=[{'award_year': 1960}],
+            source_urls=['https://romanticnovelistsassociation.org/past-winners'],
+            coverage={'min_year': 1960, 'max_year': 2026, 'record_count': 1},
+            ttl_seconds=3600,
+        )
+        cache.save_cache_entry(
+            'romantic_novel_awards',
+            'news_index',
+            'index',
+            1,
+            records=[],
+            source_urls=['https://romanticnovelistsassociation.org/wp-json/wp/v2/news'],
+            coverage={'category_id': 812, 'post_count': 0},
+            ttl_seconds=3600,
+        )
+        cache.save_cache_entry(
+            'romantic_novel_awards',
+            'year',
+            '2026',
+            1,
+            records=[{'award_year': 2026}],
+            source_urls=['https://romanticnovelistsassociation.org/news/rna-reveals-2026-shortlists/'],
+            coverage={'award_year': 2026, 'state': 'winner'},
+            ttl_seconds=3600,
+        )
+        _save_archive('hugo')
+        _save_archive('edgar')
+        romantic_novel_awards._winners_cache = ()
+        romantic_novel_awards._news_index_cache = romantic_novel_awards._NewsIndex(812, ())
+        romantic_novel_awards._year_cache[2026] = romantic_novel_awards._YearSnapshot(
+            award_year=2026,
+            state='absent',
+            source_urls=(),
+            records=(),
+        )
+        hugo._archive_records_cache = ()
+        self.assertTrue(refresh_award_source_cache('romantic_novel_awards'))
+        self.assertIsNone(romantic_novel_awards._winners_cache)
+        self.assertIsNone(romantic_novel_awards._news_index_cache)
+        self.assertEqual(romantic_novel_awards._year_cache, {})
+        self.assertIsNone(
+            cache.load_cache_entry('romantic_novel_awards', 'winners', 'archive', 1)
+        )
+        self.assertIsNone(
+            cache.load_cache_entry('romantic_novel_awards', 'news_index', 'index', 1)
+        )
+        self.assertIsNone(
+            cache.load_cache_entry('romantic_novel_awards', 'year', '2026', 1)
+        )
+        self.assertTrue((self.cache_dir / 'hugo.json').is_file())
+        self.assertTrue((self.cache_dir / 'edgar.json').is_file())
         self.assertEqual(hugo._archive_records_cache, ())
 
 

@@ -27,6 +27,7 @@ from .sources import (
     pen_hemingway,
     prix_goncourt,
     pulitzer,
+    romantic_novel_awards,
     womens_prize_fiction,
     world_fantasy,
 )
@@ -117,6 +118,10 @@ def _bram_stoker_categories() -> tuple[str, ...]:
 
 def _edgar_categories() -> tuple[str, ...]:
     return edgar.SOURCEINFO_CATEGORIES
+
+
+def _romantic_novel_awards_categories() -> tuple[str, ...]:
+    return romantic_novel_awards.SOURCEINFO_CATEGORIES
 
 
 def _nobel_categories() -> tuple[str, ...]:
@@ -274,6 +279,24 @@ SOURCE_INFOS: tuple[SourceInfo, ...] = (
             'often winner-only. Robert L. Fish Nominees appear in the official '
             'database only from 2024. Media, screen, stage, person, service, '
             'design, and Special Edgar categories are excluded.'
+        ),
+    ),
+    SourceInfo(
+        key='romantic_novel_awards',
+        display_name='Romantic Novel of the Year Awards',
+        categories=_romantic_novel_awards_categories(),
+        identity_scopes=('work',),
+        homepage_url=romantic_novel_awards.SOURCE_HOME_URL,
+        description=(
+            'Romantic Novelists\' Association awards recognizing published '
+            'romantic fiction across multiple subgenres.'
+        ),
+        limitation=(
+            'The winners archive begins in 1960. The current first-party '
+            'archive omits 1966 and 2011-2017. Official shortlist coverage '
+            'on the current site begins in 2018. Historical category names '
+            'are preserved. Industry and person awards and the Joan '
+            'Hessayon Award are excluded.'
         ),
     ),
     SourceInfo(

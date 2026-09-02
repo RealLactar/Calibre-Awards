@@ -29,6 +29,7 @@ from .sources import (
     pen_hemingway,
     prix_goncourt,
     pulitzer,
+    romantic_novel_awards,
     womens_prize_fiction,
     world_fantasy,
 )
@@ -61,6 +62,7 @@ _SOURCE_RUNTIME_RESETS = {
     'pen_hemingway': pen_hemingway._reset_runtime_state,
     'prix_goncourt': prix_goncourt._reset_runtime_state,
     'pulitzer': pulitzer._reset_runtime_state,
+    'romantic_novel_awards': romantic_novel_awards._reset_runtime_state,
     'womens_prize_fiction': womens_prize_fiction._reset_runtime_state,
     'world_fantasy': world_fantasy._reset_runtime_state,
 }

@@ -28,6 +28,7 @@ from awards.registry import (
     PRIX_GONCOURT_POLICY,
     PULITZER_FICTION_POLICY,
     WOMENS_PRIZE_FICTION_POLICY,
+    RONA_SHORTLIST_POLICY,
     find_award_policy,
 )
 
@@ -114,6 +115,7 @@ class AwardPolicyRegistryTests(unittest.TestCase):
                 IPAF_SHORTLISTED_POLICY,
                 BRAM_STOKER_FINALIST_POLICY,
                 EDGAR_NOMINEE_POLICY,
+                RONA_SHORTLIST_POLICY,
             ),
         )
 
@@ -936,6 +938,64 @@ class AwardPolicyRegistryTests(unittest.TestCase):
         )
         self.assertIsNone(winner.rank)
         self.assertIsNone(nominee.rank)
+
+    def test_rona_shortlist_policy_matches_2018_onward(self):
+        winner = AwardResult(
+            work_title='Any Trope But You',
+            work_author='Victoria Lavine',
+            award_name='Romantic Novel of the Year Award',
+            award_year=2026,
+            category='Debut Romance Novel Award',
+            status='Winner',
+            rank=None,
+            source_name="Romantic Novelists' Association",
+            source_url='https://romanticnovelistsassociation.org/past-winners/any-trope-but-you',
+        )
+        shortlisted = AwardResult(
+            work_title='Onyx Storm',
+            work_author='Rebecca Yarros',
+            award_name='Romantic Novel of the Year Award',
+            award_year=2026,
+            category='Romantasy/Romantic Fantasy Award',
+            status='Shortlisted',
+            rank=None,
+            source_name="Romantic Novelists' Association",
+            source_url='https://romanticnovelistsassociation.org/news/rna-reveals-2026-shortlists/',
+        )
+        booker_shortlisted = AwardResult(
+            work_title='Empire of the Sun',
+            work_author='J. G. Ballard',
+            award_name='Booker Prize',
+            award_year=1984,
+            category='Fiction',
+            status='Shortlisted',
+            rank=None,
+            source_name='The Booker Prize',
+            source_url='https://thebookerprizes.com/the-booker-library/books/empire-of-the-sun',
+        )
+        self.assertIs(find_award_policy(winner), RONA_SHORTLIST_POLICY)
+        self.assertIs(find_award_policy(shortlisted), RONA_SHORTLIST_POLICY)
+        self.assertIsNot(find_award_policy(booker_shortlisted), RONA_SHORTLIST_POLICY)
+        self.assertEqual(
+            RONA_SHORTLIST_POLICY.qualifying_statuses,
+            frozenset({'shortlisted'}),
+        )
+        self.assertIsNone(RONA_SHORTLIST_POLICY.category)
+        self.assertEqual(RONA_SHORTLIST_POLICY.start_year, 2018)
+        self.assertIn(RONA_SHORTLIST_POLICY, AWARD_POLICIES)
+        from awards.engine import assess_award_result
+        from awards.qualifier import QualificationDecision
+
+        self.assertEqual(
+            assess_award_result(winner).qualification.decision,
+            QualificationDecision.QUALIFIES,
+        )
+        self.assertEqual(
+            assess_award_result(shortlisted).qualification.decision,
+            QualificationDecision.QUALIFIES,
+        )
+        self.assertIsNone(winner.rank)
+        self.assertIsNone(shortlisted.rank)
 
 
 if __name__ == '__main__':

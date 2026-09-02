@@ -30,6 +30,7 @@ from .sources.pen_faulkner import lookup as pen_faulkner_lookup
 from .sources.pen_hemingway import lookup as pen_hemingway_lookup
 from .sources.nobel import lookup as nobel_lookup
 from .sources.pulitzer import lookup as pulitzer_lookup
+from .sources.romantic_novel_awards import lookup as romantic_novel_awards_lookup
 from .sources.womens_prize_fiction import lookup as womens_prize_fiction_lookup
 from .sources.world_fantasy import lookup as world_fantasy_lookup
 
@@ -89,6 +90,11 @@ AWARD_SOURCES: tuple[AwardSource, ...] = (
         key='edgar',
         display_name='Edgar Awards',
         lookup=edgar_lookup,
+    ),
+    AwardSource(
+        key='romantic_novel_awards',
+        display_name='Romantic Novel of the Year Awards',
+        lookup=romantic_novel_awards_lookup,
     ),
     AwardSource(
         key='nobel',

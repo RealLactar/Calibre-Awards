@@ -28,6 +28,7 @@ from awards.sources import (
     pen_hemingway,
     prix_goncourt,
     pulitzer,
+    romantic_novel_awards,
     womens_prize_fiction,
     world_fantasy,
     bram_stoker,
@@ -130,7 +131,7 @@ class SourceInfoRegistryConsistencyTests(unittest.TestCase):
             tuple(source.display_name for source in AWARD_SOURCES),
         )
         self.assertEqual(len(SOURCE_INFOS), len(AWARD_SOURCES))
-        self.assertEqual(len(SOURCE_INFOS), 18)
+        self.assertEqual(len(SOURCE_INFOS), 19)
         self.assertNotIn(
             'national_book_awards',
             [info.key for info in SOURCE_INFOS],
@@ -249,6 +250,25 @@ class SourceInfoCategoryTests(unittest.TestCase):
         self.assertNotIn('participants-list', info.limitation.casefold())
         self.assertNotIn('38', info.limitation)
 
+    def test_romantic_novel_awards_categories_and_limitation(self):
+        info = _info('romantic_novel_awards')
+        self.assertEqual(info.display_name, 'Romantic Novel of the Year Awards')
+        self.assertEqual(info.categories, romantic_novel_awards.SOURCEINFO_CATEGORIES)
+        self.assertIn('Debut Romance Novel Award', info.categories)
+        self.assertIn('The Romance Bestseller Award', info.categories)
+        self.assertIn("Romantic Novelists' Association", info.description)
+        self.assertIsNotNone(info.limitation)
+        limitation = info.limitation.casefold()
+        self.assertIn('1960', limitation)
+        self.assertIn('1966', limitation)
+        self.assertIn('2011-2017', limitation)
+        self.assertIn('2018', limitation)
+        self.assertIn('joan hessayon', limitation)
+        self.assertNotIn('wordpress', limitation)
+        self.assertNotIn('wp-json', limitation)
+        self.assertNotIn('news_index', limitation)
+        self.assertNotIn('497', limitation)
+
     def test_nobel_literature_only(self):
         info = _info('nobel')
         self.assertEqual(info.display_name, 'Nobel Award')
@@ -285,6 +305,7 @@ class SourceInfoScopeAndHomepageTests(unittest.TestCase):
             'world_fantasy': ('work',),
             'bram_stoker': ('work',),
             'edgar': ('work',),
+            'romantic_novel_awards': ('work',),
             'nobel': ('author', 'work'),
             'booker': ('work',),
             'german_book_prize': ('work',),
@@ -314,6 +335,7 @@ class SourceInfoScopeAndHomepageTests(unittest.TestCase):
         self.assertEqual(hosts['world_fantasy'], 'worldfantasy.org')
         self.assertEqual(hosts['bram_stoker'], 'bramstokerawards.horror.org')
         self.assertEqual(hosts['edgar'], 'edgarawards.com')
+        self.assertEqual(hosts['romantic_novel_awards'], 'romanticnovelistsassociation.org')
         self.assertEqual(hosts['nobel'], 'www.nobelprize.org')
         self.assertEqual(hosts['booker'], 'thebookerprizes.com')
         self.assertEqual(hosts['german_book_prize'], 'www.deutscher-buchpreis.de')
@@ -335,6 +357,10 @@ class SourceInfoScopeAndHomepageTests(unittest.TestCase):
         )
         self.assertEqual(_info('bram_stoker').homepage_url, bram_stoker.SOURCE_HOME_URL)
         self.assertEqual(_info('edgar').homepage_url, edgar.SOURCE_HOME_URL)
+        self.assertEqual(
+            _info('romantic_novel_awards').homepage_url,
+            romantic_novel_awards.SOURCE_HOME_URL,
+        )
         self.assertEqual(_info('nobel').homepage_url, nobel.SOURCE_HOME_URL)
         self.assertEqual(_info('booker').homepage_url, booker.SOURCE_HOME_URL)
         self.assertEqual(
@@ -378,6 +404,7 @@ class SourceInfoScopeAndHomepageTests(unittest.TestCase):
                 'newbery',
                 'bram_stoker',
                 'edgar',
+                'romantic_novel_awards',
             }:
                 self.assertIsNotNone(info.limitation)
             else:
@@ -596,7 +623,7 @@ class SourceInfoImportAndFormatTests(unittest.TestCase):
         with patch.object(urllib.request, 'urlopen') as mocked_open:
             reloaded = importlib.reload(source_info)
             infos = reloaded.SOURCE_INFOS
-            self.assertEqual(len(infos), 18)
+            self.assertEqual(len(infos), 19)
             self.assertEqual(infos[0].key, 'pulitzer')
             self.assertEqual(infos[-1].key, 'newbery')
             mocked_open.assert_not_called()
@@ -754,6 +781,20 @@ class SourceInfoImportAndFormatTests(unittest.TestCase):
         self.assertIn('1946', formatted)
         self.assertIn('Nominees', formatted)
         self.assertNotIn('participants-list', formatted.casefold())
+
+    def test_format_source_info_includes_romantic_novel_awards_limitation(self):
+        formatted = format_source_info(_info('romantic_novel_awards'))
+        self.assertEqual(
+            formatted.splitlines()[0],
+            'Romantic Novel of the Year Awards',
+        )
+        self.assertIn('Categories: Debut Romance Novel Award', formatted)
+        self.assertIn('Scope: Work awards', formatted)
+        self.assertIn("Romantic Novelists' Association", formatted)
+        self.assertIn('1960', formatted)
+        self.assertIn('2018', formatted)
+        self.assertNotIn('wp-json', formatted.casefold())
+        self.assertNotIn('news_index', formatted.casefold())
 
 
 if __name__ == '__main__':

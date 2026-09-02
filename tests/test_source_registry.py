@@ -17,6 +17,7 @@ from awards.sources import (
     pen_faulkner,
     pen_hemingway,
     prix_goncourt,
+    romantic_novel_awards,
     womens_prize_fiction,
 )
 
@@ -33,6 +34,7 @@ class AwardSourceRegistryTests(unittest.TestCase):
                 'world_fantasy',
                 'bram_stoker',
                 'edgar',
+                'romantic_novel_awards',
                 'nobel',
                 'booker',
                 'german_book_prize',
@@ -58,6 +60,7 @@ class AwardSourceRegistryTests(unittest.TestCase):
                 'World Fantasy Awards',
                 'Bram Stoker Awards',
                 'Edgar Awards',
+                'Romantic Novel of the Year Awards',
                 'Nobel Award',
                 'The Booker Prize',
                 'Deutscher Buchpreis',
@@ -74,7 +77,7 @@ class AwardSourceRegistryTests(unittest.TestCase):
 
     def test_executable_registry_count_excludes_national_book_awards(self):
         keys = [source.key for source in AWARD_SOURCES]
-        self.assertEqual(len(AWARD_SOURCES), 18)
+        self.assertEqual(len(AWARD_SOURCES), 19)
         self.assertNotIn('national_book_awards', keys)
         self.assertNotIn(
             'National Book Awards',
@@ -171,6 +174,12 @@ class AwardSourceRegistryTests(unittest.TestCase):
     def test_edgar_uses_the_public_lookup_function(self):
         source = [item for item in AWARD_SOURCES if item.key == 'edgar'][0]
         self.assertIs(source.lookup, edgar.lookup)
+
+    def test_romantic_novel_awards_uses_the_public_lookup_function(self):
+        source = [
+            item for item in AWARD_SOURCES if item.key == 'romantic_novel_awards'
+        ][0]
+        self.assertIs(source.lookup, romantic_novel_awards.lookup)
 
 
 if __name__ == '__main__':

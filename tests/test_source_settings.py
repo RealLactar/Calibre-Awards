@@ -17,6 +17,7 @@ _CURRENT = (
     'world_fantasy',
     'bram_stoker',
     'edgar',
+    'romantic_novel_awards',
     'nobel',
     'booker',
     'german_book_prize',
@@ -103,7 +104,7 @@ class ComputeEnabledSourceKeysTests(unittest.TestCase):
     def test_one_disabled(self):
         self.assertEqual(
             compute_enabled_source_keys(_CURRENT, ('pulitzer',)),
-            ('nebula', 'hugo', 'locus', 'world_fantasy', 'bram_stoker', 'edgar', 'nobel', 'booker', 'german_book_prize', 'prix_goncourt', 'miles_franklin', 'womens_prize_fiction', 'national_book_critics_circle', 'pen_faulkner', 'pen_hemingway', 'ipaf', 'newbery'),
+            ('nebula', 'hugo', 'locus', 'world_fantasy', 'bram_stoker', 'edgar', 'romantic_novel_awards', 'nobel', 'booker', 'german_book_prize', 'prix_goncourt', 'miles_franklin', 'womens_prize_fiction', 'national_book_critics_circle', 'pen_faulkner', 'pen_hemingway', 'ipaf', 'newbery'),
         )
 
     def test_several_disabled(self):
@@ -131,7 +132,7 @@ class ComputeEnabledSourceKeysTests(unittest.TestCase):
         self.assertEqual(disabled, ('pulitzer', 'removed_old_source'))
         self.assertEqual(
             compute_enabled_source_keys(_CURRENT, disabled),
-            ('nebula', 'hugo', 'locus', 'world_fantasy', 'bram_stoker', 'edgar', 'nobel', 'booker', 'german_book_prize', 'prix_goncourt', 'miles_franklin', 'womens_prize_fiction', 'national_book_critics_circle', 'pen_faulkner', 'pen_hemingway', 'ipaf', 'newbery'),
+            ('nebula', 'hugo', 'locus', 'world_fantasy', 'bram_stoker', 'edgar', 'romantic_novel_awards', 'nobel', 'booker', 'german_book_prize', 'prix_goncourt', 'miles_franklin', 'womens_prize_fiction', 'national_book_critics_circle', 'pen_faulkner', 'pen_hemingway', 'ipaf', 'newbery'),
         )
 
     def test_future_source_defaults_enabled(self):
@@ -147,6 +148,7 @@ class ComputeEnabledSourceKeysTests(unittest.TestCase):
                 'world_fantasy',
                 'bram_stoker',
                 'edgar',
+                'romantic_novel_awards',
                 'nobel',
                 'booker',
                 'german_book_prize',
@@ -187,13 +189,14 @@ class SourceInfosPreferenceCompositionTests(unittest.TestCase):
         self.assertEqual(all_keys[0], 'pulitzer')
         self.assertEqual(all_keys[-1], 'newbery')
         self.assertIn('newbery', all_keys)
-        self.assertEqual(len(all_keys), 18)
+        self.assertEqual(len(all_keys), 19)
         self.assertIn('national_book_critics_circle', all_keys)
         self.assertIn('pen_faulkner', all_keys)
         self.assertIn('pen_hemingway', all_keys)
         self.assertIn('ipaf', all_keys)
         self.assertIn('bram_stoker', all_keys)
         self.assertIn('edgar', all_keys)
+        self.assertIn('romantic_novel_awards', all_keys)
         self.assertNotIn('national_book_awards', all_keys)
         self.assertNotIn(
             'national_book_awards',
@@ -227,8 +230,12 @@ class SourceInfosPreferenceCompositionTests(unittest.TestCase):
             all_keys.index('bram_stoker') + 1,
         )
         self.assertEqual(
-            all_keys.index('nobel'),
+            all_keys.index('romantic_novel_awards'),
             all_keys.index('edgar') + 1,
+        )
+        self.assertEqual(
+            all_keys.index('nobel'),
+            all_keys.index('romantic_novel_awards') + 1,
         )
         self.assertEqual(all_keys.index('booker'), all_keys.index('nobel') + 1)
         self.assertEqual(

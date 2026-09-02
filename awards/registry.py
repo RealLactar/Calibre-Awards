@@ -134,6 +134,20 @@ BRAM_STOKER_FINALIST_POLICY = AwardPolicy(
     ),
 )
 
+RONA_SHORTLIST_POLICY = AwardPolicy(
+    award_name='Romantic Novel of the Year Award',
+    category=None,
+    start_year=2018,
+    qualifying_statuses=frozenset({'Shortlisted'}),
+    notes=(
+        'The Romantic Novel of the Year Awards publish an official '
+        'shortlist (also called finalists) from which the Winner is '
+        'selected. Shortlisted qualifies under this award-specific '
+        'policy. Shortlisted does not imply an ordinal rank. Ordinary '
+        'submissions and entries are not returned.'
+    ),
+)
+
 EDGAR_NOMINEE_POLICY = AwardPolicy(
     award_name='Edgar Award',
     category=None,
@@ -190,6 +204,7 @@ AWARD_POLICIES: tuple[AwardPolicy, ...] = (
     IPAF_SHORTLISTED_POLICY,
     BRAM_STOKER_FINALIST_POLICY,
     EDGAR_NOMINEE_POLICY,
+    RONA_SHORTLIST_POLICY,
 )
 
 

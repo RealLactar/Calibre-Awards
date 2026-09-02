@@ -133,6 +133,7 @@ class EdgarPersistentCacheTests(unittest.TestCase):
             pen_hemingway,
             prix_goncourt,
             pulitzer,
+            romantic_novel_awards,
             womens_prize_fiction,
             world_fantasy,
         )
@@ -154,6 +155,7 @@ class EdgarPersistentCacheTests(unittest.TestCase):
             pen_hemingway.CURRENT_CACHE_REFRESH_OFFSET_SECONDS,
             ipaf.CURRENT_CACHE_REFRESH_OFFSET_SECONDS,
             bram_stoker.CURRENT_CACHE_REFRESH_OFFSET_SECONDS,
+            romantic_novel_awards.CACHE_REFRESH_OFFSET_SECONDS,
         }
         self.assertNotIn(17 * 60 * 60, offsets)
 
