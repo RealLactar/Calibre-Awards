@@ -25,7 +25,7 @@ Book lookup happens only from **Check Awards** in Edit Metadata.
 
 ## Supported awards
 
-The plugin currently has **17 executable award sources**. Category coverage
+The plugin currently has **20 executable award sources**. Category coverage
 is limited to the literary work awards each source currently advertises in
 the plugin. Anthology, editor, artist, publisher, and similar non-work
 honors are omitted where they fall outside those categories.
@@ -42,8 +42,11 @@ scope catalog.
 | Locus Awards | Ranked literary categories from the Science Fiction Awards Database (SFADB) annual archive | Explicit ordinal ranks; the Preferences rank cutoff decides which ranks qualify |
 | World Fantasy Awards | Novel and Short Fiction from 1975; Novella from 1982; Collection from 1988 | Winner; Nominee |
 | Bram Stoker Awards | Publication-year cycles from 1987 through the latest completed cycle (verified through 2025) | Winner; Final Ballot works as Finalist |
+| Edgar Awards | Bibliographic mystery and crime categories from 1946 | Winner; Nominee |
+| Romantic Novel of the Year Awards | Winners from 1960 where the current archive includes them; official shortlists from 2018 | Winner; Shortlisted |
 | Nobel Award | Nobel Prize in Literature laureate archive | Normally an author-level Winner; a work is returned only when official material specifically cites it |
 | The Booker Prize | 1969–present | Winner; Shortlisted |
+| International Booker Prize | Official Winner and Shortlisted translated works, 2016–2026 | Winner; Shortlisted |
 | Deutscher Buchpreis | 2005–present | Winner; Shortlisted |
 | Prix Goncourt | Winners from 1903; Finalists from 2018 | Winner; Finalist (official 3ème sélection) |
 | Miles Franklin Literary Award | Production coverage from 2007 | Winner; Finalist when the archive labels the work Finalist, Shortlist, or Shortlisted |
@@ -206,6 +209,13 @@ Uncached lookups require an internet connection.
   when available. Other sources continue.
 - **National Book Awards.** Currently **Transport blocked**. Informational
   only; it cannot be enabled.
+- **International Booker Prize.** The modern work-level prize is covered from
+  2016 through 2026. The 2005–2015 biennial Man Booker International Prize
+  honoured an author's body of work rather than a single book and is not
+  returned. Longlisted-only works are not returned. 2027 is not emitted yet:
+  the official prize name changes to the Bukhman International Booker Prize
+  and competitive results do not yet exist. Translator credit is stored in
+  notes rather than as a separate award.
 - **International Prize for Arabic Fiction.** Official English coverage
   begins in 2020. The 2008–2019 archive has not been migrated to the current
   site. Official English spellings may differ from later translations.

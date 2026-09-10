@@ -24,6 +24,7 @@ from awards.sources import (
     booker,
     bram_stoker,
     edgar,
+    international_booker,
     german_book_prize,
     hugo,
     ipaf,
@@ -100,6 +101,7 @@ class CacheControlTestCase(unittest.TestCase):
         booker._reset_runtime_state()
         bram_stoker._reset_runtime_state()
         edgar._reset_runtime_state()
+        international_booker._reset_runtime_state()
         romantic_novel_awards._reset_runtime_state()
         german_book_prize._reset_runtime_state()
         hugo._reset_runtime_state()
@@ -124,6 +126,7 @@ class CacheControlTestCase(unittest.TestCase):
         booker._reset_runtime_state()
         bram_stoker._reset_runtime_state()
         edgar._reset_runtime_state()
+        international_booker._reset_runtime_state()
         romantic_novel_awards._reset_runtime_state()
         german_book_prize._reset_runtime_state()
         hugo._reset_runtime_state()
@@ -188,6 +191,7 @@ class ArchiveSourceRefreshTests(CacheControlTestCase):
             'romantic_novel_awards',
             'nobel',
             'booker',
+            'international_booker',
             'german_book_prize',
             'prix_goncourt',
             'miles_franklin',
@@ -210,6 +214,7 @@ class ArchiveSourceRefreshTests(CacheControlTestCase):
             'romantic_novel_awards',
             'nobel',
             'booker',
+            'international_booker',
             'german_book_prize',
             'prix_goncourt',
             'miles_franklin',

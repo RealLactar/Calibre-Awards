@@ -19,6 +19,7 @@ from awards.registry import (
     BRAM_STOKER_FINALIST_POLICY,
     EDGAR_NOMINEE_POLICY,
     GERMAN_BOOK_PRIZE_POLICY,
+    INTERNATIONAL_BOOKER_SHORTLIST_POLICY,
     IPAF_SHORTLISTED_POLICY,
     MILES_FRANKLIN_POLICY,
     NBCC_FINALIST_POLICY,
@@ -97,6 +98,26 @@ def _booker_result(**overrides) -> AwardResult:
     return AwardResult(**values)
 
 
+def _international_booker_result(**overrides) -> AwardResult:
+    values = {
+        'work_title': 'Taiwan Travelogue',
+        'work_author': 'Y\u00e1ng Shu\u0101ng-z\u01d0',
+        'award_name': 'International Booker Prize',
+        'award_year': 2026,
+        'category': None,
+        'status': 'Winner',
+        'rank': None,
+        'source_name': 'The Booker Prizes',
+        'source_url': (
+            'https://thebookerprizes.com/the-booker-library/books/'
+            'taiwan-travelogue'
+        ),
+        'notes': 'Translated by Lin King',
+    }
+    values.update(overrides)
+    return AwardResult(**values)
+
+
 class AwardPolicyRegistryTests(unittest.TestCase):
     def test_registered_policies_are_pulitzer_newbery_booker_german_goncourt_miles_womens_nbcc_pen_faulkner_pen_hemingway_ipaf(self):
         self.assertEqual(
@@ -105,6 +126,7 @@ class AwardPolicyRegistryTests(unittest.TestCase):
                 PULITZER_FICTION_POLICY,
                 NEWBERY_POLICY,
                 BOOKER_POLICY,
+                INTERNATIONAL_BOOKER_SHORTLIST_POLICY,
                 GERMAN_BOOK_PRIZE_POLICY,
                 PRIX_GONCOURT_POLICY,
                 MILES_FRANKLIN_POLICY,
@@ -171,6 +193,55 @@ class AwardPolicyRegistryTests(unittest.TestCase):
         )
         self.assertIsNone(find_award_policy(_booker_result(category='Poetry')))
         self.assertIsNone(find_award_policy(_booker_result(category=None)))
+
+    def test_international_booker_result_finds_the_shortlisted_policy(self):
+        winner = _international_booker_result()
+        shortlisted = _international_booker_result(
+            work_title='The Witch',
+            work_author='Marie NDiaye',
+            status='Shortlisted',
+            notes='Translated by Jordan Stump',
+            source_url=(
+                'https://thebookerprizes.com/the-booker-library/books/the-witch'
+            ),
+        )
+        self.assertIs(
+            find_award_policy(winner),
+            INTERNATIONAL_BOOKER_SHORTLIST_POLICY,
+        )
+        self.assertIs(
+            find_award_policy(shortlisted),
+            INTERNATIONAL_BOOKER_SHORTLIST_POLICY,
+        )
+
+    def test_international_booker_policy_year_and_name_bounds(self):
+        self.assertEqual(
+            INTERNATIONAL_BOOKER_SHORTLIST_POLICY.start_year,
+            2016,
+        )
+        self.assertEqual(
+            INTERNATIONAL_BOOKER_SHORTLIST_POLICY.end_year,
+            2026,
+        )
+        self.assertIsNone(INTERNATIONAL_BOOKER_SHORTLIST_POLICY.category)
+        self.assertIsNone(
+            find_award_policy(_international_booker_result(award_year=2015))
+        )
+        self.assertIsNone(
+            find_award_policy(_international_booker_result(award_year=2027))
+        )
+        self.assertIs(
+            find_award_policy(_booker_result()),
+            BOOKER_POLICY,
+        )
+        self.assertIsNot(
+            find_award_policy(_booker_result()),
+            INTERNATIONAL_BOOKER_SHORTLIST_POLICY,
+        )
+        self.assertIs(
+            find_award_policy(_international_booker_result(award_year=2019)),
+            INTERNATIONAL_BOOKER_SHORTLIST_POLICY,
+        )
 
     def test_german_book_prize_result_finds_the_shortlisted_policy(self):
         winner = _german_result()

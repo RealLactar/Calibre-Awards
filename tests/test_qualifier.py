@@ -13,6 +13,7 @@ from awards.qualifier import QualificationDecision, qualify_award_result
 from awards.registry import (
     BOOKER_POLICY,
     GERMAN_BOOK_PRIZE_POLICY,
+    INTERNATIONAL_BOOKER_SHORTLIST_POLICY,
     MILES_FRANKLIN_POLICY,
     NEWBERY_POLICY,
     PRIX_GONCOURT_POLICY,
@@ -394,6 +395,110 @@ class QualifyBookerShortlistedPolicyTests(unittest.TestCase):
     def test_booker_policy_does_not_include_longlisted(self):
         self.assertNotIn('longlisted', BOOKER_POLICY.qualifying_statuses)
         self.assertEqual(BOOKER_POLICY.qualifying_statuses, frozenset({'shortlisted'}))
+
+
+class QualifyInternationalBookerShortlistedPolicyTests(unittest.TestCase):
+    def _international(self, **overrides) -> AwardResult:
+        values = {
+            'work_title': 'The Witch',
+            'work_author': 'Marie NDiaye',
+            'award_name': 'International Booker Prize',
+            'award_year': 2026,
+            'category': None,
+            'status': 'Shortlisted',
+            'rank': None,
+            'source_name': 'The Booker Prizes',
+            'source_url': (
+                'https://thebookerprizes.com/the-booker-library/books/the-witch'
+            ),
+            'notes': 'Translated by Jordan Stump',
+        }
+        values.update(overrides)
+        return AwardResult(**values)
+
+    def test_international_booker_winner_qualifies_without_inventing_rank(self):
+        result = self._international(
+            work_title='Taiwan Travelogue',
+            work_author='Y\u00e1ng Shu\u0101ng-z\u01d0',
+            status='Winner',
+            notes='Translated by Lin King',
+            source_url=(
+                'https://thebookerprizes.com/the-booker-library/books/'
+                'taiwan-travelogue'
+            ),
+        )
+        assessment = qualify_award_result(
+            result,
+            INTERNATIONAL_BOOKER_SHORTLIST_POLICY,
+        )
+        self.assertEqual(assessment.decision, QualificationDecision.QUALIFIES)
+        self.assertEqual(
+            assessment.reason,
+            'Status indicates a win without an established ordinal rank.',
+        )
+        self.assertIsNone(result.rank)
+
+    def test_international_booker_shortlisted_qualifies_without_inventing_rank(self):
+        result = self._international()
+        assessment = qualify_award_result(
+            result,
+            INTERNATIONAL_BOOKER_SHORTLIST_POLICY,
+        )
+        self.assertEqual(assessment.decision, QualificationDecision.QUALIFIES)
+        self.assertEqual(
+            assessment.reason,
+            'Award-specific policy identifies this status as satisfying '
+            'the inclusion rule.',
+        )
+        self.assertIsNone(result.rank)
+
+    def test_generic_shortlisted_without_policy_remains_review(self):
+        result = self._international()
+        assessment = qualify_award_result(result, policy=None)
+        self.assertEqual(assessment.decision, QualificationDecision.REVIEW)
+
+    def test_booker_policy_does_not_apply_to_international_booker(self):
+        result = self._international()
+        with self.assertRaises(ValueError) as caught:
+            qualify_award_result(result, BOOKER_POLICY)
+        self.assertIn('does not apply', str(caught.exception))
+
+    def test_international_booker_policy_does_not_apply_to_booker(self):
+        booker = AwardResult(
+            work_title='Empire of the Sun',
+            work_author='J. G. Ballard',
+            award_name='Booker Prize',
+            award_year=1984,
+            category='Fiction',
+            status='Shortlisted',
+            rank=None,
+            source_name='The Booker Prize',
+            source_url=(
+                'https://thebookerprizes.com/the-booker-library/books/'
+                'empire-of-the-sun'
+            ),
+        )
+        with self.assertRaises(ValueError) as caught:
+            qualify_award_result(booker, INTERNATIONAL_BOOKER_SHORTLIST_POLICY)
+        self.assertIn('does not apply', str(caught.exception))
+
+    def test_international_booker_policy_does_not_include_longlisted(self):
+        self.assertNotIn(
+            'longlisted',
+            INTERNATIONAL_BOOKER_SHORTLIST_POLICY.qualifying_statuses,
+        )
+        self.assertEqual(
+            INTERNATIONAL_BOOKER_SHORTLIST_POLICY.qualifying_statuses,
+            frozenset({'shortlisted'}),
+        )
+
+    def test_2027_shortlisted_is_outside_policy_year_range(self):
+        result = self._international(award_year=2027)
+        with self.assertRaises(ValueError) as caught:
+            qualify_award_result(result, INTERNATIONAL_BOOKER_SHORTLIST_POLICY)
+        self.assertIn('does not apply', str(caught.exception))
+        assessment = qualify_award_result(result, policy=None)
+        self.assertEqual(assessment.decision, QualificationDecision.REVIEW)
 
 
 class QualifyGermanBookPrizeShortlistedPolicyTests(unittest.TestCase):

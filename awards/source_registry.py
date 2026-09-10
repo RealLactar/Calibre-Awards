@@ -14,6 +14,7 @@ from typing import Protocol
 from .model import AwardResult
 from .sources.booker import lookup as booker_lookup
 from .sources.bram_stoker import lookup as bram_stoker_lookup
+from .sources.international_booker import lookup as international_booker_lookup
 from .sources.edgar import lookup as edgar_lookup
 from .sources.german_book_prize import lookup as german_book_prize_lookup
 from .sources.hugo import lookup as hugo_lookup
@@ -105,6 +106,11 @@ AWARD_SOURCES: tuple[AwardSource, ...] = (
         key='booker',
         display_name='The Booker Prize',
         lookup=booker_lookup,
+    ),
+    AwardSource(
+        key='international_booker',
+        display_name='International Booker Prize',
+        lookup=international_booker_lookup,
     ),
     AwardSource(
         key='german_book_prize',

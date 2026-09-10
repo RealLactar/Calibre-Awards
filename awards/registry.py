@@ -42,6 +42,25 @@ BOOKER_POLICY = AwardPolicy(
     ),
 )
 
+INTERNATIONAL_BOOKER_SHORTLIST_POLICY = AwardPolicy(
+    award_name='International Booker Prize',
+    category=None,
+    start_year=2016,
+    end_year=2026,
+    qualifying_statuses=frozenset({'Shortlisted'}),
+    notes=(
+        'The International Booker Prize Shortlist is an official published '
+        'distinction for translated works. Shortlisted qualifies under this '
+        'International Booker-specific policy. Shortlisted does not imply an '
+        'ordinal rank. Longlisted-only works are not returned. Coverage is '
+        'the modern work-level prize from 2016 through 2026. The 2005-2015 '
+        'biennial Man Booker International Prize honoured an author\'s body '
+        'of work rather than a single book. The 2027 Bukhman International '
+        'Booker Prize naming and competitive cycle are not included in this '
+        'phase.'
+    ),
+)
+
 GERMAN_BOOK_PRIZE_POLICY = AwardPolicy(
     award_name='Deutscher Buchpreis',
     category='Fiction',
@@ -194,6 +213,7 @@ AWARD_POLICIES: tuple[AwardPolicy, ...] = (
     PULITZER_FICTION_POLICY,
     NEWBERY_POLICY,
     BOOKER_POLICY,
+    INTERNATIONAL_BOOKER_SHORTLIST_POLICY,
     GERMAN_BOOK_PRIZE_POLICY,
     PRIX_GONCOURT_POLICY,
     MILES_FRANKLIN_POLICY,

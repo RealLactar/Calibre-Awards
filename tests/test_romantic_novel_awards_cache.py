@@ -271,6 +271,7 @@ class RomanticNovelAwardsCacheTests(unittest.TestCase):
             edgar as edgar_src,
             german_book_prize,
             hugo as hugo_src,
+            international_booker,
             ipaf,
             miles_franklin,
             national_book_critics_circle,
@@ -303,6 +304,7 @@ class RomanticNovelAwardsCacheTests(unittest.TestCase):
             ipaf.CURRENT_CACHE_REFRESH_OFFSET_SECONDS,
             bram_stoker.CURRENT_CACHE_REFRESH_OFFSET_SECONDS,
             edgar_src.CACHE_REFRESH_OFFSET_SECONDS,
+            international_booker.CACHE_REFRESH_OFFSET_SECONDS,
         }
         self.assertNotIn(18 * 60 * 60, offsets)
         self.assertEqual(edgar_src.CACHE_REFRESH_OFFSET_SECONDS, 17 * 60 * 60)

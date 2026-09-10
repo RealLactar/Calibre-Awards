@@ -14,6 +14,7 @@ from .sources import (
     booker,
     bram_stoker,
     edgar,
+    international_booker,
     german_book_prize,
     hugo,
     ipaf,
@@ -130,6 +131,10 @@ def _nobel_categories() -> tuple[str, ...]:
 
 def _booker_categories() -> tuple[str, ...]:
     return (booker.CATEGORY,)
+
+
+def _international_booker_categories() -> tuple[str, ...]:
+    return international_booker.SOURCEINFO_CATEGORIES
 
 
 def _german_book_prize_categories() -> tuple[str, ...]:
@@ -322,6 +327,27 @@ SOURCE_INFOS: tuple[SourceInfo, ...] = (
             'Booker Prize archive.'
         ),
         limitation='Longlisted-only works are not returned.',
+    ),
+    SourceInfo(
+        key='international_booker',
+        display_name='International Booker Prize',
+        categories=_international_booker_categories(),
+        identity_scopes=('work',),
+        homepage_url=international_booker.SOURCE_HOME_URL,
+        description=(
+            'Official International Booker Prize Winner and Shortlisted '
+            'translated works from 2016 onward. This implementation covers '
+            'the modern work-level prize through 2026.'
+        ),
+        limitation=(
+            'The 2005-2015 biennial Man Booker International Prize honoured '
+            'an author\'s body of work rather than a single book and is not '
+            'returned. Longlisted-only works are not returned. 2027 is not '
+            'emitted yet because the official prize name changes to the '
+            'Bukhman International Booker Prize and competitive results do '
+            'not yet exist. Translator credit is stored as notes rather than '
+            'emitted as a separate award.'
+        ),
     ),
     SourceInfo(
         key='german_book_prize',

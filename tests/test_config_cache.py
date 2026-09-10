@@ -51,6 +51,7 @@ _EXPECTED_SOURCE_ORDER = (
     'romantic_novel_awards',
     'nobel',
     'booker',
+    'international_booker',
     'german_book_prize',
     'prix_goncourt',
     'miles_franklin',
@@ -241,6 +242,7 @@ class AwardSourcesLayoutTests(unittest.TestCase):
         self.assertEqual(by_key['edgar'], 'Edgar Awards')
         self.assertEqual(by_key['nobel'], 'Nobel Award')
         self.assertEqual(by_key['booker'], 'The Booker Prize')
+        self.assertEqual(by_key['international_booker'], 'International Booker Prize')
         self.assertEqual(by_key['german_book_prize'], 'Deutscher Buchpreis')
         self.assertEqual(by_key['prix_goncourt'], 'Prix Goncourt')
         self.assertEqual(by_key['miles_franklin'], 'Miles Franklin Literary Award')
@@ -335,6 +337,15 @@ class AwardSourcesLayoutTests(unittest.TestCase):
         self.assertEqual(panel.inserted_source_rows[edgar_row + 1], 'romantic_novel_awards')
         rona_row = _EXPECTED_SOURCE_ORDER.index('romantic_novel_awards')
         self.assertEqual(panel.inserted_source_rows[rona_row + 1], 'nobel')
+        booker_row = _EXPECTED_SOURCE_ORDER.index('booker')
+        self.assertEqual(
+            panel.inserted_source_rows[booker_row + 1],
+            'international_booker',
+        )
+        self.assertEqual(
+            panel.inserted_source_rows[booker_row + 2],
+            'german_book_prize',
+        )
         goncourt = _EXPECTED_SOURCE_ORDER.index('prix_goncourt')
         self.assertEqual(panel.inserted_source_rows[goncourt - 1], 'german_book_prize')
         self.assertEqual(panel.inserted_source_rows[goncourt + 1], 'miles_franklin')
@@ -411,8 +422,8 @@ class AwardSourcesUnavailableRowTests(unittest.TestCase):
 
     def test_executable_rows_retain_checkbox_and_refresh(self):
         panel = FakeAwardSourcesPanel()
-        self.assertEqual(len(panel.source_checkboxes), 19)
-        self.assertEqual(len(panel.source_refresh_buttons), 19)
+        self.assertEqual(len(panel.source_checkboxes), 20)
+        self.assertEqual(len(panel.source_refresh_buttons), 20)
         for source_key, display_name in cache_refresh_source_rows():
             self.assertIn(source_key, panel.source_checkboxes)
             self.assertIn(source_key, panel.source_refresh_buttons)

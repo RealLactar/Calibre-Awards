@@ -16,6 +16,7 @@ from awards.source_registry import AWARD_SOURCES
 from awards.sources import (
     booker,
     german_book_prize,
+    international_booker,
     hugo,
     ipaf,
     locus,
@@ -131,7 +132,7 @@ class SourceInfoRegistryConsistencyTests(unittest.TestCase):
             tuple(source.display_name for source in AWARD_SOURCES),
         )
         self.assertEqual(len(SOURCE_INFOS), len(AWARD_SOURCES))
-        self.assertEqual(len(SOURCE_INFOS), 19)
+        self.assertEqual(len(SOURCE_INFOS), 20)
         self.assertNotIn(
             'national_book_awards',
             [info.key for info in SOURCE_INFOS],
@@ -287,6 +288,14 @@ class SourceInfoCategoryTests(unittest.TestCase):
         self.assertNotIn('International', info.description)
         self.assertNotIn('International', info.limitation or '')
 
+    def test_international_booker_help_fiction_only(self):
+        info = _info('international_booker')
+        self.assertEqual(info.categories, international_booker.SOURCEINFO_CATEGORIES)
+        self.assertEqual(info.categories, ('Fiction',))
+        self.assertEqual(info.display_name, 'International Booker Prize')
+        self.assertIn('2016', info.description)
+        self.assertIn('2026', info.description)
+
     def test_german_book_prize_fiction_only(self):
         info = _info('german_book_prize')
         self.assertEqual(info.categories, (german_book_prize.CATEGORY,))
@@ -308,6 +317,7 @@ class SourceInfoScopeAndHomepageTests(unittest.TestCase):
             'romantic_novel_awards': ('work',),
             'nobel': ('author', 'work'),
             'booker': ('work',),
+            'international_booker': ('work',),
             'german_book_prize': ('work',),
             'prix_goncourt': ('work',),
             'miles_franklin': ('work',),
@@ -338,6 +348,7 @@ class SourceInfoScopeAndHomepageTests(unittest.TestCase):
         self.assertEqual(hosts['romantic_novel_awards'], 'romanticnovelistsassociation.org')
         self.assertEqual(hosts['nobel'], 'www.nobelprize.org')
         self.assertEqual(hosts['booker'], 'thebookerprizes.com')
+        self.assertEqual(hosts['international_booker'], 'thebookerprizes.com')
         self.assertEqual(hosts['german_book_prize'], 'www.deutscher-buchpreis.de')
         self.assertEqual(hosts['prix_goncourt'], 'www.academiegoncourt.com')
         self.assertEqual(hosts['miles_franklin'], 'www.perpetual.com.au')
@@ -363,6 +374,10 @@ class SourceInfoScopeAndHomepageTests(unittest.TestCase):
         )
         self.assertEqual(_info('nobel').homepage_url, nobel.SOURCE_HOME_URL)
         self.assertEqual(_info('booker').homepage_url, booker.SOURCE_HOME_URL)
+        self.assertEqual(
+            _info('international_booker').homepage_url,
+            international_booker.SOURCE_HOME_URL,
+        )
         self.assertEqual(
             _info('german_book_prize').homepage_url,
             german_book_prize.ARCHIVE_INDEX_URL,
@@ -393,6 +408,7 @@ class SourceInfoScopeAndHomepageTests(unittest.TestCase):
             if info.key in {
                 'pulitzer',
                 'booker',
+                'international_booker',
                 'german_book_prize',
                 'prix_goncourt',
                 'miles_franklin',
@@ -421,6 +437,23 @@ class SourceInfoScopeAndHomepageTests(unittest.TestCase):
         limitation = info.limitation.casefold()
         self.assertIn('longlisted-only', limitation)
         self.assertNotIn('international', limitation)
+
+    def test_international_booker_description_and_limitation(self):
+        info = _info('international_booker')
+        description = info.description.casefold()
+        self.assertIn('international booker prize', description)
+        self.assertIn('winner', description)
+        self.assertIn('shortlist', description)
+        self.assertIn('2016', description)
+        self.assertIn('2026', description)
+        limitation = info.limitation.casefold()
+        self.assertIn('2005', limitation)
+        self.assertIn('2015', limitation)
+        self.assertIn('longlisted-only', limitation)
+        self.assertIn('2027', limitation)
+        self.assertIn('bukhman', limitation)
+        self.assertIn('translator', limitation)
+        self.assertIn('notes', limitation)
 
     def test_german_book_prize_description_and_limitation(self):
         info = _info('german_book_prize')
@@ -623,7 +656,7 @@ class SourceInfoImportAndFormatTests(unittest.TestCase):
         with patch.object(urllib.request, 'urlopen') as mocked_open:
             reloaded = importlib.reload(source_info)
             infos = reloaded.SOURCE_INFOS
-            self.assertEqual(len(infos), 19)
+            self.assertEqual(len(infos), 20)
             self.assertEqual(infos[0].key, 'pulitzer')
             self.assertEqual(infos[-1].key, 'newbery')
             mocked_open.assert_not_called()
@@ -665,6 +698,20 @@ class SourceInfoImportAndFormatTests(unittest.TestCase):
         self.assertIn('Note: Longlisted-only works are not returned.', formatted)
         self.assertNotIn('International', formatted)
         self.assertNotIn('The Booker Prizes', formatted)
+
+    def test_format_source_info_includes_international_booker_limitation(self):
+        formatted = format_source_info(_info('international_booker'))
+        self.assertEqual(formatted.splitlines()[0], 'International Booker Prize')
+        self.assertIn('Categories: Fiction', formatted)
+        self.assertIn('Scope: Work awards', formatted)
+        self.assertIn('2016', formatted)
+        self.assertIn('2026', formatted)
+        self.assertIn('Note:', formatted)
+        self.assertIn('2005-2015', formatted)
+        self.assertIn('Longlisted-only', formatted)
+        self.assertIn('2027', formatted)
+        self.assertIn('Bukhman', formatted)
+        self.assertIn('notes', formatted.casefold())
 
     def test_format_source_info_includes_german_book_prize_limitation(self):
         formatted = format_source_info(_info('german_book_prize'))

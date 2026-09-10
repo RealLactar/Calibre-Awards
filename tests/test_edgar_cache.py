@@ -123,6 +123,7 @@ class EdgarPersistentCacheTests(unittest.TestCase):
             bram_stoker,
             german_book_prize,
             hugo,
+            international_booker,
             ipaf,
             miles_franklin,
             national_book_critics_circle,
@@ -156,6 +157,7 @@ class EdgarPersistentCacheTests(unittest.TestCase):
             ipaf.CURRENT_CACHE_REFRESH_OFFSET_SECONDS,
             bram_stoker.CURRENT_CACHE_REFRESH_OFFSET_SECONDS,
             romantic_novel_awards.CACHE_REFRESH_OFFSET_SECONDS,
+            international_booker.CACHE_REFRESH_OFFSET_SECONDS,
         }
         self.assertNotIn(17 * 60 * 60, offsets)
 

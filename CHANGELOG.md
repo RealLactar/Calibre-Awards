@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- International Booker Prize executable source for official Winner and
+  Shortlisted translated works from 2016 through 2026
+
 ## 0.2.0 beta - 2026-09-01
 
 ### Added

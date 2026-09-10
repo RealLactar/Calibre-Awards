@@ -9,6 +9,7 @@ from awards.sources import (
     booker,
     bram_stoker,
     edgar,
+    international_booker,
     german_book_prize,
     ipaf,
     miles_franklin,
@@ -37,6 +38,7 @@ class AwardSourceRegistryTests(unittest.TestCase):
                 'romantic_novel_awards',
                 'nobel',
                 'booker',
+                'international_booker',
                 'german_book_prize',
                 'prix_goncourt',
                 'miles_franklin',
@@ -63,6 +65,7 @@ class AwardSourceRegistryTests(unittest.TestCase):
                 'Romantic Novel of the Year Awards',
                 'Nobel Award',
                 'The Booker Prize',
+                'International Booker Prize',
                 'Deutscher Buchpreis',
                 'Prix Goncourt',
                 'Miles Franklin Literary Award',
@@ -77,7 +80,7 @@ class AwardSourceRegistryTests(unittest.TestCase):
 
     def test_executable_registry_count_excludes_national_book_awards(self):
         keys = [source.key for source in AWARD_SOURCES]
-        self.assertEqual(len(AWARD_SOURCES), 19)
+        self.assertEqual(len(AWARD_SOURCES), 20)
         self.assertNotIn('national_book_awards', keys)
         self.assertNotIn(
             'National Book Awards',
@@ -114,6 +117,12 @@ class AwardSourceRegistryTests(unittest.TestCase):
             source for source in AWARD_SOURCES if source.key == 'booker'
         ][0]
         self.assertIs(booker_source.lookup, booker.lookup)
+
+    def test_international_booker_uses_the_public_lookup_function(self):
+        source = [
+            item for item in AWARD_SOURCES if item.key == 'international_booker'
+        ][0]
+        self.assertIs(source.lookup, international_booker.lookup)
 
     def test_german_book_prize_uses_the_public_lookup_function(self):
         german_source = [
