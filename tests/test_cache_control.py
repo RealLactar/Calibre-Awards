@@ -228,6 +228,25 @@ class ArchiveSourceRefreshTests(CacheControlTestCase):
             self.assertTrue((self.cache_dir / f'{key}.json').is_file(), key)
             self.assertIsNotNone(cache.load_source_cache(key, 1), key)
 
+    def test_pulitzer_refresh_keeps_disk_and_clears_ram(self):
+        _save_archive('pulitzer')
+        _save_archive('hugo')
+        pulitzer._archive_records_cache = ()
+        hugo._archive_records_cache = ()
+        with patch.object(
+            pulitzer, '_load_live_archive', side_effect=AssertionError('live')
+        ), patch.object(
+            pulitzer, '_fetch_html', side_effect=AssertionError('network')
+        ):
+            self.assertTrue(refresh_award_source_cache('pulitzer'))
+        self.assertTrue((self.cache_dir / 'pulitzer.json').is_file())
+        self.assertIsNotNone(cache.load_source_cache('pulitzer', 1))
+        self.assertIsNone(pulitzer._archive_records_cache)
+        self.assertTrue(pulitzer._refresh_requested)
+        self.assertFalse(pulitzer._live_suppressed)
+        self.assertTrue((self.cache_dir / 'hugo.json').is_file())
+        self.assertEqual(hugo._archive_records_cache, ())
+
 
 class LocusRefreshTests(CacheControlTestCase):
     def test_refresh_locus_clears_author_and_annual_keyed_cache_and_ram(self):

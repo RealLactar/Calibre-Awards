@@ -166,9 +166,15 @@ class SourceInfoCategoryTests(unittest.TestCase):
         )
         self.assertEqual(info.categories, ('Fiction', 'Novel'))
         self.assertIsNotNone(info.limitation)
-        self.assertIn('unavailable', info.limitation.casefold())
+        limitation = info.limitation.casefold()
+        self.assertIn('snapshot', limitation)
+        self.assertIn('2026', info.limitation)
+        self.assertIn('official', limitation)
+        self.assertIn('refresh', limitation)
         self.assertNotIn('403', info.limitation)
-        self.assertNotIn('cloudflare', info.limitation.casefold())
+        self.assertNotIn('cloudflare', limitation)
+        self.assertNotIn('wikipedia', limitation)
+        self.assertNotIn('wikidata', limitation)
 
     def test_nebula_categories_follow_award_configs(self):
         info = _info('nebula')
@@ -689,7 +695,8 @@ class SourceInfoImportAndFormatTests(unittest.TestCase):
         self.assertIn('Categories: Fiction, Novel', formatted)
         self.assertIn('Scope: Work awards', formatted)
         self.assertIn('Fiction and Novel awards from Pulitzer.org.', formatted)
-        self.assertIn('Note: Pulitzer.org sometimes blocks automated checks', formatted)
+        self.assertIn('Note: Pulitzer.org may block unattended retrieval', formatted)
+        self.assertIn('2026', formatted)
         self.assertNotIn('<', formatted)
 
     def test_format_source_info_omits_note_when_unlimited(self):

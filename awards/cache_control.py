@@ -4,6 +4,10 @@ refresh_award_source_cache() invalidates that source's persistent disk cache
 and in-process RAM. It does not look up awards or open the network. The next
 Check Awards search lazily rebuilds the selected source.
 
+Pulitzer is the exception: Refresh clears RAM and requests a lazy official
+live refresh, but it does not delete the last validated disk archive. The
+bundled seed remains available if live retrieval is blocked.
+
 Locus refresh clears both author and annual keyed caches. The action is
 immediate maintenance, not a saved preference.
 """
@@ -85,6 +89,16 @@ def source_cache_refresh_confirm_title(display_name: str) -> str:
 
 
 def source_cache_refresh_confirm_body(display_name: str) -> str:
+    if display_name == 'Pulitzer Prizes':
+        return (
+            'This will clear in-memory Pulitzer lookup data and request a '
+            'fresh official download the next time Pulitzer is checked.\n\n'
+            'Saved Pulitzer results and the reviewed official snapshot remain '
+            'available if the website blocks unattended retrieval.\n\n'
+            'No award information already stored in your books will be changed.\n\n'
+            'This action happens immediately and is not undone by Canceling '
+            'Preferences.'
+        )
     return (
         f'This will remove saved {display_name} lookup data and clear its '
         'current in-memory cache.\n\n'
@@ -97,6 +111,12 @@ def source_cache_refresh_confirm_body(display_name: str) -> str:
 
 
 def source_cache_refresh_status_text(display_name: str) -> str:
+    if display_name == 'Pulitzer Prizes':
+        return (
+            'Pulitzer Prizes in-memory cache cleared.\n'
+            'The next Check Awards search may try a live official refresh; '
+            'usable Pulitzer data is kept if that refresh is blocked.'
+        )
     return (
         f'{display_name} cached data cleared.\n'
         'Fresh data will be retrieved by the next Check Awards search.'
@@ -153,13 +173,15 @@ def run_source_cache_refresh_if_confirmed(
 
 
 def refresh_award_source_cache(source_key: str) -> bool:
-    """Invalidate one source's disk cache and reset only that source's RAM.
+    """Reset one source's RAM and, except for Pulitzer, delete its disk cache.
 
-    Disk is cleared first so a later RAM reset cannot be refilled from the
-    old file. RAM is still reset if persistent deletion fails. Returns True
-    when managed persistent data for that source is absent afterwards.
-    Unknown keys raise ValueError and do not touch any cache. No network
-    request is made.
+    Pulitzer Refresh never deletes last-known-good disk data or the bundled
+    seed. It requests a lazy official live refresh on the next lookup.
+    Other sources: disk is cleared first so a later RAM reset cannot be
+    refilled from the old file. RAM is still reset if persistent deletion
+    fails. Returns True when managed persistent data for that source is
+    absent afterwards, or when Pulitzer refresh was requested. Unknown keys
+    raise ValueError and do not touch any cache. No network request is made.
     """
     if not isinstance(source_key, str) or not source_key.strip():
         raise ValueError('unknown award source cache key')
@@ -167,6 +189,8 @@ def refresh_award_source_cache(source_key: str) -> bool:
     reset = _SOURCE_RUNTIME_RESETS.get(key)
     if reset is None:
         raise ValueError(f'unknown award source cache key: {key!r}')
+    if key == 'pulitzer':
+        return bool(pulitzer.mark_official_refresh_requested())
     persistent_ok = False
     try:
         persistent_ok = cache.invalidate_source_cache(key)

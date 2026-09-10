@@ -4,10 +4,16 @@ HTTP 200 is not proof of a usable page: Pulitzer.org can return a browser
 challenge with a success status. This source does not attempt to bypass that
 block. Only a fully validated parsed Fiction/Novel archive is cached, never
 raw HTML, challenge pages, or HTTP error bodies.
+
+A reviewed bundled seed of official Fiction/Novel facts is the cold-start
+archive when unattended HTTP is blocked. Live category-page retrieval remains
+the opportunistic refresh path. Failed live refresh never discards a usable
+disk archive or the bundled seed.
 """
 
 from __future__ import annotations
 
+import json
 import re
 import threading
 import unicodedata
@@ -16,6 +22,7 @@ import urllib.request
 from dataclasses import dataclass
 from html.parser import HTMLParser
 from http.cookiejar import CookieJar
+from pathlib import Path
 from urllib.parse import urljoin, urlparse
 
 from .. import cache
@@ -35,10 +42,18 @@ _CATEGORY_URLS = (
 
 SOURCE_KEY = 'pulitzer'
 CACHE_VERSION = 1
+# Persistent cache payload shape is unchanged: parsed records only.
 # 7-day base plus an explicit stagger. Do not derive from AWARD_SOURCES order.
 CACHE_BASE_TTL_SECONDS = 7 * 24 * 60 * 60
 CACHE_REFRESH_OFFSET_SECONDS = 5 * 60 * 60
 CACHE_TTL_SECONDS = CACHE_BASE_TTL_SECONDS + CACHE_REFRESH_OFFSET_SECONDS
+SEED_SCHEMA_VERSION = 1
+SEED_REVIEWED_THROUGH_AWARD_YEAR = 2026
+_SEED_ZIP_PATH = 'awards/data/pulitzer_seed.json'
+# Official Novel category era begins 1917; 1917 was a no-award year, so
+# parsed Novel records remain 1918-1947 (_NOVEL_MIN_YEAR below).
+_NOVEL_CATEGORY_START_YEAR = 1917
+_OFFICIAL_FINALISTS_FROM_YEAR = 1980
 
 _BROWSER_HEADERS = {
     'User-Agent': (
@@ -91,6 +106,34 @@ _RECORD_CACHE_FIELDS = (
     'status',
     'work_author',
     'work_title',
+)
+_SEED_TOP_LEVEL_FIELDS = frozenset({
+    'coverage',
+    'official_source_urls',
+    'records',
+    'reviewed_at',
+    'reviewed_through_award_year',
+    'seed_schema_version',
+    'source_key',
+})
+_SEED_COVERAGE_FIELDS = frozenset({
+    'fiction_max_year',
+    'fiction_min_year',
+    'novel_category_start_year',
+    'novel_max_year',
+    'novel_record_min_year',
+    'official_finalists_from_year',
+})
+_SEED_SENTINELS = (
+    (2026, 'Fiction', 'Winner', 'Angel Down', 'Daniel Kraus'),
+    (2026, 'Fiction', 'Finalist', 'Audition', 'Katie Kitamura'),
+    (2025, 'Fiction', 'Winner', 'James', 'Percival Everett'),
+    (2024, 'Fiction', 'Winner', 'Night Watch', 'Jayne Anne Phillips'),
+    (2023, 'Fiction', 'Winner', 'Trust', 'Hernan Diaz'),
+    (2023, 'Fiction', 'Winner', 'Demon Copperhead', 'Barbara Kingsolver'),
+    (1988, 'Fiction', 'Winner', 'Beloved', 'Toni Morrison'),
+    (1948, 'Fiction', 'Winner', 'Tales of the South Pacific', 'James A. Michener'),
+    (1940, 'Novel', 'Winner', 'The Grapes of Wrath', 'John Steinbeck'),
 )
 
 
@@ -157,13 +200,33 @@ def _fetch_html(opener: urllib.request.OpenerDirector, url: str) -> str:
 
 _archive_records_cache: tuple[_ParsedRecord, ...] | None = None
 _cache_lock = threading.Lock()
+_refresh_requested = False
+_live_suppressed = False
+_seed_path_override: Path | None = None
 
 
 def _reset_runtime_state() -> None:
-    """Clear in-process caches. Used by tests. Does not delete disk cache."""
-    global _archive_records_cache
+    """Clear in-process caches and live-refresh flags. Does not delete disk."""
+    global _archive_records_cache, _refresh_requested, _live_suppressed
     with _cache_lock:
         _archive_records_cache = None
+        _refresh_requested = False
+        _live_suppressed = False
+
+
+def mark_official_refresh_requested() -> bool:
+    """Clear RAM and request a lazy live refresh without deleting last-known-good data.
+
+    Manual Refresh must not HTTP. The next lookup may attempt official
+    category pages. A failed attempt still returns disk cache or the bundled
+    seed. The bundled seed file is never modified.
+    """
+    global _archive_records_cache, _refresh_requested, _live_suppressed
+    with _cache_lock:
+        _archive_records_cache = None
+        _refresh_requested = True
+        _live_suppressed = False
+    return True
 
 
 def _validate_category_records(
@@ -217,40 +280,83 @@ def _load_live_archive() -> tuple[_ParsedRecord, ...]:
     return archive
 
 
-def _get_archive_records() -> tuple[_ParsedRecord, ...]:
-    """Return records: RAM, then disk, then live fetch/parse/validate.
+def _optional_live_archive() -> tuple[_ParsedRecord, ...] | None:
+    """Try official live retrieval. On failure, suppress further live attempts.
 
-    A fresh disk cache is used immediately. A stale-but-valid disk cache
-    live-refreshes only if this lookup still has a stale-refresh slot;
-    otherwise the stale archive is used with no network. A missing or
-    invalid cache still live-fetches. Challenge/403 responses are never
-    stored; a failed optional refresh leaves a good snapshot in place.
+    Challenge/403 bodies are never stored. Suppression is deliberately
+    process-local and lasts until restart or explicit Refresh, preventing
+    repeated requests to Pulitzer.org after a known block.
     """
-    global _archive_records_cache
+    global _live_suppressed
+    if _live_suppressed:
+        return None
+    try:
+        live = _load_live_archive()
+    except Exception:
+        _live_suppressed = True
+        return None
+    _save_persistent_archive(live)
+    return live
+
+
+def _fallback_archive(
+    disk_records: tuple[_ParsedRecord, ...] | None,
+) -> tuple[_ParsedRecord, ...]:
+    if disk_records is not None:
+        return disk_records
+    return _load_bundled_seed()
+
+
+def _get_archive_records() -> tuple[_ParsedRecord, ...]:
+    """Return records: RAM, disk, bundled seed; live fetch is opportunistic.
+
+    Cold start with a valid seed uses zero HTTP. Fresh disk is used with
+    zero HTTP. Stale disk live-refreshes only with a stale-refresh slot.
+    Manual Refresh requests one lazy live attempt on the next lookup.
+    Failed live retrieval never replaces disk or seed with a partial archive.
+    """
+    global _archive_records_cache, _refresh_requested
     with _cache_lock:
         if _archive_records_cache is not None:
             return _archive_records_cache
         disk = _load_persistent_archive()
-        if disk is not None:
-            records, payload = disk
-            if cache.cache_is_fresh(payload):
-                _archive_records_cache = records
-                return records
+        disk_records = disk[0] if disk is not None else None
+        disk_payload = disk[1] if disk is not None else None
+
+        if _refresh_requested:
+            _refresh_requested = False
+            live = _optional_live_archive()
+            if live is not None:
+                _archive_records_cache = live
+                return live
+            records = _fallback_archive(disk_records)
+            _archive_records_cache = records
+            return records
+
+        if disk_records is not None:
+            if cache.cache_is_fresh(disk_payload):
+                _archive_records_cache = disk_records
+                return disk_records
             if not cache.try_claim_stale_refresh():
-                _archive_records_cache = records
-                return records
-        else:
-            records = None
+                _archive_records_cache = disk_records
+                return disk_records
+            live = _optional_live_archive()
+            if live is not None:
+                _archive_records_cache = live
+                return live
+            _archive_records_cache = disk_records
+            return disk_records
+
         try:
-            live = _load_live_archive()
-        except Exception:
-            if records is not None:
-                _archive_records_cache = records
-                return records
+            seed = _load_bundled_seed()
+        except PulitzerSourceError:
+            live = _optional_live_archive()
+            if live is not None:
+                _archive_records_cache = live
+                return live
             raise
-        _save_persistent_archive(live)
-        _archive_records_cache = live
-        return live
+        _archive_records_cache = seed
+        return seed
 
 
 # ---------------------------------------------------------------------------
@@ -660,6 +766,198 @@ def _save_persistent_archive(records: tuple[_ParsedRecord, ...]) -> None:
         )
     except OSError:
         pass
+
+
+def _read_bundled_seed_bytes() -> bytes:
+    """Read the seed through Calibre's resource API or a development path."""
+    if _seed_path_override is not None:
+        try:
+            return _seed_path_override.read_bytes()
+        except OSError as exc:
+            raise PulitzerSourceError(
+                'Pulitzer bundled seed could not be read'
+            ) from exc
+
+    # Calibre injects get_resources into every plugin module. Using it avoids
+    # treating this ZIP-loaded module's synthetic __file__ as a filesystem path.
+    load_resource = globals().get('get_resources')
+    if load_resource is not None:
+        raw = load_resource(_SEED_ZIP_PATH)
+        if not raw:
+            raise PulitzerSourceError(
+                'Pulitzer bundled seed could not be read'
+            )
+        return raw
+
+    # Ordinary Python development/tests run from a source checkout, where
+    # Calibre's injected resource API is intentionally absent.
+    source_path = (
+        Path(__file__).resolve().parents[2]
+        / Path(*_SEED_ZIP_PATH.split('/'))
+    )
+    try:
+        return source_path.read_bytes()
+    except OSError as exc:
+        raise PulitzerSourceError(
+            'Pulitzer bundled seed could not be read'
+        ) from exc
+
+
+def _require_seed_year(value, *, label: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+        raise PulitzerSourceError(
+            f'Pulitzer bundled seed {label} was not a plausible year'
+        )
+    return value
+
+
+def _seed_has_sentinel(
+    records: tuple[_ParsedRecord, ...],
+    award_year: int,
+    category: str,
+    status: str,
+    work_title: str,
+    work_author: str,
+) -> bool:
+    return any(
+        record.award_year == award_year
+        and record.category == category
+        and record.status == status
+        and record.work_title == work_title
+        and record.work_author == work_author
+        for record in records
+    )
+
+
+def _validate_seed_archive(records: tuple[_ParsedRecord, ...], payload: dict) -> None:
+    _validate_cached_archive(records)
+    reviewed_through = payload['reviewed_through_award_year']
+    fiction_years = [
+        record.award_year for record in records if record.category == 'Fiction'
+    ]
+    if max(fiction_years) != reviewed_through:
+        raise PulitzerSourceError(
+            'Pulitzer bundled seed latest Fiction year did not match '
+            'reviewed_through_award_year'
+        )
+    if reviewed_through < SEED_REVIEWED_THROUGH_AWARD_YEAR:
+        raise PulitzerSourceError(
+            'Pulitzer bundled seed is not reviewed through the required '
+            f'award year {SEED_REVIEWED_THROUGH_AWARD_YEAR}'
+        )
+    for sentinel in _SEED_SENTINELS:
+        if not _seed_has_sentinel(records, *sentinel):
+            raise PulitzerSourceError(
+                'Pulitzer bundled seed is missing required official record: '
+                f'{sentinel!r}'
+            )
+    if any(record.award_year == 1917 for record in records):
+        raise PulitzerSourceError(
+            'Pulitzer bundled seed contained a 1917 Novel award record'
+        )
+    if any(
+        record.award_year == 2012
+        and record.category == 'Fiction'
+        and record.status == 'Winner'
+        for record in records
+    ):
+        raise PulitzerSourceError(
+            'Pulitzer bundled seed contained a 2012 Fiction Winner'
+        )
+    trust = _seed_has_sentinel(
+        records, 2023, 'Fiction', 'Winner', 'Trust', 'Hernan Diaz'
+    )
+    demon = _seed_has_sentinel(
+        records,
+        2023,
+        'Fiction',
+        'Winner',
+        'Demon Copperhead',
+        'Barbara Kingsolver',
+    )
+    if not (trust and demon):
+        raise PulitzerSourceError(
+            'Pulitzer bundled seed did not contain both 2023 Fiction Winners'
+        )
+
+
+def _records_from_seed_payload(payload) -> tuple[_ParsedRecord, ...]:
+    if not isinstance(payload, dict) or set(payload) != _SEED_TOP_LEVEL_FIELDS:
+        raise PulitzerSourceError(
+            'Pulitzer bundled seed metadata did not match the expected schema'
+        )
+    if payload.get('seed_schema_version') != SEED_SCHEMA_VERSION:
+        raise PulitzerSourceError(
+            'Pulitzer bundled seed schema version is unsupported'
+        )
+    if payload.get('source_key') != SOURCE_KEY:
+        raise PulitzerSourceError(
+            'Pulitzer bundled seed source identity is not pulitzer'
+        )
+    reviewed_at = payload.get('reviewed_at')
+    if not isinstance(reviewed_at, str) or not reviewed_at.strip():
+        raise PulitzerSourceError(
+            'Pulitzer bundled seed is missing reviewed_at'
+        )
+    reviewed_through = _require_seed_year(
+        payload.get('reviewed_through_award_year'),
+        label='reviewed_through_award_year',
+    )
+    payload_with_year = dict(payload)
+    payload_with_year['reviewed_through_award_year'] = reviewed_through
+    urls = payload.get('official_source_urls')
+    if urls != list(_archive_source_urls()):
+        raise PulitzerSourceError(
+            'Pulitzer bundled seed official_source_urls did not match '
+            'the Fiction and Novel category pages'
+        )
+    coverage = payload.get('coverage')
+    if not isinstance(coverage, dict) or set(coverage) != _SEED_COVERAGE_FIELDS:
+        raise PulitzerSourceError(
+            'Pulitzer bundled seed coverage metadata is incomplete'
+        )
+    expected_coverage = {
+        'fiction_max_year': reviewed_through,
+        'fiction_min_year': _FICTION_MIN_YEAR,
+        'novel_category_start_year': _NOVEL_CATEGORY_START_YEAR,
+        'novel_max_year': _NOVEL_MAX_YEAR,
+        'novel_record_min_year': _NOVEL_MIN_YEAR,
+        'official_finalists_from_year': _OFFICIAL_FINALISTS_FROM_YEAR,
+    }
+    for key, expected in expected_coverage.items():
+        actual = _require_seed_year(coverage.get(key), label=key)
+        if actual != expected:
+            raise PulitzerSourceError(
+                f'Pulitzer bundled seed coverage {key} was {actual!r}, '
+                f'expected {expected!r}'
+            )
+    raw_records = payload.get('records')
+    if not isinstance(raw_records, list):
+        raise PulitzerSourceError(
+            'Pulitzer bundled seed records were not a list'
+        )
+    records: list[_ParsedRecord] = []
+    for item in raw_records:
+        record = _record_from_cache_dict(item)
+        if record is None:
+            raise PulitzerSourceError(
+                'Pulitzer bundled seed contained a malformed prize record'
+            )
+        records.append(record)
+    restored = tuple(records)
+    _validate_seed_archive(restored, payload_with_year)
+    return restored
+
+
+def _load_bundled_seed() -> tuple[_ParsedRecord, ...]:
+    raw = _read_bundled_seed_bytes()
+    try:
+        payload = json.loads(raw)
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise PulitzerSourceError(
+            'Pulitzer bundled seed was not valid JSON'
+        ) from exc
+    return _records_from_seed_payload(payload)
 
 
 # ---------------------------------------------------------------------------

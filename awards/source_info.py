@@ -200,8 +200,10 @@ SOURCE_INFOS: tuple[SourceInfo, ...] = (
         homepage_url=pulitzer.SOURCE_HOME_URL,
         description='Fiction and Novel awards from Pulitzer.org.',
         limitation=(
-            'Pulitzer.org sometimes blocks automated checks, so this source '
-            'may be unavailable. Other award sources still run.'
+            'Pulitzer.org may block unattended retrieval. A reviewed snapshot '
+            'of official Fiction and Novel award facts through 2026 is used '
+            'as the baseline. Live official refresh remains opportunistic. A '
+            'failed refresh does not discard usable Pulitzer data.'
         ),
     ),
     SourceInfo(

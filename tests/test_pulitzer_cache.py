@@ -239,12 +239,15 @@ class PulitzerPersistentCacheTests(unittest.TestCase):
 
     def test_restart_simulation_reloads_disk_after_ram_clear(self):
         archive = _complete_archive()
+        _save_disk(archive, generated_at=datetime.now(_UTC))
+        pulitzer._reset_runtime_state()
         with patch.object(
-            pulitzer, '_load_live_archive', return_value=archive
-        ) as live:
+            pulitzer, '_fetch_html', side_effect=AssertionError('network')
+        ), patch.object(
+            pulitzer, '_load_live_archive', side_effect=AssertionError('live')
+        ):
             first = pulitzer.lookup('Beloved', 'Toni Morrison')
         self._assert_beloved(first)
-        self.assertEqual(live.call_count, 1)
         self.assertTrue(self._disk_path().is_file())
         pulitzer._reset_runtime_state()
         self.assertTrue(self._disk_path().is_file())
@@ -323,28 +326,25 @@ class PulitzerPersistentCacheTests(unittest.TestCase):
             mocked.assert_not_called()
         self._assert_beloved(results)
 
-    def test_missing_cache_live_fetches_after_stale_refresh_budget_consumed(self):
+    def test_missing_cache_uses_seed_after_stale_refresh_budget_consumed(self):
         self.assertFalse(self._disk_path().is_file())
-        live = _complete_archive()
         with cache.lookup_refresh_budget():
             self.assertTrue(cache.try_claim_stale_refresh())
             with patch.object(
-                pulitzer, '_load_live_archive', return_value=live
+                pulitzer, '_load_live_archive', side_effect=AssertionError('live')
             ) as mocked:
                 results = pulitzer.lookup('Beloved', 'Toni Morrison')
-            self.assertEqual(mocked.call_count, 1)
+            mocked.assert_not_called()
         self._assert_beloved(results)
 
-    def test_no_cache_live_403_still_raises(self):
+    def test_no_cache_live_403_uses_seed(self):
         self.assertFalse(self._disk_path().is_file())
         with patch.object(pulitzer, '_load_live_archive', side_effect=_blocked()):
-            with self.assertRaises(pulitzer.PulitzerSourceError) as raised:
-                pulitzer.lookup('Beloved', 'Toni Morrison')
-        self.assertIn('HTTP 403', str(raised.exception))
-        self.assertIsNone(pulitzer._archive_records_cache)
+            results = pulitzer.lookup('Beloved', 'Toni Morrison')
+        self._assert_beloved(results)
         self.assertFalse(self._disk_path().is_file())
 
-    def test_malformed_disk_live_403_still_raises(self):
+    def test_malformed_disk_live_403_uses_seed(self):
         archive = _complete_archive()
         _save_disk(archive, generated_at=datetime.now(_UTC))
         self._rewrite_records(
@@ -353,10 +353,9 @@ class PulitzerPersistentCacheTests(unittest.TestCase):
         with patch.object(
             pulitzer, '_load_live_archive', side_effect=_blocked()
         ) as mocked:
-            with self.assertRaises(pulitzer.PulitzerSourceError) as raised:
-                pulitzer.lookup('Beloved', 'Toni Morrison')
-        self.assertEqual(mocked.call_count, 1)
-        self.assertIn('HTTP 403', str(raised.exception))
+            results = pulitzer.lookup('Beloved', 'Toni Morrison')
+        mocked.assert_not_called()
+        self._assert_beloved(results)
 
     def test_unsupported_category_is_rejected(self):
         archive = _complete_archive()
@@ -370,8 +369,9 @@ class PulitzerPersistentCacheTests(unittest.TestCase):
         with patch.object(
             pulitzer, '_load_live_archive', return_value=live
         ) as mocked:
-            pulitzer.lookup('Beloved', 'Toni Morrison')
-        self.assertEqual(mocked.call_count, 1)
+            results = pulitzer.lookup('Beloved', 'Toni Morrison')
+        mocked.assert_not_called()
+        self._assert_beloved(results)
 
     def test_bad_award_year_is_rejected(self):
         archive = _complete_archive()
@@ -383,8 +383,9 @@ class PulitzerPersistentCacheTests(unittest.TestCase):
         with patch.object(
             pulitzer, '_load_live_archive', return_value=live
         ) as mocked:
-            pulitzer.lookup('Beloved', 'Toni Morrison')
-        self.assertEqual(mocked.call_count, 1)
+            results = pulitzer.lookup('Beloved', 'Toni Morrison')
+        mocked.assert_not_called()
+        self._assert_beloved(results)
 
     def test_invalid_status_is_rejected(self):
         archive = _complete_archive()
@@ -396,8 +397,9 @@ class PulitzerPersistentCacheTests(unittest.TestCase):
         with patch.object(
             pulitzer, '_load_live_archive', return_value=live
         ) as mocked:
-            pulitzer.lookup('Beloved', 'Toni Morrison')
-        self.assertEqual(mocked.call_count, 1)
+            results = pulitzer.lookup('Beloved', 'Toni Morrison')
+        mocked.assert_not_called()
+        self._assert_beloved(results)
 
     def test_missing_winner_coverage_is_rejected(self):
         archive = _complete_archive()
@@ -433,7 +435,7 @@ class PulitzerPersistentCacheTests(unittest.TestCase):
             pulitzer, '_load_live_archive', return_value=live
         ) as mocked:
             results = pulitzer.lookup('Beloved', 'Toni Morrison')
-        self.assertEqual(mocked.call_count, 1)
+        mocked.assert_not_called()
         self._assert_beloved(results)
 
     def test_off_host_source_url_is_rejected(self):
@@ -448,8 +450,9 @@ class PulitzerPersistentCacheTests(unittest.TestCase):
         with patch.object(
             pulitzer, '_load_live_archive', return_value=live
         ) as mocked:
-            pulitzer.lookup('Beloved', 'Toni Morrison')
-        self.assertEqual(mocked.call_count, 1)
+            results = pulitzer.lookup('Beloved', 'Toni Morrison')
+        mocked.assert_not_called()
+        self._assert_beloved(results)
 
     def test_malformed_field_is_rejected(self):
         archive = _complete_archive()
@@ -461,8 +464,9 @@ class PulitzerPersistentCacheTests(unittest.TestCase):
         with patch.object(
             pulitzer, '_load_live_archive', return_value=live
         ) as mocked:
-            pulitzer.lookup('Beloved', 'Toni Morrison')
-        self.assertEqual(mocked.call_count, 1)
+            results = pulitzer.lookup('Beloved', 'Toni Morrison')
+        mocked.assert_not_called()
+        self._assert_beloved(results)
 
     def test_novel_fiction_boundary_violation_is_rejected(self):
         archive = _complete_archive()
@@ -479,8 +483,9 @@ class PulitzerPersistentCacheTests(unittest.TestCase):
         with patch.object(
             pulitzer, '_load_live_archive', return_value=live
         ) as mocked:
-            pulitzer.lookup('Beloved', 'Toni Morrison')
-        self.assertEqual(mocked.call_count, 1)
+            results = pulitzer.lookup('Beloved', 'Toni Morrison')
+        mocked.assert_not_called()
+        self._assert_beloved(results)
 
     def test_incomplete_archive_is_rejected(self):
         fiction = [
@@ -502,10 +507,10 @@ class PulitzerPersistentCacheTests(unittest.TestCase):
             pulitzer, '_load_live_archive', return_value=live
         ) as mocked:
             results = pulitzer.lookup('Beloved', 'Toni Morrison')
-        self.assertEqual(mocked.call_count, 1)
+        mocked.assert_not_called()
         self._assert_beloved(results)
 
-    def test_version_mismatch_uses_live_path(self):
+    def test_version_mismatch_uses_seed(self):
         archive = _complete_archive()
         _save_disk(archive, generated_at=datetime.now(_UTC), version=2)
         live = _complete_archive()
@@ -513,11 +518,12 @@ class PulitzerPersistentCacheTests(unittest.TestCase):
             pulitzer, '_load_live_archive', return_value=live
         ) as mocked:
             results = pulitzer.lookup('Beloved', 'Toni Morrison')
-        self.assertEqual(mocked.call_count, 1)
+        mocked.assert_not_called()
         self._assert_beloved(results)
 
     def test_save_failure_does_not_fail_lookup(self):
         archive = _complete_archive()
+        pulitzer.mark_official_refresh_requested()
         with patch.object(pulitzer, '_load_live_archive', return_value=archive):
             with patch.object(
                 pulitzer.cache,

@@ -36,7 +36,7 @@ scope catalog.
 
 | Award source | Coverage | Results returned |
 | --- | --- | --- |
-| Pulitzer Prizes | Novel 1918–1947; Fiction 1948–present | Winner; Fiction Finalist from 1980 |
+| Pulitzer Prizes | Novel 1918–1947 (official Novel category from 1917; 1917 had no award); Fiction 1948–2026 | Winner; Fiction Finalist from 1980 |
 | Nebula Awards | Core fiction archive from 1965; Andre Norton Award from 2005; poetry where the archive includes it | Winner; Nominated |
 | Hugo Awards | Regular archive from 1953 (no regular 1954 page; that year is Retro-only) | Winner; Finalist; explicit Best Novel rank only for curated official-statistics years; series awards where supported |
 | Locus Awards | Ranked literary categories from the Science Fiction Awards Database (SFADB) annual archive | Explicit ordinal ranks; the Preferences rank cutoff decides which ranks qualify |
@@ -197,6 +197,9 @@ Each source has its own cache. Cache persists across Calibre restarts.
 
 **Refresh** in Preferences clears that source's cache. Refresh itself does
 not contact the website; the next Check Awards request rebuilds it.
+Pulitzer Refresh is narrower: it requests a live official refresh on the
+next lookup but does not discard last-known-good Pulitzer data or the
+reviewed official snapshot.
 
 If one award website fails, other award sources continue running.
 
@@ -204,9 +207,13 @@ Uncached lookups require an internet connection.
 
 ## Known limitations
 
-- **Pulitzer.** Pulitzer.org may present an anti-automation or browser
-  challenge. The plugin does not bypass it. Cached data may still be used
-  when available. Other sources continue.
+- **Pulitzer.** Pulitzer.org may block unattended retrieval with a browser
+  challenge. The plugin does not bypass it. A reviewed snapshot of official
+  Fiction and Novel award facts through 2026 is bundled as the reliable
+  baseline. Live official refresh remains opportunistic when ordinary HTTP
+  works. A failed refresh does not discard usable Pulitzer data. Finalist
+  records follow Pulitzer's official Finalist terminology from 1980. This is
+  not a Wikipedia, Wikidata, or other third-party runtime source.
 - **National Book Awards.** Currently **Transport blocked**. Informational
   only; it cannot be enabled.
 - **International Booker Prize.** The modern work-level prize is covered from

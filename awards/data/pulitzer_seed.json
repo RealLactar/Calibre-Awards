@@ -1,0 +1,1580 @@
+{
+  "coverage": {
+    "fiction_max_year": 2026,
+    "fiction_min_year": 1948,
+    "novel_category_start_year": 1917,
+    "novel_max_year": 1947,
+    "novel_record_min_year": 1918,
+    "official_finalists_from_year": 1980
+  },
+  "official_source_urls": [
+    "https://www.pulitzer.org/prize-winners-by-category/219",
+    "https://www.pulitzer.org/prize-winners-by-category/261"
+  ],
+  "records": [
+    {
+      "award_year": 2026,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/winners/daniel-kraus",
+      "status": "Winner",
+      "work_author": "Daniel Kraus",
+      "work_title": "Angel Down"
+    },
+    {
+      "award_year": 2026,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/katie-kitamura",
+      "status": "Finalist",
+      "work_author": "Katie Kitamura",
+      "work_title": "Audition"
+    },
+    {
+      "award_year": 2026,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/torrey-peters",
+      "status": "Finalist",
+      "work_author": "Torrey Peters",
+      "work_title": "Stag Dance: A Quartet"
+    },
+    {
+      "award_year": 2025,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/prize-winners-by-category/219",
+      "status": "Winner",
+      "work_author": "Percival Everett",
+      "work_title": "James"
+    },
+    {
+      "award_year": 2025,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/prize-winners-by-category/219",
+      "status": "Finalist",
+      "work_author": "Gayl Jones",
+      "work_title": "The Unicorn Woman"
+    },
+    {
+      "award_year": 2025,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/prize-winners-by-category/219",
+      "status": "Finalist",
+      "work_author": "Stacey Levine",
+      "work_title": "Mice 1961"
+    },
+    {
+      "award_year": 2025,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/prize-winners-by-category/219",
+      "status": "Finalist",
+      "work_author": "Rita Bullwinkel",
+      "work_title": "Headshot: A Novel"
+    },
+    {
+      "award_year": 2024,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/winners/jayne-anne-phillips",
+      "status": "Winner",
+      "work_author": "Jayne Anne Phillips",
+      "work_title": "Night Watch"
+    },
+    {
+      "award_year": 2024,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/yiyun-li",
+      "status": "Finalist",
+      "work_author": "Yiyun Li",
+      "work_title": "Wednesday’s Child"
+    },
+    {
+      "award_year": 2024,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/ed-park",
+      "status": "Finalist",
+      "work_author": "Ed Park",
+      "work_title": "Same Bed Different Dreams"
+    },
+    {
+      "award_year": 2023,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/winners/hernan-diaz",
+      "status": "Winner",
+      "work_author": "Hernan Diaz",
+      "work_title": "Trust"
+    },
+    {
+      "award_year": 2023,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/winners/barbara-kingsolver",
+      "status": "Winner",
+      "work_author": "Barbara Kingsolver",
+      "work_title": "Demon Copperhead"
+    },
+    {
+      "award_year": 2023,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/vauhini-vara",
+      "status": "Finalist",
+      "work_author": "Vauhini Vara",
+      "work_title": "The Immortal King Rao"
+    },
+    {
+      "award_year": 2022,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/winners/joshua-cohen",
+      "status": "Winner",
+      "work_author": "Joshua Cohen",
+      "work_title": "The Netanyahus: An Account of a Minor and Ultimately Even Negligible Episode in the History of a Very Famous Family"
+    },
+    {
+      "award_year": 2022,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/gayl-jones",
+      "status": "Finalist",
+      "work_author": "Gayl Jones",
+      "work_title": "Palmares"
+    },
+    {
+      "award_year": 2022,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/francisco-goldman",
+      "status": "Finalist",
+      "work_author": "Francisco Goldman",
+      "work_title": "Monkey Boy"
+    },
+    {
+      "award_year": 2021,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/winners/louise-erdrich",
+      "status": "Winner",
+      "work_author": "Louise Erdrich",
+      "work_title": "The Night Watchman"
+    },
+    {
+      "award_year": 2021,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/percival-everett",
+      "status": "Finalist",
+      "work_author": "Percival Everett",
+      "work_title": "Telephone"
+    },
+    {
+      "award_year": 2021,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/daniel-mason",
+      "status": "Finalist",
+      "work_author": "Daniel Mason",
+      "work_title": "A Registry of My Passage Upon the Earth"
+    },
+    {
+      "award_year": 2020,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/winners/colson-whitehead-0",
+      "status": "Winner",
+      "work_author": "Colson Whitehead",
+      "work_title": "The Nickel Boys"
+    },
+    {
+      "award_year": 2020,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/ben-lerner",
+      "status": "Finalist",
+      "work_author": "Ben Lerner",
+      "work_title": "The Topeka School"
+    },
+    {
+      "award_year": 2020,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/ann-patchett",
+      "status": "Finalist",
+      "work_author": "Ann Patchett",
+      "work_title": "The Dutch House"
+    },
+    {
+      "award_year": 2019,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/winners/richard-powers",
+      "status": "Winner",
+      "work_author": "Richard Powers",
+      "work_title": "The Overstory"
+    },
+    {
+      "award_year": 2019,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/rebecca-makkai",
+      "status": "Finalist",
+      "work_author": "Rebecca Makkai",
+      "work_title": "The Great Believers"
+    },
+    {
+      "award_year": 2019,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/tommy-orange",
+      "status": "Finalist",
+      "work_author": "Tommy Orange",
+      "work_title": "There There"
+    },
+    {
+      "award_year": 2018,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/winners/andrew-sean-greer",
+      "status": "Winner",
+      "work_author": "Andrew Sean Greer",
+      "work_title": "Less"
+    },
+    {
+      "award_year": 2018,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/elif-batuman",
+      "status": "Finalist",
+      "work_author": "Elif Batuman",
+      "work_title": "The Idiot"
+    },
+    {
+      "award_year": 2018,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/hernan-diaz",
+      "status": "Finalist",
+      "work_author": "Hernan Diaz",
+      "work_title": "In the Distance"
+    },
+    {
+      "award_year": 2017,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/winners/colson-whitehead",
+      "status": "Winner",
+      "work_author": "Colson Whitehead",
+      "work_title": "The Underground Railroad"
+    },
+    {
+      "award_year": 2017,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/adam-haslett-0",
+      "status": "Finalist",
+      "work_author": "Adam Haslett",
+      "work_title": "Imagine Me Gone"
+    },
+    {
+      "award_year": 2017,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/c-e-morgan",
+      "status": "Finalist",
+      "work_author": "C. E. Morgan",
+      "work_title": "The Sport of Kings"
+    },
+    {
+      "award_year": 2016,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/winners/viet-thanh-nguyen",
+      "status": "Winner",
+      "work_author": "Viet Thanh Nguyen",
+      "work_title": "The Sympathizer"
+    },
+    {
+      "award_year": 2016,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/kelly-link",
+      "status": "Finalist",
+      "work_author": "Kelly Link",
+      "work_title": "Get in Trouble: Stories"
+    },
+    {
+      "award_year": 2016,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/margaret-verble",
+      "status": "Finalist",
+      "work_author": "Margaret Verble",
+      "work_title": "Maud's Line"
+    },
+    {
+      "award_year": 2015,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/winners/anthony-doerr",
+      "status": "Winner",
+      "work_author": "Anthony Doerr",
+      "work_title": "All the Light We Cannot See"
+    },
+    {
+      "award_year": 2015,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/richard-ford",
+      "status": "Finalist",
+      "work_author": "Richard Ford",
+      "work_title": "Let Me Be Frank With You"
+    },
+    {
+      "award_year": 2015,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/laila-lalami",
+      "status": "Finalist",
+      "work_author": "Laila Lalami",
+      "work_title": "The Moor's Account"
+    },
+    {
+      "award_year": 2015,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/joyce-carol-oates-2",
+      "status": "Finalist",
+      "work_author": "Joyce Carol Oates",
+      "work_title": "Lovely, Dark, Deep"
+    },
+    {
+      "award_year": 2014,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/winners/donna-tartt",
+      "status": "Winner",
+      "work_author": "Donna Tartt",
+      "work_title": "The Goldfinch"
+    },
+    {
+      "award_year": 2014,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/philipp-meyer",
+      "status": "Finalist",
+      "work_author": "Philipp Meyer",
+      "work_title": "The Son"
+    },
+    {
+      "award_year": 2014,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/bob-shacochis",
+      "status": "Finalist",
+      "work_author": "Bob Shacochis",
+      "work_title": "The Woman Who Lost Her Soul"
+    },
+    {
+      "award_year": 2013,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/winners/adam-johnson",
+      "status": "Winner",
+      "work_author": "Adam Johnson",
+      "work_title": "The Orphan Master's Son"
+    },
+    {
+      "award_year": 2013,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/nathan-englander",
+      "status": "Finalist",
+      "work_author": "Nathan Englander",
+      "work_title": "What We Talk About When We Talk About Anne Frank"
+    },
+    {
+      "award_year": 2013,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/eowyn-ivey",
+      "status": "Finalist",
+      "work_author": "Eowyn Ivey",
+      "work_title": "The Snow Child"
+    },
+    {
+      "award_year": 2012,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/denis-johnson-0",
+      "status": "Finalist",
+      "work_author": "Denis Johnson",
+      "work_title": "Train Dreams"
+    },
+    {
+      "award_year": 2012,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/karen-russell",
+      "status": "Finalist",
+      "work_author": "Karen Russell",
+      "work_title": "Swamplandia!"
+    },
+    {
+      "award_year": 2012,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/david-foster-wallace",
+      "status": "Finalist",
+      "work_author": "David Foster Wallace",
+      "work_title": "The Pale King"
+    },
+    {
+      "award_year": 2011,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/winners/jennifer-egan",
+      "status": "Winner",
+      "work_author": "Jennifer Egan",
+      "work_title": "A Visit from the Goon Squad"
+    },
+    {
+      "award_year": 2011,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/jonathan-dee",
+      "status": "Finalist",
+      "work_author": "Jonathan Dee",
+      "work_title": "The Privileges"
+    },
+    {
+      "award_year": 2011,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/chang-rae-lee",
+      "status": "Finalist",
+      "work_author": "Chang-rae Lee",
+      "work_title": "The Surrendered"
+    },
+    {
+      "award_year": 2010,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/winners/paul-harding",
+      "status": "Winner",
+      "work_author": "Paul Harding",
+      "work_title": "Tinkers"
+    },
+    {
+      "award_year": 2010,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/lydia-millet",
+      "status": "Finalist",
+      "work_author": "Lydia Millet",
+      "work_title": "Love in Infant Monkeys"
+    },
+    {
+      "award_year": 2010,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/daniyal-mueenuddin",
+      "status": "Finalist",
+      "work_author": "Daniyal Mueenuddin",
+      "work_title": "In Other Rooms, Other Wonders"
+    },
+    {
+      "award_year": 2009,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/winners/elizabeth-strout",
+      "status": "Winner",
+      "work_author": "Elizabeth Strout",
+      "work_title": "Olive Kitteridge"
+    },
+    {
+      "award_year": 2009,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/louise-erdrich",
+      "status": "Finalist",
+      "work_author": "Louise Erdrich",
+      "work_title": "The Plague of Doves"
+    },
+    {
+      "award_year": 2009,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/christine-schutt",
+      "status": "Finalist",
+      "work_author": "Christine Schutt",
+      "work_title": "All Souls"
+    },
+    {
+      "award_year": 2008,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/winners/junot-diaz",
+      "status": "Winner",
+      "work_author": "Junot Diaz",
+      "work_title": "The Brief Wondrous Life of Oscar Wao"
+    },
+    {
+      "award_year": 2008,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/denis-johnson",
+      "status": "Finalist",
+      "work_author": "Denis Johnson",
+      "work_title": "Tree of Smoke"
+    },
+    {
+      "award_year": 2008,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/lore-segal",
+      "status": "Finalist",
+      "work_author": "Lore Segal",
+      "work_title": "Shakespeare's Kitchen"
+    },
+    {
+      "award_year": 2007,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/winners/cormac-mccarthy",
+      "status": "Winner",
+      "work_author": "Cormac McCarthy",
+      "work_title": "The Road"
+    },
+    {
+      "award_year": 2007,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/alice-mcdermott",
+      "status": "Finalist",
+      "work_author": "Alice McDermott",
+      "work_title": "After This"
+    },
+    {
+      "award_year": 2007,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/richard-powers",
+      "status": "Finalist",
+      "work_author": "Richard Powers",
+      "work_title": "The Echo Maker"
+    },
+    {
+      "award_year": 2006,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/winners/geraldine-brooks",
+      "status": "Winner",
+      "work_author": "Geraldine Brooks",
+      "work_title": "March"
+    },
+    {
+      "award_year": 2006,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/el-doctorow-0",
+      "status": "Finalist",
+      "work_author": "E.L. Doctorow",
+      "work_title": "The March"
+    },
+    {
+      "award_year": 2006,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/lee-martin",
+      "status": "Finalist",
+      "work_author": "Lee Martin",
+      "work_title": "The Bright Forever"
+    },
+    {
+      "award_year": 2005,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/winners/marilynne-robinson",
+      "status": "Winner",
+      "work_author": "Marilynne Robinson",
+      "work_title": "Gilead"
+    },
+    {
+      "award_year": 2005,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/ha-jin-0",
+      "status": "Finalist",
+      "work_author": "Ha Jin",
+      "work_title": "War Trash"
+    },
+    {
+      "award_year": 2005,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/ward-just",
+      "status": "Finalist",
+      "work_author": "Ward Just",
+      "work_title": "An Unfinished Season"
+    },
+    {
+      "award_year": 2004,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/winners/edward-p-jones",
+      "status": "Winner",
+      "work_author": "Edward P. Jones",
+      "work_title": "The Known World"
+    },
+    {
+      "award_year": 2004,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/susan-choi",
+      "status": "Finalist",
+      "work_author": "Susan Choi",
+      "work_title": "American Woman"
+    },
+    {
+      "award_year": 2004,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/marianne-wiggins",
+      "status": "Finalist",
+      "work_author": "Marianne Wiggins",
+      "work_title": "Evidence of Things Unseen"
+    },
+    {
+      "award_year": 2003,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/winners/jeffrey-eugenides",
+      "status": "Winner",
+      "work_author": "Jeffrey Eugenides",
+      "work_title": "Middlesex"
+    },
+    {
+      "award_year": 2003,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/andrea-barrett",
+      "status": "Finalist",
+      "work_author": "Andrea Barrett",
+      "work_title": "Servants of the Map: Stories"
+    },
+    {
+      "award_year": 2003,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/adam-haslett",
+      "status": "Finalist",
+      "work_author": "Adam Haslett",
+      "work_title": "You Are Not a Stranger Here"
+    },
+    {
+      "award_year": 2002,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/winners/richard-russo",
+      "status": "Winner",
+      "work_author": "Richard Russo",
+      "work_title": "Empire Falls"
+    },
+    {
+      "award_year": 2002,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/jonathan-franzen",
+      "status": "Finalist",
+      "work_author": "Jonathan Franzen",
+      "work_title": "The Corrections"
+    },
+    {
+      "award_year": 2002,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/colson-whitehead",
+      "status": "Finalist",
+      "work_author": "Colson Whitehead",
+      "work_title": "John Henry Days"
+    },
+    {
+      "award_year": 2001,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/winners/michael-chabon",
+      "status": "Winner",
+      "work_author": "Michael Chabon",
+      "work_title": "The Amazing Adventures of Kavalier & Clay"
+    },
+    {
+      "award_year": 2001,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/joyce-carol-oates-1",
+      "status": "Finalist",
+      "work_author": "Joyce Carol Oates",
+      "work_title": "Blonde"
+    },
+    {
+      "award_year": 2001,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/joy-williams",
+      "status": "Finalist",
+      "work_author": "Joy Williams",
+      "work_title": "The Quick and the Dead"
+    },
+    {
+      "award_year": 2000,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/winners/jhumpa-lahiri",
+      "status": "Winner",
+      "work_author": "Jhumpa Lahiri",
+      "work_title": "Interpreter of Maladies"
+    },
+    {
+      "award_year": 2000,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/annie-proulx",
+      "status": "Finalist",
+      "work_author": "Annie Proulx",
+      "work_title": "Close Range: Wyoming Stories"
+    },
+    {
+      "award_year": 2000,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/ha-jin",
+      "status": "Finalist",
+      "work_author": "Ha Jin",
+      "work_title": "Waiting"
+    },
+    {
+      "award_year": 1999,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/winners/michael-cunningham",
+      "status": "Winner",
+      "work_author": "Michael Cunningham",
+      "work_title": "The Hours"
+    },
+    {
+      "award_year": 1999,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/russell-banks-0",
+      "status": "Finalist",
+      "work_author": "Russell Banks",
+      "work_title": "Cloudsplitter"
+    },
+    {
+      "award_year": 1999,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/barbara-kingsolver",
+      "status": "Finalist",
+      "work_author": "Barbara Kingsolver",
+      "work_title": "The Poisonwood Bible"
+    },
+    {
+      "award_year": 1998,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/winners/philip-roth",
+      "status": "Winner",
+      "work_author": "Philip Roth",
+      "work_title": "American Pastoral"
+    },
+    {
+      "award_year": 1998,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/don-delillo-0",
+      "status": "Finalist",
+      "work_author": "Don DeLillo",
+      "work_title": "Underworld"
+    },
+    {
+      "award_year": 1998,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/robert-stone-0",
+      "status": "Finalist",
+      "work_author": "Robert Stone",
+      "work_title": "Bear and His Daughter: Stories"
+    },
+    {
+      "award_year": 1997,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/winners/steven-millhauser",
+      "status": "Winner",
+      "work_author": "Steven Millhauser",
+      "work_title": "Martin Dressler: The Tale of an American Dreamer"
+    },
+    {
+      "award_year": 1997,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/ursula-k-leguin",
+      "status": "Finalist",
+      "work_author": "Ursula K. LeGuin",
+      "work_title": "Unlocking the Air and Other Stories"
+    },
+    {
+      "award_year": 1997,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/joanna-scott",
+      "status": "Finalist",
+      "work_author": "Joanna Scott",
+      "work_title": "The Manikin"
+    },
+    {
+      "award_year": 1996,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/winners/richard-ford",
+      "status": "Winner",
+      "work_author": "Richard Ford",
+      "work_title": "Independence Day"
+    },
+    {
+      "award_year": 1996,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/oscar-hijuelos",
+      "status": "Finalist",
+      "work_author": "Oscar Hijuelos",
+      "work_title": "Mr. Ives' Christmas"
+    },
+    {
+      "award_year": 1996,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/philip-roth-1",
+      "status": "Finalist",
+      "work_author": "Philip Roth",
+      "work_title": "Sabbath's Theater"
+    },
+    {
+      "award_year": 1995,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/winners/carol-shields",
+      "status": "Winner",
+      "work_author": "Carol Shields",
+      "work_title": "The Stone Diaries"
+    },
+    {
+      "award_year": 1995,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/joyce-carol-oates-0",
+      "status": "Finalist",
+      "work_author": "Joyce Carol Oates",
+      "work_title": "What I Lived For"
+    },
+    {
+      "award_year": 1995,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/grace-paley",
+      "status": "Finalist",
+      "work_author": "Grace Paley",
+      "work_title": "The Collected Stories"
+    },
+    {
+      "award_year": 1994,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/winners/e-annie-proulx",
+      "status": "Winner",
+      "work_author": "E. Annie Proulx",
+      "work_title": "The Shipping News"
+    },
+    {
+      "award_year": 1994,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/reynolds-price-0",
+      "status": "Finalist",
+      "work_author": "Reynolds Price",
+      "work_title": "The Collected Stories"
+    },
+    {
+      "award_year": 1994,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/philip-roth-0",
+      "status": "Finalist",
+      "work_author": "Philip Roth",
+      "work_title": "Operation Shylock: A Confession"
+    },
+    {
+      "award_year": 1993,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/winners/robert-olen-butler",
+      "status": "Winner",
+      "work_author": "Robert Olen Butler",
+      "work_title": "A Good Scent from a Strange Mountain"
+    },
+    {
+      "award_year": 1993,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/alice-mcdermott-1",
+      "status": "Finalist",
+      "work_author": "Alice McDermott",
+      "work_title": "At Weddings and Wakes"
+    },
+    {
+      "award_year": 1993,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/joyce-carol-oates",
+      "status": "Finalist",
+      "work_author": "Joyce Carol Oates",
+      "work_title": "Black Water"
+    },
+    {
+      "award_year": 1992,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/winners/jane-smiley",
+      "status": "Winner",
+      "work_author": "Jane Smiley",
+      "work_title": "A Thousand Acres"
+    },
+    {
+      "award_year": 1992,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/don-delillo",
+      "status": "Finalist",
+      "work_author": "Don DeLillo",
+      "work_title": "Mao II"
+    },
+    {
+      "award_year": 1992,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/david-gates",
+      "status": "Finalist",
+      "work_author": "David Gates",
+      "work_title": "Jernigan"
+    },
+    {
+      "award_year": 1992,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/robert-m-pirsig",
+      "status": "Finalist",
+      "work_author": "Robert M. Pirsig",
+      "work_title": "Lila: An Inquiry into Morals"
+    },
+    {
+      "award_year": 1991,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/winners/john-updike-0",
+      "status": "Winner",
+      "work_author": "John Updike",
+      "work_title": "Rabbit At Rest"
+    },
+    {
+      "award_year": 1991,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/linda-hogan",
+      "status": "Finalist",
+      "work_author": "Linda Hogan",
+      "work_title": "Mean Spirit"
+    },
+    {
+      "award_year": 1991,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/tim-obrien",
+      "status": "Finalist",
+      "work_author": "Tim O'Brien",
+      "work_title": "The Things They Carried"
+    },
+    {
+      "award_year": 1990,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/winners/oscar-hijuelos",
+      "status": "Winner",
+      "work_author": "Oscar Hijuelos",
+      "work_title": "The Mambo Kings Play Songs of Love"
+    },
+    {
+      "award_year": 1990,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/el-doctorow",
+      "status": "Finalist",
+      "work_author": "E.L. Doctorow",
+      "work_title": "Billy Bathgate"
+    },
+    {
+      "award_year": 1989,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/winners/anne-tyler",
+      "status": "Winner",
+      "work_author": "Anne Tyler",
+      "work_title": "Breathing Lessons"
+    },
+    {
+      "award_year": 1989,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/raymond-carver-0",
+      "status": "Finalist",
+      "work_author": "Raymond Carver",
+      "work_title": "Where I'm Calling From"
+    },
+    {
+      "award_year": 1988,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/winners/toni-morrison",
+      "status": "Winner",
+      "work_author": "Toni Morrison",
+      "work_title": "Beloved"
+    },
+    {
+      "award_year": 1988,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/diane-johnson-0",
+      "status": "Finalist",
+      "work_author": "Diane Johnson",
+      "work_title": "Persian Nights"
+    },
+    {
+      "award_year": 1988,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/alice-mcdermott-0",
+      "status": "Finalist",
+      "work_author": "Alice McDermott",
+      "work_title": "That Night"
+    },
+    {
+      "award_year": 1987,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/winners/peter-taylor",
+      "status": "Winner",
+      "work_author": "Peter Taylor",
+      "work_title": "A Summons to Memphis"
+    },
+    {
+      "award_year": 1987,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/donald-barthelme",
+      "status": "Finalist",
+      "work_author": "Donald Barthelme",
+      "work_title": "Paradise"
+    },
+    {
+      "award_year": 1987,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/norman-rush",
+      "status": "Finalist",
+      "work_author": "Norman Rush",
+      "work_title": "Whites"
+    },
+    {
+      "award_year": 1986,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/winners/larry-mcmurtry",
+      "status": "Winner",
+      "work_author": "Larry McMurtry",
+      "work_title": "Lonesome Dove"
+    },
+    {
+      "award_year": 1986,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/russell-banks",
+      "status": "Finalist",
+      "work_author": "Russell Banks",
+      "work_title": "Continental Drift"
+    },
+    {
+      "award_year": 1986,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/anne-tyler-0",
+      "status": "Finalist",
+      "work_author": "Anne Tyler",
+      "work_title": "The Accidental Tourist"
+    },
+    {
+      "award_year": 1985,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/winners/alison-lurie",
+      "status": "Winner",
+      "work_author": "Alison Lurie",
+      "work_title": "Foreign Affairs"
+    },
+    {
+      "award_year": 1985,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/diana-ohehir",
+      "status": "Finalist",
+      "work_author": "Diana O'Hehir",
+      "work_title": "I Wish This War Were Over"
+    },
+    {
+      "award_year": 1985,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/douglas-unger",
+      "status": "Finalist",
+      "work_author": "Douglas Unger",
+      "work_title": "Leaving the Land"
+    },
+    {
+      "award_year": 1984,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/winners/william-kennedy",
+      "status": "Winner",
+      "work_author": "William Kennedy",
+      "work_title": "Ironweed"
+    },
+    {
+      "award_year": 1984,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/thomas-berger",
+      "status": "Finalist",
+      "work_author": "Thomas Berger",
+      "work_title": "The Feud"
+    },
+    {
+      "award_year": 1984,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/raymond-carver",
+      "status": "Finalist",
+      "work_author": "Raymond Carver",
+      "work_title": "Cathedral"
+    },
+    {
+      "award_year": 1983,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/winners/alice-walker",
+      "status": "Winner",
+      "work_author": "Alice Walker",
+      "work_title": "The Color Purple"
+    },
+    {
+      "award_year": 1983,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/chaim-grade",
+      "status": "Finalist",
+      "work_author": "Chaim Grade",
+      "work_title": "Rabbis and Wives"
+    },
+    {
+      "award_year": 1983,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/anne-tyler",
+      "status": "Finalist",
+      "work_author": "Anne Tyler",
+      "work_title": "Dinner at the Homesick Restaurant"
+    },
+    {
+      "award_year": 1982,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/winners/john-updike",
+      "status": "Winner",
+      "work_author": "John Updike",
+      "work_title": "Rabbit Is Rich"
+    },
+    {
+      "award_year": 1982,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/marilynne-robinson",
+      "status": "Finalist",
+      "work_author": "Marilynne Robinson",
+      "work_title": "Housekeeping"
+    },
+    {
+      "award_year": 1982,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/robert-stone",
+      "status": "Finalist",
+      "work_author": "Robert Stone",
+      "work_title": "A Flag for Sunrise"
+    },
+    {
+      "award_year": 1981,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/winners/john-kennedy-toole",
+      "status": "Winner",
+      "work_author": "John Kennedy Toole",
+      "work_title": "A Confederacy of Dunces"
+    },
+    {
+      "award_year": 1981,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/frederick-buechner",
+      "status": "Finalist",
+      "work_author": "Frederick Buechner",
+      "work_title": "Godric"
+    },
+    {
+      "award_year": 1981,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/william-maxwell",
+      "status": "Finalist",
+      "work_author": "William Maxwell",
+      "work_title": "So Long, See You Tomorrow"
+    },
+    {
+      "award_year": 1980,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/winners/norman-mailer-0",
+      "status": "Winner",
+      "work_author": "Norman Mailer",
+      "work_title": "The Executioner's Song"
+    },
+    {
+      "award_year": 1980,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/philip-roth",
+      "status": "Finalist",
+      "work_author": "Philip Roth",
+      "work_title": "The Ghost Writer"
+    },
+    {
+      "award_year": 1980,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/finalists/william-wharton",
+      "status": "Finalist",
+      "work_author": "William Wharton",
+      "work_title": "Birdy"
+    },
+    {
+      "award_year": 1979,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/winners/john-cheever",
+      "status": "Winner",
+      "work_author": "John Cheever",
+      "work_title": "The Stories of John Cheever"
+    },
+    {
+      "award_year": 1978,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/winners/james-alan-mcpherson",
+      "status": "Winner",
+      "work_author": "James Alan McPherson",
+      "work_title": "Elbow Room"
+    },
+    {
+      "award_year": 1976,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/winners/saul-bellow",
+      "status": "Winner",
+      "work_author": "Saul Bellow",
+      "work_title": "Humboldt's Gift"
+    },
+    {
+      "award_year": 1975,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/winners/michael-shaara",
+      "status": "Winner",
+      "work_author": "Michael Shaara",
+      "work_title": "The Killer Angels"
+    },
+    {
+      "award_year": 1973,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/winners/eudora-welty",
+      "status": "Winner",
+      "work_author": "Eudora Welty",
+      "work_title": "The Optimist's Daughter"
+    },
+    {
+      "award_year": 1972,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/winners/wallace-stegner",
+      "status": "Winner",
+      "work_author": "Wallace Stegner",
+      "work_title": "Angle of Repose"
+    },
+    {
+      "award_year": 1970,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/winners/jean-stafford",
+      "status": "Winner",
+      "work_author": "Jean Stafford",
+      "work_title": "Collected Stories"
+    },
+    {
+      "award_year": 1969,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/winners/n-scott-momaday",
+      "status": "Winner",
+      "work_author": "N. Scott Momaday",
+      "work_title": "House Made of Dawn"
+    },
+    {
+      "award_year": 1968,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/winners/william-styron",
+      "status": "Winner",
+      "work_author": "William Styron",
+      "work_title": "The Confessions of Nat Turner"
+    },
+    {
+      "award_year": 1967,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/winners/bernard-malamud",
+      "status": "Winner",
+      "work_author": "Bernard Malamud",
+      "work_title": "The Fixer"
+    },
+    {
+      "award_year": 1966,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/winners/katherine-anne-porter",
+      "status": "Winner",
+      "work_author": "Katherine Anne Porter",
+      "work_title": "Collected Stories"
+    },
+    {
+      "award_year": 1965,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/winners/shirley-ann-grau",
+      "status": "Winner",
+      "work_author": "Shirley Ann Grau",
+      "work_title": "The Keepers Of The House"
+    },
+    {
+      "award_year": 1963,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/winners/william-faulkner-0",
+      "status": "Winner",
+      "work_author": "William Faulkner",
+      "work_title": "The Reivers"
+    },
+    {
+      "award_year": 1962,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/winners/edwin-oconnor",
+      "status": "Winner",
+      "work_author": "Edwin O'Connor",
+      "work_title": "The Edge of Sadness"
+    },
+    {
+      "award_year": 1961,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/winners/harper-lee",
+      "status": "Winner",
+      "work_author": "Harper Lee",
+      "work_title": "To Kill A Mockingbird"
+    },
+    {
+      "award_year": 1960,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/winners/allen-drury",
+      "status": "Winner",
+      "work_author": "Allen Drury",
+      "work_title": "Advise and Consent"
+    },
+    {
+      "award_year": 1959,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/winners/robert-lewis-taylor",
+      "status": "Winner",
+      "work_author": "Robert Lewis Taylor",
+      "work_title": "The Travels of Jaimie McPheeters"
+    },
+    {
+      "award_year": 1958,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/winners/james-agee",
+      "status": "Winner",
+      "work_author": "James Agee",
+      "work_title": "A Death In The Family"
+    },
+    {
+      "award_year": 1956,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/winners/mackinlay-kantor",
+      "status": "Winner",
+      "work_author": "MacKinlay Kantor",
+      "work_title": "Andersonville"
+    },
+    {
+      "award_year": 1955,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/winners/william-faulkner",
+      "status": "Winner",
+      "work_author": "William Faulkner",
+      "work_title": "A Fable"
+    },
+    {
+      "award_year": 1953,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/winners/ernest-hemingway",
+      "status": "Winner",
+      "work_author": "Ernest Hemingway",
+      "work_title": "The Old Man and the Sea"
+    },
+    {
+      "award_year": 1952,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/winners/herman-wouk",
+      "status": "Winner",
+      "work_author": "Herman Wouk",
+      "work_title": "The Caine Mutiny"
+    },
+    {
+      "award_year": 1951,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/winners/conrad-richter",
+      "status": "Winner",
+      "work_author": "Conrad Richter",
+      "work_title": "The Town"
+    },
+    {
+      "award_year": 1950,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/winners/b-guthrie",
+      "status": "Winner",
+      "work_author": "A. B. Guthrie",
+      "work_title": "The Way West"
+    },
+    {
+      "award_year": 1949,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/winners/james-gould-cozzens",
+      "status": "Winner",
+      "work_author": "James Gould Cozzens",
+      "work_title": "Guard of Honor"
+    },
+    {
+      "award_year": 1948,
+      "category": "Fiction",
+      "source_url": "https://www.pulitzer.org/winners/james-michener",
+      "status": "Winner",
+      "work_author": "James A. Michener",
+      "work_title": "Tales of the South Pacific"
+    },
+    {
+      "award_year": 1947,
+      "category": "Novel",
+      "source_url": "https://www.pulitzer.org/winners/robert-penn-warren",
+      "status": "Winner",
+      "work_author": "Robert Penn Warren",
+      "work_title": "All the King's Men"
+    },
+    {
+      "award_year": 1945,
+      "category": "Novel",
+      "source_url": "https://www.pulitzer.org/winners/john-hersey",
+      "status": "Winner",
+      "work_author": "John Hersey",
+      "work_title": "A Bell for Adano"
+    },
+    {
+      "award_year": 1944,
+      "category": "Novel",
+      "source_url": "https://www.pulitzer.org/winners/martin-flavin",
+      "status": "Winner",
+      "work_author": "Martin Flavin",
+      "work_title": "Journey in the Dark"
+    },
+    {
+      "award_year": 1943,
+      "category": "Novel",
+      "source_url": "https://www.pulitzer.org/winners/upton-sinclair",
+      "status": "Winner",
+      "work_author": "Upton Sinclair",
+      "work_title": "Dragon's Teeth"
+    },
+    {
+      "award_year": 1942,
+      "category": "Novel",
+      "source_url": "https://www.pulitzer.org/winners/ellen-glasgow",
+      "status": "Winner",
+      "work_author": "Ellen Glasgow",
+      "work_title": "In This Our Life"
+    },
+    {
+      "award_year": 1940,
+      "category": "Novel",
+      "source_url": "https://www.pulitzer.org/winners/john-steinbeck",
+      "status": "Winner",
+      "work_author": "John Steinbeck",
+      "work_title": "The Grapes of Wrath"
+    },
+    {
+      "award_year": 1939,
+      "category": "Novel",
+      "source_url": "https://www.pulitzer.org/winners/marjorie-kinnan-rawlings",
+      "status": "Winner",
+      "work_author": "Marjorie Kinnan Rawlings",
+      "work_title": "The Yearling"
+    },
+    {
+      "award_year": 1938,
+      "category": "Novel",
+      "source_url": "https://www.pulitzer.org/winners/john-phillips-marquand",
+      "status": "Winner",
+      "work_author": "John Phillips Marquand",
+      "work_title": "The Late George Apley"
+    },
+    {
+      "award_year": 1937,
+      "category": "Novel",
+      "source_url": "https://www.pulitzer.org/winners/margaret-mitchell",
+      "status": "Winner",
+      "work_author": "Margaret Mitchell",
+      "work_title": "Gone With the Wind"
+    },
+    {
+      "award_year": 1936,
+      "category": "Novel",
+      "source_url": "https://www.pulitzer.org/winners/harold-l-davis",
+      "status": "Winner",
+      "work_author": "Harold L. Davis",
+      "work_title": "Honey in the Horn"
+    },
+    {
+      "award_year": 1935,
+      "category": "Novel",
+      "source_url": "https://www.pulitzer.org/winners/josephine-winslow-johnson",
+      "status": "Winner",
+      "work_author": "Josephine Winslow Johnson",
+      "work_title": "Now in November"
+    },
+    {
+      "award_year": 1934,
+      "category": "Novel",
+      "source_url": "https://www.pulitzer.org/winners/caroline-miller",
+      "status": "Winner",
+      "work_author": "Caroline Miller",
+      "work_title": "Lamb in His Bosom"
+    },
+    {
+      "award_year": 1933,
+      "category": "Novel",
+      "source_url": "https://www.pulitzer.org/winners/t-s-stribling",
+      "status": "Winner",
+      "work_author": "T. S. Stribling",
+      "work_title": "The Store"
+    },
+    {
+      "award_year": 1932,
+      "category": "Novel",
+      "source_url": "https://www.pulitzer.org/winners/pearl-s-buck",
+      "status": "Winner",
+      "work_author": "Pearl S. Buck",
+      "work_title": "The Good Earth"
+    },
+    {
+      "award_year": 1931,
+      "category": "Novel",
+      "source_url": "https://www.pulitzer.org/winners/margaret-ayer-barnes",
+      "status": "Winner",
+      "work_author": "Margaret Ayer Barnes",
+      "work_title": "Years of Grace"
+    },
+    {
+      "award_year": 1930,
+      "category": "Novel",
+      "source_url": "https://www.pulitzer.org/winners/oliver-la-farge",
+      "status": "Winner",
+      "work_author": "Oliver La Farge",
+      "work_title": "Laughing Boy"
+    },
+    {
+      "award_year": 1929,
+      "category": "Novel",
+      "source_url": "https://www.pulitzer.org/winners/julia-peterkin",
+      "status": "Winner",
+      "work_author": "Julia Peterkin",
+      "work_title": "Scarlet Sister Mary"
+    },
+    {
+      "award_year": 1928,
+      "category": "Novel",
+      "source_url": "https://www.pulitzer.org/winners/thornton-wilder",
+      "status": "Winner",
+      "work_author": "Thornton Wilder",
+      "work_title": "The Bridge of San Luis Rey"
+    },
+    {
+      "award_year": 1927,
+      "category": "Novel",
+      "source_url": "https://www.pulitzer.org/winners/louis-bromfield",
+      "status": "Winner",
+      "work_author": "Louis Bromfield",
+      "work_title": "Early Autumn"
+    },
+    {
+      "award_year": 1926,
+      "category": "Novel",
+      "source_url": "https://www.pulitzer.org/winners/sinclair-lewis",
+      "status": "Winner",
+      "work_author": "Sinclair Lewis",
+      "work_title": "Arrowsmith"
+    },
+    {
+      "award_year": 1925,
+      "category": "Novel",
+      "source_url": "https://www.pulitzer.org/winners/edna-ferber",
+      "status": "Winner",
+      "work_author": "Edna Ferber",
+      "work_title": "So Big"
+    },
+    {
+      "award_year": 1924,
+      "category": "Novel",
+      "source_url": "https://www.pulitzer.org/winners/margaret-wilson",
+      "status": "Winner",
+      "work_author": "Margaret Wilson",
+      "work_title": "The Able McLaughlins"
+    },
+    {
+      "award_year": 1923,
+      "category": "Novel",
+      "source_url": "https://www.pulitzer.org/winners/willa-cather",
+      "status": "Winner",
+      "work_author": "Willa Cather",
+      "work_title": "One of Ours"
+    },
+    {
+      "award_year": 1922,
+      "category": "Novel",
+      "source_url": "https://www.pulitzer.org/winners/booth-tarkington-0",
+      "status": "Winner",
+      "work_author": "Booth Tarkington",
+      "work_title": "Alice Adams"
+    },
+    {
+      "award_year": 1921,
+      "category": "Novel",
+      "source_url": "https://www.pulitzer.org/winners/edith-wharton",
+      "status": "Winner",
+      "work_author": "Edith Wharton",
+      "work_title": "The Age of Innocence"
+    },
+    {
+      "award_year": 1919,
+      "category": "Novel",
+      "source_url": "https://www.pulitzer.org/winners/booth-tarkington",
+      "status": "Winner",
+      "work_author": "Booth Tarkington",
+      "work_title": "The Magnificent Ambersons"
+    },
+    {
+      "award_year": 1918,
+      "category": "Novel",
+      "source_url": "https://www.pulitzer.org/winners/ernest-poole",
+      "status": "Winner",
+      "work_author": "Ernest Poole",
+      "work_title": "His Family"
+    }
+  ],
+  "reviewed_at": "2026-09-10",
+  "reviewed_through_award_year": 2026,
+  "seed_schema_version": 1,
+  "source_key": "pulitzer"
+}

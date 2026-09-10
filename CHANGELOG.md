@@ -4,6 +4,8 @@
 
 ### Added
 
+- Reviewed bundled Pulitzer Fiction/Novel award snapshot sourced from the
+  official Pulitzer category pages, used when unattended retrieval is blocked
 - International Booker Prize executable source for official Winner and
   Shortlisted translated works from 2016 through 2026
 - Nobel Check Awards display of the official English prize motivation and
@@ -11,6 +13,9 @@
 
 ### Changed
 
+- Pulitzer lookup uses the official snapshot on cold start (zero required
+  HTTP). Live Pulitzer.org category-page refresh remains opportunistic.
+  Manual Pulitzer Refresh no longer deletes last-known-good Pulitzer data.
 - Nobel Literature results are always author-level Winners. The eight
   works explicitly named in official motivations keep a citation
   annotation instead of being represented as book-level Nobel Winners.
@@ -54,8 +59,9 @@ Also added:
 
 ### Known limitations
 
-- Pulitzer.org may present an anti-automation challenge; the plugin does
-  not bypass it
+- Pulitzer.org may block unattended retrieval; the plugin uses a reviewed
+  official Fiction/Novel snapshot through 2026 and does not bypass browser
+  challenges. Live official refresh remains opportunistic.
 - National Book Awards is currently unavailable (Transport blocked)
 - Some sources intentionally have partial historical finalist or shortlist
   coverage

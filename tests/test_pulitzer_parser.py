@@ -408,23 +408,28 @@ class PulitzerNetworkTests(unittest.TestCase):
             raise HTTPError(url, status, 'Error', hdrs=None, fp=io.BytesIO(body.encode('utf-8')))
         return _FakeResponse(url, status, body)
 
-    def _lookup_with(self, mapping, title='Beloved', author='Toni Morrison'):
+    def _load_live_with(self, mapping):
         def handler(request, timeout=None):
             return self._open(mapping, request, timeout)
 
         with self._install_opener(handler):
-            return pulitzer.lookup(title, author)
+            return pulitzer._load_live_archive()
 
     def test_successful_fetch_skips_homepage_and_referer(self):
         mapping = {
             FICTION_URL: (200, self.fiction_html),
             NOVEL_URL: (200, self.novel_html),
         }
-        results = self._lookup_with(mapping)
-        self.assertEqual(len(results), 1)
-        self.assertEqual(results[0].work_title, 'Beloved')
+        archive = self._load_live_with(mapping)
+        beloved = [
+            record
+            for record in archive
+            if record.work_title == 'Beloved'
+            and record.work_author == 'Toni Morrison'
+        ]
+        self.assertEqual(len(beloved), 1)
         self.assertEqual(
-            results[0].source_url,
+            beloved[0].source_url,
             'https://www.pulitzer.org/winners/toni-morrison',
         )
         urls = [request.full_url for request in self.requests]
@@ -439,15 +444,14 @@ class PulitzerNetworkTests(unittest.TestCase):
                 request.get_header('User-agent'),
             )
 
-    def test_successful_pages_are_cached(self):
+    def test_successful_live_archive_contains_both_categories(self):
         mapping = {
             FICTION_URL: (200, self.fiction_html),
             NOVEL_URL: (200, self.novel_html),
         }
-        self._lookup_with(mapping)
-        self.assertIsNotNone(pulitzer._archive_records_cache)
+        archive = self._load_live_with(mapping)
         self.assertEqual(
-            {record.category for record in pulitzer._archive_records_cache},
+            {record.category for record in archive},
             {'Fiction', 'Novel'},
         )
 
@@ -457,7 +461,7 @@ class PulitzerNetworkTests(unittest.TestCase):
             NOVEL_URL: (200, self.novel_html),
         }
         with self.assertRaises(PulitzerSourceError) as raised:
-            self._lookup_with(mapping)
+            self._load_live_with(mapping)
         self.assertIn('HTTP 403', str(raised.exception))
         self.assertIn(FICTION_URL, str(raised.exception))
         self.assertIsNone(pulitzer._archive_records_cache)
@@ -472,7 +476,7 @@ class PulitzerNetworkTests(unittest.TestCase):
             NOVEL_URL: (403, CHALLENGE_HTML),
         }
         with self.assertRaises(PulitzerSourceError) as raised:
-            self._lookup_with(mapping)
+            self._load_live_with(mapping)
         self.assertIn('HTTP 403', str(raised.exception))
         self.assertIn(NOVEL_URL, str(raised.exception))
         self.assertIsNone(pulitzer._archive_records_cache)
@@ -487,7 +491,7 @@ class PulitzerNetworkTests(unittest.TestCase):
             NOVEL_URL: (200, self.novel_html),
         }
         with self.assertRaises(PulitzerSourceError) as raised:
-            self._lookup_with(mapping)
+            self._load_live_with(mapping)
         self.assertIn('HTTP 200', str(raised.exception))
         self.assertIsNone(pulitzer._archive_records_cache)
 
@@ -497,7 +501,7 @@ class PulitzerNetworkTests(unittest.TestCase):
             NOVEL_URL: (200, self.novel_html),
         }
         with self.assertRaises(PulitzerSourceError):
-            self._lookup_with(mapping)
+            self._load_live_with(mapping)
         self.assertIsNone(pulitzer._archive_records_cache)
 
     def test_invalid_novel_page_is_not_cached(self):
@@ -506,37 +510,40 @@ class PulitzerNetworkTests(unittest.TestCase):
             NOVEL_URL: (200, INVALID_HTML),
         }
         with self.assertRaises(PulitzerSourceError):
-            self._lookup_with(mapping)
+            self._load_live_with(mapping)
         self.assertIsNone(pulitzer._archive_records_cache)
 
-    def test_failed_lookup_can_succeed_on_later_retry(self):
+    def test_failed_live_archive_can_succeed_on_later_retry(self):
         mapping = {FICTION_URL: (403, CHALLENGE_HTML)}
         with self.assertRaises(PulitzerSourceError):
-            self._lookup_with(mapping)
+            self._load_live_with(mapping)
         self.assertIsNone(pulitzer._archive_records_cache)
         self.requests.clear()
         mapping = {
             FICTION_URL: (200, self.fiction_html),
             NOVEL_URL: (200, self.novel_html),
         }
-        results = self._lookup_with(mapping)
-        self.assertEqual(len(results), 1)
-        self.assertEqual(results[0].work_title, 'Beloved')
-        self.assertIsNotNone(pulitzer._archive_records_cache)
+        archive = self._load_live_with(mapping)
+        self.assertTrue(
+            any(record.work_title == 'Beloved' for record in archive)
+        )
 
-    def test_cached_pages_prevent_subsequent_network_requests(self):
+    def test_in_memory_archive_prevents_subsequent_network_requests(self):
         mapping = {
             FICTION_URL: (200, self.fiction_html),
             NOVEL_URL: (200, self.novel_html),
         }
-        self._lookup_with(mapping, title='Beloved', author='Toni Morrison')
+        pulitzer._archive_records_cache = self._load_live_with(mapping)
         first_count = len(self.requests)
-        self._lookup_with(
-            mapping,
-            title='The Grapes of Wrath',
-            author='John Steinbeck',
-        )
+        with self._install_opener(
+            lambda request, timeout=None: self._open(mapping, request, timeout)
+        ):
+            grapes = pulitzer.lookup(
+                'The Grapes of Wrath',
+                'John Steinbeck',
+            )
         self.assertEqual(len(self.requests), first_count)
+        self.assertEqual(len(grapes), 1)
 
 
 if __name__ == '__main__':
