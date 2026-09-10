@@ -308,12 +308,20 @@ SOURCE_INFOS: tuple[SourceInfo, ...] = (
         key='nobel',
         display_name='Nobel Award',
         categories=_nobel_categories(),
-        identity_scopes=('author', 'work'),
+        identity_scopes=('author',),
         homepage_url=nobel.SOURCE_HOME_URL,
         description=(
-            'Nobel Prize in Literature results, normally awarded to the '
-            'author and shown as [Author: Name]; a small set of specifically '
-            'cited works is recognized separately as work awards.'
+            'Nobel Prize in Literature results awarded to the author and '
+            'shown as [Author: Name]. Check Awards displays the official '
+            'English prize motivation. A small reviewed set of works '
+            'explicitly named in that motivation receives a citation '
+            'annotation; those books are not treated as Nobel Winners.'
+        ),
+        limitation=(
+            'Editorial Nobel work lists, biographies, and bibliographies are '
+            'not harvested as award facts. Ordinary books by a laureate are '
+            'not claimed to have won the Nobel Prize. Mikhail Sholokhov\'s '
+            '1965 phrase "his epic of the Don" is not treated as a title.'
         ),
     ),
     SourceInfo(

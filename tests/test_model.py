@@ -81,25 +81,29 @@ class AwardResultCitedWorkFlagTests(unittest.TestCase):
         self.assertEqual(result.identity_kind, 'work')
         self.assertIs(result.is_specifically_cited_work, True)
 
-    def test_author_with_cited_flag_true_is_rejected(self):
-        with self.assertRaises(ValueError):
-            _result(
-                work_title='Ernest Hemingway',
-                work_author='Ernest Hemingway',
-                award_name='Nobel Prize',
-                identity_kind='author',
-                is_specifically_cited_work=True,
-            )
+    def test_author_with_cited_flag_true_is_accepted(self):
+        result = _result(
+            work_title='Ernest Hemingway',
+            work_author='Ernest Hemingway',
+            award_name='Nobel Prize',
+            award_year=1954,
+            category='Literature',
+            identity_kind='author',
+            is_specifically_cited_work=True,
+        )
+        self.assertEqual(result.identity_kind, 'author')
+        self.assertIs(result.is_specifically_cited_work, True)
 
-    def test_series_with_cited_flag_true_is_rejected(self):
-        with self.assertRaises(ValueError):
-            _result(
-                work_title='The Vorkosigan Saga',
-                work_author='Lois McMaster Bujold',
-                award_name='Hugo Award',
-                identity_kind='series',
-                is_specifically_cited_work=True,
-            )
+    def test_series_with_cited_flag_true_is_accepted(self):
+        result = _result(
+            work_title='The Vorkosigan Saga',
+            work_author='Lois McMaster Bujold',
+            award_name='Hugo Award',
+            identity_kind='series',
+            is_specifically_cited_work=True,
+        )
+        self.assertEqual(result.identity_kind, 'series')
+        self.assertIs(result.is_specifically_cited_work, True)
 
     def test_non_bool_cited_flag_is_rejected(self):
         with self.assertRaises(ValueError):
@@ -163,6 +167,32 @@ class AwardResultIdentityConfirmationTests(unittest.TestCase):
         )
         self.assertIs(result.identity_confirmation_required, True)
         self.assertEqual(result.source_identity_note, 'arbitrary factual mismatch text')
+
+
+class AwardResultSourceDetailsTests(unittest.TestCase):
+    def test_default_source_details_is_empty_tuple(self):
+        result = _result()
+        self.assertEqual(result.source_details, ())
+
+    def test_source_details_tuple_is_accepted(self):
+        details = (
+            'Official motivation: "for her intense poetic prose"',
+            'Nobel Prize status: declined.',
+        )
+        result = _result(source_details=details)
+        self.assertEqual(result.source_details, details)
+
+    def test_source_details_rejects_list_and_invalid_items(self):
+        with self.assertRaises(ValueError):
+            _result(source_details=['Official motivation: "x"'])
+        with self.assertRaises(ValueError):
+            _result(source_details=('   ',))
+        with self.assertRaises(ValueError):
+            _result(source_details=('',))
+        with self.assertRaises(ValueError):
+            _result(source_details=(' padded ',))
+        with self.assertRaises(ValueError):
+            _result(source_details=(1,))
 
 
 if __name__ == '__main__':

@@ -450,9 +450,9 @@ class AuthorAwardFormattingTests(unittest.TestCase):
             'Winner - 1988 Pulitzer Prize - Fiction',
         )
 
-    def test_cited_work_nobel_formats_without_author_or_cited_suffix(self):
+    def test_cited_work_nobel_formats_as_author_award(self):
         result = _result(
-            work_title='The Old Man and the Sea',
+            work_title='Ernest Hemingway',
             work_author='Ernest Hemingway',
             award_name='Nobel Prize',
             award_year=1954,
@@ -462,16 +462,19 @@ class AuthorAwardFormattingTests(unittest.TestCase):
             source_name='NobelPrize.org',
             source_url='https://www.nobelprize.org/prizes/literature/1954/hemingway/facts/',
             notes=None,
-            identity_kind='work',
+            identity_kind='author',
             is_specifically_cited_work=True,
+            source_details=(
+                'Official motivation: "for his mastery of the art of narrative"',
+            ),
         )
         formatted = format_award_result(result)
         self.assertEqual(
             formatted,
-            'Winner - 1954 Nobel Prize - Literature',
+            'Winner - 1954 Nobel Prize - Literature [Author: Ernest Hemingway]',
         )
-        self.assertNotIn('[Author:', formatted)
         self.assertNotIn('specifically cited', formatted)
+        self.assertNotIn('Official motivation', formatted)
 
 
 if __name__ == '__main__':

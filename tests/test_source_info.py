@@ -275,6 +275,13 @@ class SourceInfoCategoryTests(unittest.TestCase):
         self.assertEqual(info.display_name, 'Nobel Award')
         self.assertEqual(info.categories, (nobel.CATEGORY_LITERATURE,))
         self.assertEqual(info.categories, ('Literature',))
+        self.assertEqual(info.identity_scopes, ('author',))
+        self.assertIn('motivation', info.description.casefold())
+        self.assertIn('citation', info.description.casefold())
+        self.assertNotIn('work awards', info.description.casefold())
+        limitation = (info.limitation or '').casefold()
+        self.assertIn('editorial', limitation)
+        self.assertIn('epic of the don', limitation)
 
     def test_newbery_childrens_literature_only(self):
         info = _info('newbery')
@@ -315,7 +322,7 @@ class SourceInfoScopeAndHomepageTests(unittest.TestCase):
             'bram_stoker': ('work',),
             'edgar': ('work',),
             'romantic_novel_awards': ('work',),
-            'nobel': ('author', 'work'),
+            'nobel': ('author',),
             'booker': ('work',),
             'international_booker': ('work',),
             'german_book_prize': ('work',),
@@ -421,6 +428,7 @@ class SourceInfoScopeAndHomepageTests(unittest.TestCase):
                 'bram_stoker',
                 'edgar',
                 'romantic_novel_awards',
+                'nobel',
             }:
                 self.assertIsNotNone(info.limitation)
             else:

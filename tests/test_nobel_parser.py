@@ -15,6 +15,65 @@ def _en(text: str) -> dict[str, str]:
     return {'en': text}
 
 
+HAN_KANG_MOTIVATION = (
+    'for her intense poetic prose that confronts historical traumas and '
+    'exposes the fragility of human life'
+)
+ISHIGURO_MOTIVATION = (
+    'who, in novels of great emotional force, has uncovered the abyss '
+    'beneath our illusory sense of connection with the world'
+)
+KRASZNAHORKAI_MOTIVATION = (
+    'for his compelling and visionary oeuvre that, in the midst of '
+    'apocalyptic terror, reaffirms the power of art'
+)
+HEMINGWAY_MOTIVATION_HTML = (
+    'for his mastery of the art of narrative, most recently demonstrated in '
+    '<I>The Old Man and the Sea,</I> and for the influence that he has '
+    'exerted on contemporary style'
+)
+HEMINGWAY_MOTIVATION = (
+    'for his mastery of the art of narrative, most recently demonstrated in '
+    'The Old Man and the Sea, and for the influence that he has exerted on '
+    'contemporary style'
+)
+MANN_MOTIVATION_HTML = (
+    'principally for his great novel, <I>Buddenbrooks</I>, which has won '
+    'steadily increased recognition as one of the classic works of '
+    'contemporary literature'
+)
+MANN_MOTIVATION = (
+    'principally for his great novel, Buddenbrooks, which has won steadily '
+    'increased recognition as one of the classic works of contemporary '
+    'literature'
+)
+SHOLOKHOV_MOTIVATION = (
+    'for the artistic power and integrity with which, in his epic of the Don, '
+    'he has given expression to a historic phase in the life of the Russian '
+    'people'
+)
+SARTRE_MOTIVATION = (
+    'for his work which, rich in ideas and filled with the spirit of freedom '
+    'and the quest for truth, has exerted a far-reaching influence on our age'
+)
+PASTERNAK_MOTIVATION = (
+    'for his important achievement both in contemporary lyrical poetry and in '
+    'the field of the great Russian epic tradition'
+)
+AGNON_MOTIVATION = (
+    'for his profoundly characteristic narrative art with motifs from the '
+    'life of the Jewish people'
+)
+SACHS_MOTIVATION = (
+    'for her outstanding lyrical and dramatic writing, which interprets '
+    "Israel's destiny with touching strength"
+)
+
+
+def _motivation_detail(text: str) -> str:
+    return f'Official motivation: "{text}"'
+
+
 def _facts_link(year: int, slug: str, name: str) -> dict:
     return {
         'rel': 'external',
@@ -47,6 +106,7 @@ def _laureate(
     prize_status: str = 'received',
     pen_name_of: str | None = None,
     extra_links: list | None = None,
+    motivation: object = 'official motivation',
 ) -> dict:
     prize_links = [_api_prize_link(year), _facts_link(year, slug, known)]
     if extra_links:
@@ -79,11 +139,16 @@ def _laureate(
                 'categoryFullName': _en('The Nobel Prize in Literature'),
                 'prizeStatus': prize_status,
                 'portion': '1',
-                'motivation': _en('official motivation'),
                 'links': prize_links,
             }
         ],
     }
+    prize = record['nobelPrizes'][0]
+    if motivation is not None:
+        if isinstance(motivation, dict):
+            prize['motivation'] = motivation
+        else:
+            prize['motivation'] = _en(motivation)
     if given is not None:
         record['givenName'] = _en(given)
     if family is not None:
@@ -103,6 +168,7 @@ LAUREATES = [
         full='Ernest Miller Hemingway',
         given='Ernest',
         family='Hemingway',
+        motivation=HEMINGWAY_MOTIVATION_HTML,
     ),
     _laureate(
         '619',
@@ -153,6 +219,7 @@ LAUREATES = [
         'ishiguro',
         given='Kazuo',
         family='Ishiguro',
+        motivation=ISHIGURO_MOTIVATION,
     ),
     _laureate(
         '1042',
@@ -161,6 +228,7 @@ LAUREATES = [
         'han',
         given='Kang',
         family='Han',
+        motivation=HAN_KANG_MOTIVATION,
     ),
     _laureate(
         '1056',
@@ -169,6 +237,7 @@ LAUREATES = [
         'krasznahorkai',
         given='László',
         family='Krasznahorkai',
+        motivation=KRASZNAHORKAI_MOTIVATION,
     ),
     _laureate(
         '637',
@@ -178,6 +247,7 @@ LAUREATES = [
         given='Jean-Paul',
         family='Sartre',
         prize_status='declined',
+        motivation=SARTRE_MOTIVATION,
     ),
     _laureate(
         '629',
@@ -188,6 +258,7 @@ LAUREATES = [
         given='Boris',
         family='Pasternak',
         prize_status='restricted',
+        motivation=PASTERNAK_MOTIVATION,
     ),
     _laureate(
         '937',
@@ -240,6 +311,7 @@ LAUREATES = [
         'mann',
         given='Thomas',
         family='Mann',
+        motivation=MANN_MOTIVATION_HTML,
     ),
     _laureate(
         '605',
@@ -265,6 +337,25 @@ LAUREATES = [
         full='Mikhail Aleksandrovich Sholokhov',
         given='Mikhail',
         family='Sholokhov',
+        motivation=SHOLOKHOV_MOTIVATION,
+    ),
+    _laureate(
+        '678',
+        'Shmuel Agnon',
+        1966,
+        'agnon',
+        given='Shmuel',
+        family='Agnon',
+        motivation=AGNON_MOTIVATION,
+    ),
+    _laureate(
+        '679',
+        'Nelly Sachs',
+        1966,
+        'sachs',
+        given='Nelly',
+        family='Sachs',
+        motivation=SACHS_MOTIVATION,
     ),
 ]
 
@@ -313,6 +404,10 @@ class LookupTests(NobelTestCase):
             'https://www.nobelprize.org/prizes/literature/1954/hemingway/facts/',
         )
         self.assertIsNone(result.notes)
+        self.assertEqual(
+            result.source_details,
+            (_motivation_detail(HEMINGWAY_MOTIVATION),),
+        )
 
     def test_hemingway_formats_with_author_scope(self):
         results = _lookup('For Whom the Bell Tolls', 'Ernest Hemingway')
@@ -332,20 +427,47 @@ class LookupTests(NobelTestCase):
     def test_ishiguro_2017(self):
         results = _lookup('Never Let Me Go', 'Kazuo Ishiguro')
         self.assertEqual(len(results), 1)
-        self.assertEqual(results[0].award_year, 2017)
-        self.assertEqual(results[0].work_author, 'Kazuo Ishiguro')
+        result = results[0]
+        self.assertEqual(result.award_year, 2017)
+        self.assertEqual(result.work_author, 'Kazuo Ishiguro')
+        self.assertEqual(result.identity_kind, 'author')
+        self.assertFalse(result.is_specifically_cited_work)
+        self.assertEqual(
+            result.source_details,
+            (_motivation_detail(ISHIGURO_MOTIVATION),),
+        )
 
     def test_han_kang_2024(self):
         results = _lookup('The Vegetarian', 'Han Kang')
         self.assertEqual(len(results), 1)
-        self.assertEqual(results[0].award_year, 2024)
-        self.assertEqual(results[0].work_author, 'Han Kang')
+        result = results[0]
+        self.assertEqual(result.award_year, 2024)
+        self.assertEqual(result.work_author, 'Han Kang')
+        self.assertEqual(result.identity_kind, 'author')
+        self.assertFalse(result.is_specifically_cited_work)
+        self.assertEqual(
+            result.source_details,
+            (_motivation_detail(HAN_KANG_MOTIVATION),),
+        )
+        self.assertNotIn('Vegetarian', result.source_details[0])
+        vegetarian = _lookup('The Vegetarian', 'Han Kang')
+        human_acts = _lookup('Human Acts', 'Han Kang')
+        we_do_not_part = _lookup('We Do Not Part', 'Han Kang')
+        for extra in (vegetarian, human_acts, we_do_not_part):
+            self.assertFalse(extra[0].is_specifically_cited_work)
+            self.assertEqual(extra[0].identity_kind, 'author')
 
     def test_krasznahorkai_2025(self):
         results = _lookup('Satantango', 'László Krasznahorkai')
         self.assertEqual(len(results), 1)
-        self.assertEqual(results[0].award_year, 2025)
-        self.assertEqual(results[0].work_author, 'László Krasznahorkai')
+        result = results[0]
+        self.assertEqual(result.award_year, 2025)
+        self.assertEqual(result.work_author, 'László Krasznahorkai')
+        self.assertFalse(result.is_specifically_cited_work)
+        self.assertEqual(
+            result.source_details,
+            (_motivation_detail(KRASZNAHORKAI_MOTIVATION),),
+        )
 
     def test_bob_dylan_matches_known_name_only(self):
         results = _lookup('Tarantula', 'Bob Dylan')
@@ -473,8 +595,9 @@ class MultiAuthorTests(NobelTestCase):
         )
         self.assertEqual(len(results), 1)
         result = results[0]
-        self.assertEqual(result.identity_kind, 'work')
-        self.assertEqual(result.work_title, 'The Old Man and the Sea')
+        self.assertEqual(result.identity_kind, 'author')
+        self.assertTrue(result.is_specifically_cited_work)
+        self.assertEqual(result.work_title, 'Ernest Hemingway')
         self.assertEqual(result.work_author, 'Ernest Hemingway')
 
     def test_cited_work_does_not_suppress_another_laureate_author_result(self):
@@ -485,12 +608,14 @@ class MultiAuthorTests(NobelTestCase):
         self.assertEqual(len(results), 2)
         by_author = {result.work_author: result for result in results}
         self.assertEqual(set(by_author), {'Ernest Hemingway', 'Pablo Neruda'})
-        self.assertEqual(by_author['Ernest Hemingway'].identity_kind, 'work')
+        self.assertEqual(by_author['Ernest Hemingway'].identity_kind, 'author')
+        self.assertTrue(by_author['Ernest Hemingway'].is_specifically_cited_work)
         self.assertEqual(
             by_author['Ernest Hemingway'].work_title,
-            'The Old Man and the Sea',
+            'Ernest Hemingway',
         )
         self.assertEqual(by_author['Pablo Neruda'].identity_kind, 'author')
+        self.assertFalse(by_author['Pablo Neruda'].is_specifically_cited_work)
         self.assertEqual(by_author['Pablo Neruda'].work_title, 'Pablo Neruda')
 
 
@@ -499,16 +624,16 @@ class CitedWorkTests(NobelTestCase):
         self,
         results,
         *,
-        title: str,
         author: str,
         year: int,
         slug: str,
+        motivation: str = 'official motivation',
     ) -> None:
         self.assertEqual(len(results), 1)
         result = results[0]
-        self.assertEqual(result.identity_kind, 'work')
+        self.assertEqual(result.identity_kind, 'author')
         self.assertIs(result.is_specifically_cited_work, True)
-        self.assertEqual(result.work_title, title)
+        self.assertEqual(result.work_title, author)
         self.assertEqual(result.work_author, author)
         self.assertEqual(result.award_name, 'Nobel Prize')
         self.assertEqual(result.award_year, year)
@@ -522,10 +647,14 @@ class CitedWorkTests(NobelTestCase):
         )
         self.assertIsNone(result.notes)
         self.assertEqual(
-            format_award_result(result),
-            f'Winner - {year} Nobel Prize - Literature',
+            result.source_details,
+            (_motivation_detail(motivation),),
         )
-        self.assertNotIn('[Author:', format_award_result(result))
+        self.assertEqual(
+            format_award_result(result),
+            f'Winner - {year} Nobel Prize - Literature [Author: {author}]',
+        )
+        self.assertIn('[Author:', format_award_result(result))
         self.assertEqual(
             qualify_award_result(result).decision,
             QualificationDecision.QUALIFIES,
@@ -537,11 +666,13 @@ class CitedWorkTests(NobelTestCase):
         *,
         author: str,
         year: int,
+        motivation: str = 'official motivation',
+        cited: bool = False,
     ) -> None:
         self.assertEqual(len(results), 1)
         result = results[0]
         self.assertEqual(result.identity_kind, 'author')
-        self.assertIs(result.is_specifically_cited_work, False)
+        self.assertIs(result.is_specifically_cited_work, cited)
         self.assertEqual(result.work_title, author)
         self.assertEqual(result.work_author, author)
         self.assertEqual(result.award_year, year)
@@ -549,47 +680,33 @@ class CitedWorkTests(NobelTestCase):
         self.assertEqual(result.status, 'Winner')
         self.assertIsNone(result.rank)
         self.assertEqual(
+            result.source_details[0],
+            _motivation_detail(motivation),
+        )
+        self.assertEqual(
             format_award_result(result),
             f'Winner - {year} Nobel Prize - Literature [Author: {author}]',
         )
 
-    def test_old_man_and_the_sea_is_work_level(self):
+    def test_old_man_and_the_sea_is_author_level_cited(self):
         results = _lookup('The Old Man and the Sea', 'Ernest Hemingway')
         self._assert_one_cited_work(
             results,
-            title='The Old Man and the Sea',
             author='Ernest Hemingway',
             year=1954,
             slug='hemingway',
+            motivation=HEMINGWAY_MOTIVATION,
         )
-        self.assertFalse(
-            any(result.identity_kind == 'author' for result in results)
-        )
+        self.assertTrue(all(result.identity_kind == 'author' for result in results))
 
-    def test_old_man_and_the_sea_without_article_is_work_level(self):
+    def test_old_man_and_the_sea_without_article_is_cited(self):
         results = _lookup('Old Man and the Sea', 'Ernest Hemingway')
         self._assert_one_cited_work(
             results,
-            title='The Old Man and the Sea',
             author='Ernest Hemingway',
             year=1954,
             slug='hemingway',
-        )
-        self.assertFalse(
-            any(result.identity_kind == 'author' for result in results)
-        )
-
-    def test_old_man_and_the_sea_without_article_is_work_level(self):
-        results = _lookup('Old Man and the Sea', 'Ernest Hemingway')
-        self._assert_one_cited_work(
-            results,
-            title='The Old Man and the Sea',
-            author='Ernest Hemingway',
-            year=1954,
-            slug='hemingway',
-        )
-        self.assertFalse(
-            any(result.identity_kind == 'author' for result in results)
+            motivation=HEMINGWAY_MOTIVATION,
         )
 
     def test_for_whom_the_bell_tolls_remains_author_level(self):
@@ -597,21 +714,20 @@ class CitedWorkTests(NobelTestCase):
             _lookup('For Whom the Bell Tolls', 'Ernest Hemingway'),
             author='Ernest Hemingway',
             year=1954,
+            motivation=HEMINGWAY_MOTIVATION,
         )
 
-    def test_growth_of_the_soil_is_work_level(self):
+    def test_growth_of_the_soil_is_cited(self):
         self._assert_one_cited_work(
             _lookup('Growth of the Soil', 'Knut Hamsun'),
-            title='Growth of the Soil',
             author='Knut Hamsun',
             year=1920,
             slug='hamsun',
         )
 
-    def test_markens_grode_alias_is_work_level(self):
+    def test_markens_grode_alias_is_cited(self):
         self._assert_one_cited_work(
             _lookup('Markens Grøde', 'Knut Hamsun'),
-            title='Growth of the Soil',
             author='Knut Hamsun',
             year=1920,
             slug='hamsun',
@@ -624,13 +740,13 @@ class CitedWorkTests(NobelTestCase):
             year=1920,
         )
 
-    def test_buddenbrooks_is_work_level(self):
+    def test_buddenbrooks_is_cited(self):
         self._assert_one_cited_work(
             _lookup('Buddenbrooks', 'Thomas Mann'),
-            title='Buddenbrooks',
             author='Thomas Mann',
             year=1929,
             slug='mann',
+            motivation=MANN_MOTIVATION,
         )
 
     def test_the_magic_mountain_remains_author_level(self):
@@ -638,12 +754,12 @@ class CitedWorkTests(NobelTestCase):
             _lookup('The Magic Mountain', 'Thomas Mann'),
             author='Thomas Mann',
             year=1929,
+            motivation=MANN_MOTIVATION,
         )
 
-    def test_forsyte_saga_is_work_level(self):
+    def test_forsyte_saga_is_cited(self):
         self._assert_one_cited_work(
             _lookup('The Forsyte Saga', 'John Galsworthy'),
-            title='The Forsyte Saga',
             author='John Galsworthy',
             year=1932,
             slug='galsworthy',
@@ -668,10 +784,9 @@ class CitedWorkTests(NobelTestCase):
             year=1932,
         )
 
-    def test_les_thibault_is_work_level(self):
+    def test_les_thibault_is_cited(self):
         self._assert_one_cited_work(
             _lookup('Les Thibault', 'Roger Martin du Gard'),
-            title='Les Thibault',
             author='Roger Martin du Gard',
             year=1937,
             slug='gard',
@@ -684,10 +799,9 @@ class CitedWorkTests(NobelTestCase):
             year=1937,
         )
 
-    def test_history_of_rome_is_work_level(self):
+    def test_history_of_rome_is_cited(self):
         self._assert_one_cited_work(
             _lookup('A History of Rome', 'Theodor Mommsen'),
-            title='A History of Rome',
             author='Theodor Mommsen',
             year=1902,
             slug='mommsen',
@@ -698,16 +812,14 @@ class CitedWorkTests(NobelTestCase):
             with self.subTest(title=title):
                 self._assert_one_cited_work(
                     _lookup(title, 'Theodor Mommsen'),
-                    title='A History of Rome',
                     author='Theodor Mommsen',
                     year=1902,
                     slug='mommsen',
                 )
 
-    def test_olympian_spring_is_work_level(self):
+    def test_olympian_spring_is_cited(self):
         self._assert_one_cited_work(
             _lookup('Olympian Spring', 'Carl Spitteler'),
-            title='Olympian Spring',
             author='Carl Spitteler',
             year=1919,
             slug='spitteler',
@@ -720,10 +832,9 @@ class CitedWorkTests(NobelTestCase):
             year=1919,
         )
 
-    def test_the_peasants_is_work_level(self):
+    def test_the_peasants_is_cited(self):
         self._assert_one_cited_work(
             _lookup('The Peasants', 'Władysław Reymont'),
-            title='The Peasants',
             author='Władysław Reymont',
             year=1924,
             slug='reymont',
@@ -739,11 +850,12 @@ class CitedWorkTests(NobelTestCase):
     def test_sholokhov_and_quiet_flows_the_don_remains_author_level(self):
         # Nobel's official specific-work list uses the non-title phrase
         # "his epic of the Don", so the plugin fails closed rather than
-        # mapping And Quiet Flows the Don or Tikhii Don to a work result.
+        # mapping And Quiet Flows the Don or Tikhii Don to a cited work.
         self._assert_one_author_award(
             _lookup('And Quiet Flows the Don', 'Mikhail Sholokhov'),
             author='Mikhail Sholokhov',
             year=1965,
+            motivation=SHOLOKHOV_MOTIVATION,
         )
 
     def test_old_man_and_the_sea_wrong_author_is_empty(self):
@@ -765,13 +877,12 @@ class CitedWorkTests(NobelTestCase):
             author='Pablo Neruda',
             year=1971,
         )
-        self.assertNotEqual(results[0].work_title, 'The Old Man and the Sea')
+        self.assertEqual(results[0].work_title, 'Pablo Neruda')
         self.assertNotEqual(results[0].work_author, 'Ernest Hemingway')
 
     def test_romische_geschichte_ascii_fold_matches(self):
         self._assert_one_cited_work(
             _lookup('Romische Geschichte', 'Theodor Mommsen'),
-            title='A History of Rome',
             author='Theodor Mommsen',
             year=1902,
             slug='mommsen',
@@ -779,7 +890,7 @@ class CitedWorkTests(NobelTestCase):
 
     def test_markens_grode_without_oe_does_not_invent_an_alias(self):
         # ø does not decompose under Phase B ASCII folding, so this stays
-        # author-level rather than inventing a Grode alias.
+        # uncited rather than inventing a Grode alias.
         self._assert_one_author_award(
             _lookup('Markens Grode', 'Knut Hamsun'),
             author='Knut Hamsun',
@@ -807,8 +918,16 @@ class StatusTests(NobelTestCase):
         self.assertEqual(len(results), 1)
         result = results[0]
         self.assertEqual(result.status, 'Winner')
+        self.assertEqual(result.identity_kind, 'author')
         self.assertIsNone(result.rank)
         self.assertEqual(result.notes, 'Nobel Prize status: declined.')
+        self.assertEqual(
+            result.source_details,
+            (
+                _motivation_detail(SARTRE_MOTIVATION),
+                'Nobel Prize status: declined.',
+            ),
+        )
         self.assertEqual(
             qualify_award_result(result).decision,
             QualificationDecision.QUALIFIES,
@@ -819,12 +938,188 @@ class StatusTests(NobelTestCase):
         self.assertEqual(len(results), 1)
         result = results[0]
         self.assertEqual(result.status, 'Winner')
+        self.assertEqual(result.identity_kind, 'author')
+        self.assertFalse(result.is_specifically_cited_work)
         self.assertIsNone(result.rank)
         self.assertEqual(result.notes, 'Nobel Prize status: restricted.')
+        self.assertEqual(
+            result.source_details,
+            (
+                _motivation_detail(PASTERNAK_MOTIVATION),
+                'Nobel Prize status: restricted.',
+            ),
+        )
         self.assertEqual(
             qualify_award_result(result).decision,
             QualificationDecision.QUALIFIES,
         )
+
+
+class SharedPrizeTests(NobelTestCase):
+    def test_agnon_does_not_emit_sachs(self):
+        results = _lookup('A Guest for the Night', 'Shmuel Agnon')
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0].work_author, 'Shmuel Agnon')
+        self.assertEqual(results[0].award_year, 1966)
+        self.assertEqual(
+            results[0].source_details,
+            (_motivation_detail(AGNON_MOTIVATION),),
+        )
+
+    def test_sachs_does_not_emit_agnon(self):
+        results = _lookup('Eli', 'Nelly Sachs')
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0].work_author, 'Nelly Sachs')
+        self.assertEqual(
+            results[0].source_details,
+            (_motivation_detail(SACHS_MOTIVATION),),
+        )
+
+
+class MotivationParseTests(NobelTestCase):
+    def test_swedish_and_english_uses_english(self):
+        self.assertEqual(
+            nobel._plain_english_motivation(
+                {'en': HAN_KANG_MOTIVATION, 'se': 'svensk motivering'}
+            ),
+            HAN_KANG_MOTIVATION,
+        )
+
+    def test_english_only_motivation_is_accepted(self):
+        self.assertEqual(
+            nobel._plain_english_motivation({'en': ISHIGURO_MOTIVATION}),
+            ISHIGURO_MOTIVATION,
+        )
+
+    def test_italic_markup_and_hemingway_comma_are_stripped(self):
+        self.assertEqual(
+            nobel._plain_english_motivation({'en': HEMINGWAY_MOTIVATION_HTML}),
+            HEMINGWAY_MOTIVATION,
+        )
+
+    def test_html_entities_are_decoded(self):
+        self.assertEqual(
+            nobel._plain_english_motivation(
+                {'en': 'for her musical flow of voices and counter-voices in novels and plays that with extraordinary linguistic zeal reveal the absurdity of society&apos;s clich&eacute;s'}
+            ),
+            "for her musical flow of voices and counter-voices in novels and plays that with extraordinary linguistic zeal reveal the absurdity of society's clichés",
+        )
+
+    def test_embedded_newline_is_collapsed(self):
+        self.assertEqual(
+            nobel._plain_english_motivation(
+                {'en': 'for the art of memory with which he has evoked the most ungraspable human destinies and\nuncovered the life-world of the occupation'}
+            ),
+            'for the art of memory with which he has evoked the most ungraspable human destinies and uncovered the life-world of the occupation',
+        )
+
+    def test_unicode_motivation_is_preserved(self):
+        text = 'for an œuvre spanning Łódź to Kyoto'
+        self.assertEqual(
+            nobel._plain_english_motivation({'en': text}),
+            text,
+        )
+
+    def test_missing_english_motivation_fails_closed(self):
+        record = _laureate('1042', 'Han Kang', 2024, 'han', motivation=None)
+        payload = json.dumps({'laureates': [record], 'meta': {'count': 1}})
+        with patch.object(nobel, '_request_json', return_value=(200, payload)):
+            with self.assertRaises(nobel.NobelSourceError) as raised:
+                nobel.lookup('The Vegetarian', 'Han Kang')
+        self.assertIn('motivation', str(raised.exception).casefold())
+
+    def test_swedish_only_motivation_fails_closed(self):
+        record = _laureate(
+            '1042',
+            'Han Kang',
+            2024,
+            'han',
+            motivation={'se': 'svensk motivering'},
+        )
+        payload = json.dumps({'laureates': [record], 'meta': {'count': 1}})
+        with patch.object(nobel, '_request_json', return_value=(200, payload)):
+            with self.assertRaises(nobel.NobelSourceError):
+                nobel.lookup('The Vegetarian', 'Han Kang')
+
+    def test_malformed_residual_markup_fails_closed(self):
+        record = _laureate(
+            '1042',
+            'Han Kang',
+            2024,
+            'han',
+            motivation='broken <Ititle without a closing delimiter',
+        )
+        payload = json.dumps({'laureates': [record], 'meta': {'count': 1}})
+        with patch.object(nobel, '_request_json', return_value=(200, payload)):
+            with self.assertRaises(nobel.NobelSourceError):
+                nobel.lookup('The Vegetarian', 'Han Kang')
+
+
+class PaginationTests(NobelTestCase):
+    def test_complete_first_page_uses_one_get(self):
+        with patch.object(
+            nobel, '_request_json', return_value=(200, FIXTURE_BODY)
+        ) as mocked:
+            archive = nobel._load_live_archive()
+        self.assertEqual(len(archive), len(LAUREATES))
+        self.assertEqual(mocked.call_count, 1)
+        mocked.assert_called_with(nobel.LAUREATES_URL)
+
+    def test_two_page_archive_is_combined(self):
+        first = {
+            'laureates': LAUREATES[:2],
+            'meta': {
+                'offset': 0,
+                'limit': 200,
+                'count': 3,
+            },
+        }
+        second = {
+            'laureates': LAUREATES[2:3],
+            'meta': {
+                'offset': 2,
+                'limit': 200,
+                'count': 3,
+            },
+        }
+        bodies = [json.dumps(first), json.dumps(second)]
+        with patch.object(
+            nobel, '_request_json', side_effect=lambda url: (200, bodies.pop(0))
+        ) as mocked:
+            archive = nobel._load_live_archive()
+        self.assertEqual(len(archive), 3)
+        self.assertEqual(mocked.call_count, 2)
+        self.assertEqual(
+            [record.laureate_id for record in archive],
+            [LAUREATES[0]['id'], LAUREATES[1]['id'], LAUREATES[2]['id']],
+        )
+
+    def test_offset_mismatch_fails_closed(self):
+        body = json.dumps(
+            {
+                'laureates': LAUREATES[:1],
+                'meta': {'offset': 5, 'count': 1},
+            }
+        )
+        with patch.object(nobel, '_request_json', return_value=(200, body)):
+            with self.assertRaises(nobel.NobelSourceError):
+                nobel._load_live_archive()
+
+    def test_changing_count_between_pages_fails_closed(self):
+        first = {
+            'laureates': LAUREATES[:2],
+            'meta': {'offset': 0, 'count': 3},
+        }
+        second = {
+            'laureates': LAUREATES[2:3],
+            'meta': {'offset': 2, 'count': 4},
+        }
+        bodies = [json.dumps(first), json.dumps(second)]
+        with patch.object(
+            nobel, '_request_json', side_effect=lambda url: (200, bodies.pop(0))
+        ):
+            with self.assertRaises(nobel.NobelSourceError):
+                nobel._load_live_archive()
 
 
 class CacheTests(NobelTestCase):

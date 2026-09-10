@@ -23,8 +23,14 @@ class AwardResult:
     work_title and work_author may both contain the official author name.
 
     is_specifically_cited_work is semantic state, independent of notes and
-    of any user-facing caption. It may be True only when identity_kind is
-    'work'. notes is human/source commentary, not hidden control state.
+    of any user-facing caption. When True, the looked-up Calibre work is
+    explicitly cited by the award source. It does not change identity_kind
+    and does not mean the work itself received the award. notes is
+    human/source commentary, not hidden control state.
+
+    source_details holds optional factual secondary lines for Check Awards.
+    It is not write-back text, not qualification state, and not a behavior
+    switch.
 
     identity_confirmation_required is independent of qualification. When True,
     the GUI must not auto-select the row even if the result QUALIFIES.
@@ -45,6 +51,7 @@ class AwardResult:
     is_specifically_cited_work: bool = False
     identity_confirmation_required: bool = False
     source_identity_note: str | None = None
+    source_details: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if not self.work_title or not self.work_title.strip():
@@ -72,10 +79,14 @@ class AwardResult:
             )
         if not isinstance(self.is_specifically_cited_work, bool):
             raise ValueError('is_specifically_cited_work must be a bool')
-        if self.is_specifically_cited_work and kind != 'work':
-            raise ValueError(
-                "is_specifically_cited_work requires identity_kind to be 'work'"
-            )
+        details = self.source_details
+        if not isinstance(details, tuple) or isinstance(details, bool):
+            raise ValueError('source_details must be a tuple of strings')
+        for item in details:
+            if not isinstance(item, str) or not item.strip() or item != item.strip():
+                raise ValueError(
+                    'source_details items must be non-empty stripped strings'
+                )
         if not isinstance(self.identity_confirmation_required, bool):
             raise ValueError('identity_confirmation_required must be a bool')
         if self.identity_confirmation_required:

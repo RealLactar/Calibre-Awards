@@ -331,12 +331,12 @@ class AuthorIdentityPresentationTests(unittest.TestCase):
 
 
 class CitedWorkPresentationTests(unittest.TestCase):
-    def test_cited_work_caption_is_quiet_work_award_line(self):
+    def test_cited_work_caption_is_quiet_citation_line(self):
         self.assertEqual(
             format_cited_work_caption(),
-            'WORK AWARD - This work was specifically cited in the Nobel Prize '
-            'motivation.',
+            'This work is explicitly cited in the Nobel Prize motivation.',
         )
+        self.assertNotIn('WORK AWARD', format_cited_work_caption())
 
     def test_cited_work_row_shows_explanatory_caption(self):
         from types import SimpleNamespace
@@ -355,8 +355,7 @@ class CitedWorkPresentationTests(unittest.TestCase):
                 'Ernest Hemingway',
             ),
             (
-                'WORK AWARD - This work was specifically cited in the Nobel '
-                'Prize motivation.',
+                'This work is explicitly cited in the Nobel Prize motivation.',
             ),
         )
 
@@ -399,12 +398,11 @@ class CitedWorkPresentationTests(unittest.TestCase):
         self.assertEqual(
             lines,
             (
-                'WORK AWARD - This work was specifically cited in the Nobel '
-                'Prize motivation.',
+                'This work is explicitly cited in the Nobel Prize motivation.',
             ),
         )
 
-    def test_author_result_is_never_cited_work_even_if_flag_is_true(self):
+    def test_author_result_with_cited_flag_shows_author_then_citation(self):
         from types import SimpleNamespace
 
         result = SimpleNamespace(
@@ -413,13 +411,20 @@ class CitedWorkPresentationTests(unittest.TestCase):
             work_author='Ernest Hemingway',
             is_specifically_cited_work=True,
         )
-        self.assertFalse(is_cited_work_result(result))
+        self.assertTrue(is_cited_work_result(result))
         lines = match_row_scope_lines(
             result,
             'The Old Man and the Sea',
             'Ernest Hemingway',
         )
-        self.assertTrue(any(line.startswith('AUTHOR AWARD') for line in lines))
+        self.assertEqual(
+            lines,
+            (
+                'AUTHOR AWARD - Awarded to Ernest Hemingway, '
+                'not specifically to this book.',
+                'This work is explicitly cited in the Nobel Prize motivation.',
+            ),
+        )
         self.assertFalse(any('WORK AWARD' in line for line in lines))
 
     def test_ordinary_work_row_does_not_gain_work_award_caption(self):

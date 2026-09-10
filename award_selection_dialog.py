@@ -214,6 +214,14 @@ class _AwardMatchRow(QWidget):
             scope.setTextFormat(Qt.PlainText)
             layout.addWidget(scope)
 
+        for detail in getattr(result, 'source_details', ()) or ():
+            if not isinstance(detail, str) or not detail.strip():
+                continue
+            extra = QLabel(detail, self)
+            extra.setWordWrap(True)
+            extra.setTextFormat(Qt.PlainText)
+            layout.addWidget(extra)
+
         decision_name = assessment.qualification.decision.name
         reason = (assessment.qualification.reason or '').strip()
         qualification_text = (

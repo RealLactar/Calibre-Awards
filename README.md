@@ -44,7 +44,7 @@ scope catalog.
 | Bram Stoker Awards | Publication-year cycles from 1987 through the latest completed cycle (verified through 2025) | Winner; Final Ballot works as Finalist |
 | Edgar Awards | Bibliographic mystery and crime categories from 1946 | Winner; Nominee |
 | Romantic Novel of the Year Awards | Winners from 1960 where the current archive includes them; official shortlists from 2018 | Winner; Shortlisted |
-| Nobel Award | Nobel Prize in Literature laureate archive | Normally an author-level Winner; a work is returned only when official material specifically cites it |
+| Nobel Award | Nobel Prize in Literature laureate archive | Author-level Winner; official motivation shown in Check Awards; eight reviewed motivation citations are annotations, not book-level Wins |
 | The Booker Prize | 1969–present | Winner; Shortlisted |
 | International Booker Prize | Official Winner and Shortlisted translated works, 2016–2026 | Winner; Shortlisted |
 | Deutscher Buchpreis | 2005–present | Winner; Shortlisted |
@@ -236,7 +236,11 @@ Uncached lookups require an internet connection.
   are not automatically treated as qualifying by current policy.
 - **Locus.** Matching is conservative. An omitted middle initial may appear
   as a Possible Author Match and require confirmation.
-- **Nobel.** Normally an author-level award rather than a book award.
+- **Nobel.** An author-level award. Check Awards shows the official English
+  prize motivation. Eight historical works explicitly named in that
+  motivation receive a citation annotation; they are not treated as books
+  that won the Nobel Prize. Editorial Nobel work lists are not harvested.
+  Ordinary books by a laureate are not claimed to have won the prize.
 - **Translated or alternate titles.** Conservative matching can miss books
   whose Calibre title or author differs from the source's official form.
 - **Website changes.** Award websites are external and may temporarily break

@@ -1,8 +1,8 @@
 """GUI identity and scope captions. Separate from formatter write-back values.
 
 These helpers explain whether a result is for the current book, a series, an
-author, or a specifically cited work. They do not match titles or qualify
-awards.
+author, or a work explicitly cited by the award source. They do not match
+titles or qualify awards.
 """
 
 from __future__ import annotations
@@ -56,23 +56,21 @@ def format_author_award_caption(author: str) -> str:
 
 # Display prose only. Cited-work state lives on AwardResult.is_specifically_cited_work.
 CITED_WORK_SCOPE_NOTE = (
-    'This work was specifically cited in the Nobel Prize motivation.'
+    'This work is explicitly cited in the Nobel Prize motivation.'
 )
 
 
 def format_cited_work_caption() -> str:
-    """Return the quiet specifically-cited-work scope caption."""
-    return f'WORK AWARD - {CITED_WORK_SCOPE_NOTE}'
+    """Return the quiet explicitly-cited-work scope caption."""
+    return CITED_WORK_SCOPE_NOTE
 
 
 def is_cited_work_result(result) -> bool:
-    """True when the semantic cited-work flag is set on a work result.
+    """True when the looked-up work is explicitly cited by the source.
 
     Caption text and notes are display only; they must not be used as the
-    marker.
+    marker. The flag does not change who received the award.
     """
-    if result_identity_kind(result) != 'work':
-        return False
     return getattr(result, 'is_specifically_cited_work', False) is True
 
 
@@ -135,6 +133,8 @@ def match_row_scope_lines(
     work_author = getattr(result, 'work_author', '') or ''
     if kind == 'author':
         lines = [format_author_award_caption(work_author)]
+        if is_cited_work_result(result):
+            lines.append(format_cited_work_caption())
         source_author = source_author_identity_if_different(
             lookup_author,
             work_author,

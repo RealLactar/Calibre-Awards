@@ -75,6 +75,7 @@ def _with_extra_laureate(archive):
                 'prudhomme/facts/'
             ),
             notes=None,
+            motivation='for his poetic composition',
         ),
     )
     return archive + (extra,)
@@ -123,12 +124,16 @@ class NobelPersistentCacheTests(unittest.TestCase):
         self.assertEqual(result.source_name, 'NobelPrize.org')
         self.assertEqual(result.source_url, HEMINGWAY_FACTS_URL)
         self.assertIsNone(result.notes)
+        self.assertTrue(result.source_details)
+        self.assertTrue(
+            result.source_details[0].startswith('Official motivation:')
+        )
         self.assertEqual(result.identity_kind, 'author')
         self.assertFalse(result.is_specifically_cited_work)
 
     def test_cache_identity_constants(self):
         self.assertEqual(nobel.SOURCE_KEY, 'nobel')
-        self.assertEqual(nobel.CACHE_VERSION, 1)
+        self.assertEqual(nobel.CACHE_VERSION, 2)
         self.assertEqual(nobel.CACHE_BASE_TTL_SECONDS, 7 * 24 * 60 * 60)
         self.assertEqual(nobel.CACHE_REFRESH_OFFSET_SECONDS, 4 * 60 * 60)
         self.assertEqual(
@@ -153,6 +158,7 @@ class NobelPersistentCacheTests(unittest.TestCase):
                 prize_status='received',
                 source_url=NERUDA_FACTS_URL,
                 notes=None,
+                motivation='for a poetry that with the action of an elemental force brings alive a continent\'s destiny and dreams',
             ),
         )
         restored = nobel._record_from_cache_dict(
@@ -174,6 +180,7 @@ class NobelPersistentCacheTests(unittest.TestCase):
                 prize_status='declined',
                 source_url=SARTRE_FACTS_URL,
                 notes='Nobel Prize status: declined.',
+                motivation='for his work which, rich in ideas',
             ),
         )
         restricted = nobel._Laureate(
@@ -185,6 +192,7 @@ class NobelPersistentCacheTests(unittest.TestCase):
                 prize_status='restricted',
                 source_url=PASTERNAK_FACTS_URL,
                 notes='Nobel Prize status: restricted.',
+                motivation='for his important achievement',
             ),
         )
         for original in (declined, restricted):
@@ -229,10 +237,11 @@ class NobelPersistentCacheTests(unittest.TestCase):
         self._assert_hemingway_author_result(results)
         cited = nobel.lookup('The Old Man and the Sea', 'Ernest Hemingway')
         self.assertEqual(len(cited), 1)
-        self.assertEqual(cited[0].work_title, 'The Old Man and the Sea')
-        self.assertEqual(cited[0].identity_kind, 'work')
+        self.assertEqual(cited[0].work_title, 'Ernest Hemingway')
+        self.assertEqual(cited[0].identity_kind, 'author')
         self.assertTrue(cited[0].is_specifically_cited_work)
         self.assertEqual(cited[0].source_url, HEMINGWAY_FACTS_URL)
+        self.assertTrue(cited[0].source_details[0].startswith('Official motivation:'))
 
     def test_fresh_cache_does_not_consume_refresh_budget(self):
         archive = _complete_archive()
@@ -517,7 +526,7 @@ class NobelPersistentCacheTests(unittest.TestCase):
 
     def test_version_mismatch_uses_live_path(self):
         archive = _complete_archive()
-        _save_disk(archive, generated_at=datetime.now(_UTC), version=2)
+        _save_disk(archive, generated_at=datetime.now(_UTC), version=1)
         live = _complete_archive()
         with patch.object(
             nobel, '_load_live_archive', return_value=live

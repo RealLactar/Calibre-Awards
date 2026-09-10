@@ -1,13 +1,15 @@
 """Official Nobel Prize in Literature source (api.nobelprize.org).
 
-Literature prizes are author-level by default. Only a finite set of works
-that official Nobel material names explicitly is promoted to work identity.
-Motivation prose is not parsed into titles. A validated laureate archive may
-also be loaded from the injected persistent cache.
+Literature prizes are author-level. A finite reviewed mapping marks queries
+whose Calibre title is explicitly cited in the official motivation; those
+results remain identity_kind='author'. Motivation prose is not parsed into
+titles. A validated laureate archive may also be loaded from the injected
+persistent cache.
 """
 
 from __future__ import annotations
 
+import html
 import json
 import re
 import threading
@@ -22,9 +24,12 @@ from .. import cache
 from ..model import AwardResult
 
 TIMEOUT_SECONDS = 30
+LAUREATES_ENDPOINT = 'https://api.nobelprize.org/2.1/laureates'
+PAGE_LIMIT = 200
+MAX_PAGES = 10
 LAUREATES_URL = (
-    'https://api.nobelprize.org/2.1/laureates'
-    '?nobelPrizeCategory=lit&limit=200&offset=0'
+    f'{LAUREATES_ENDPOINT}?nobelPrizeCategory=lit'
+    f'&limit={PAGE_LIMIT}&offset=0'
 )
 SOURCE_NAME = 'NobelPrize.org'
 SOURCE_HOME_URL = 'https://www.nobelprize.org/'
@@ -33,7 +38,7 @@ CATEGORY_LITERATURE = 'Literature'
 LAUREATE_FALLBACK_URL = 'https://www.nobelprize.org/laureate/{id}'
 
 SOURCE_KEY = 'nobel'
-CACHE_VERSION = 1
+CACHE_VERSION = 2
 # 7-day base plus an explicit stagger. Do not derive from AWARD_SOURCES order.
 CACHE_BASE_TTL_SECONDS = 7 * 24 * 60 * 60
 CACHE_REFRESH_OFFSET_SECONDS = 4 * 60 * 60
@@ -55,6 +60,8 @@ _CALIBRE_AMP_PLACEHOLDER = '\uffff'
 _SAFE_LAUREATE_ID_RE = re.compile(r'^[0-9A-Za-z_-]+$')
 _OFFICIAL_HTML_HOSTS = frozenset({'nobelprize.org', 'www.nobelprize.org'})
 _FACTS_CLASS = 'laureate facts'
+_MOTIVATION_TAG_RE = re.compile(r'</?[A-Za-z][A-Za-z0-9]*\b[^>]*>')
+_RESIDUAL_TAG_RE = re.compile(r'</?[A-Za-z]')
 
 
 class NobelSourceError(RuntimeError):
@@ -69,7 +76,7 @@ class _CitedWorkMapping:
     title_aliases: tuple[str, ...]
 
 
-# Finite official specifically-cited works. No motivation parsing.
+# Finite reviewed specifically-cited works. No live title extraction.
 # Sholokhov 1965 is omitted: "his epic of the Don" is not an explicit title.
 _CITED_WORKS: tuple[_CitedWorkMapping, ...] = (
     _CitedWorkMapping(
@@ -132,6 +139,7 @@ class _LiteraturePrize:
     prize_status: str
     source_url: str
     notes: str | None
+    motivation: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -150,6 +158,7 @@ _LAUREATE_CACHE_FIELDS = (
 )
 _PRIZE_CACHE_FIELDS = (
     'award_year',
+    'motivation',
     'notes',
     'prize_status',
     'source_url',
@@ -183,10 +192,17 @@ def _read_response_body(response) -> str:
     return response.read().decode(charset or 'utf-8', errors='replace')
 
 
-def _request_json() -> tuple[int, str]:
-    request = urllib.request.Request(
-        LAUREATES_URL, headers=dict(_BROWSER_HEADERS)
+def _laureates_page_url(offset: int) -> str:
+    if not isinstance(offset, int) or isinstance(offset, bool) or offset < 0:
+        raise NobelSourceError('Nobel pagination offset is invalid')
+    return (
+        f'{LAUREATES_ENDPOINT}?nobelPrizeCategory=lit'
+        f'&limit={PAGE_LIMIT}&offset={offset}'
     )
+
+
+def _request_json(url: str = LAUREATES_URL) -> tuple[int, str]:
+    request = urllib.request.Request(url, headers=dict(_BROWSER_HEADERS))
     opener = _build_opener()
     try:
         with opener.open(request, timeout=TIMEOUT_SECONDS) as response:
@@ -195,16 +211,16 @@ def _request_json() -> tuple[int, str]:
     except urllib.error.HTTPError as exc:
         body = _read_response_body(exc)
         raise NobelSourceError(
-            f'Nobel request failed with HTTP {exc.code} for {LAUREATES_URL}'
+            f'Nobel request failed with HTTP {exc.code} for {url}'
             + (f': {body[:200].strip()}' if body.strip() else '')
         ) from exc
     except urllib.error.URLError as exc:
         raise NobelSourceError(
-            f'Nobel request failed for {LAUREATES_URL}: {exc.reason}'
+            f'Nobel request failed for {url}: {exc.reason}'
         ) from exc
     except TimeoutError as exc:
         raise NobelSourceError(
-            f'Nobel request timed out for {LAUREATES_URL}'
+            f'Nobel request timed out for {url}'
         ) from exc
     return int(status), body
 
@@ -361,6 +377,36 @@ def _notes_for_status(status: str) -> str | None:
     return f'Nobel Prize status: {status}.'
 
 
+def _plain_english_motivation(value: object) -> str | None:
+    """Return official English motivation as plain text, or None if unusable.
+
+    Missing, non-object, or non-English motivation fails closed. Simple
+    Nobel HTML title markup is stripped after entity decoding.
+    """
+    if not isinstance(value, dict):
+        return None
+    english = value.get('en')
+    if not isinstance(english, str) or not english.strip():
+        return None
+    text = html.unescape(english)
+    text = _MOTIVATION_TAG_RE.sub('', text)
+    if _RESIDUAL_TAG_RE.search(text):
+        return None
+    text = _collapse_ws(text)
+    return text or None
+
+
+def _motivation_detail(motivation: str) -> str:
+    return f'Official motivation: "{motivation}"'
+
+
+def _source_details_for(prize: _LiteraturePrize) -> tuple[str, ...]:
+    details = [_motivation_detail(prize.motivation)]
+    if prize.notes is not None:
+        details.append(prize.notes)
+    return tuple(details)
+
+
 def _parse_award_year(value: object) -> int | None:
     if isinstance(value, bool):
         return None
@@ -391,6 +437,12 @@ def _parse_literature_prize(
     if not isinstance(status, str) or not status.strip():
         return None
     prize_status = _collapse_ws(status)
+    motivation = _plain_english_motivation(prize.get('motivation'))
+    if motivation is None:
+        raise NobelSourceError(
+            f'Nobel laureate {laureate_id} is missing a usable English '
+            'prize motivation'
+        )
     source_url = _select_source_url(
         prize.get('links'),
         laureate_links,
@@ -403,6 +455,7 @@ def _parse_literature_prize(
         prize_status=prize_status,
         source_url=source_url,
         notes=_notes_for_status(prize_status),
+        motivation=motivation,
     )
 
 
@@ -461,10 +514,10 @@ def _parse_laureate(item: object) -> _Laureate:
     )
 
 
-def _parse_laureates_payload(status: int, body: str) -> tuple[_Laureate, ...]:
+def _decode_laureates_payload(status: int, body: str, url: str) -> dict:
     if status != 200:
         raise NobelSourceError(
-            f'Nobel laureates request failed with HTTP {status} for {LAUREATES_URL}'
+            f'Nobel laureates request failed with HTTP {status} for {url}'
         )
     if not body.strip():
         raise NobelSourceError('Nobel laureates response was empty')
@@ -476,6 +529,10 @@ def _parse_laureates_payload(status: int, body: str) -> tuple[_Laureate, ...]:
         ) from exc
     if not isinstance(payload, dict):
         raise NobelSourceError('Nobel laureates response JSON was not an object')
+    return payload
+
+
+def _page_meta(payload: dict, requested_offset: int) -> tuple[list, int, int]:
     laureates = payload.get('laureates')
     if not isinstance(laureates, list):
         raise NobelSourceError(
@@ -489,6 +546,33 @@ def _parse_laureates_payload(status: int, body: str) -> tuple[_Laureate, ...]:
         raise NobelSourceError(
             'Nobel laureates meta.count is not a positive integer'
         )
+    offset = meta.get('offset')
+    if offset is None:
+        offset = 0
+    if isinstance(offset, bool) or not isinstance(offset, int) or offset < 0:
+        raise NobelSourceError(
+            'Nobel laureates meta.offset is not a non-negative integer'
+        )
+    if offset != requested_offset:
+        raise NobelSourceError(
+            'Nobel laureates meta.offset did not match the requested page: '
+            f'{offset} != {requested_offset}'
+        )
+    if len(laureates) > count:
+        raise NobelSourceError(
+            'Nobel laureates page is longer than meta.count: '
+            f'{len(laureates)} > {count}'
+        )
+    return laureates, count, offset
+
+
+def _parse_laureates_payload(status: int, body: str) -> tuple[_Laureate, ...]:
+    payload = _decode_laureates_payload(status, body, LAUREATES_URL)
+    laureates, count, offset = _page_meta(payload, 0)
+    if offset != 0:
+        raise NobelSourceError(
+            'Nobel laureates complete payload did not start at offset 0'
+        )
     if len(laureates) != count:
         raise NobelSourceError(
             'Nobel laureates response length did not match meta.count: '
@@ -498,6 +582,62 @@ def _parse_laureates_payload(status: int, body: str) -> tuple[_Laureate, ...]:
     if not parsed:
         raise NobelSourceError('Nobel laureates response contained no laureates')
     return parsed
+
+
+def _load_live_archive() -> tuple[_Laureate, ...]:
+    combined: list[_Laureate] = []
+    seen_ids: set[str] = set()
+    seen_offsets: set[int] = set()
+    expected_count: int | None = None
+    offset = 0
+    for _page in range(MAX_PAGES):
+        if offset in seen_offsets:
+            raise NobelSourceError(
+                f'Nobel pagination repeated offset {offset}'
+            )
+        seen_offsets.add(offset)
+        url = _laureates_page_url(offset)
+        status, body = _request_json(url)
+        payload = _decode_laureates_payload(status, body, url)
+        raw_page, count, _meta_offset = _page_meta(payload, offset)
+        if expected_count is None:
+            expected_count = count
+        elif count != expected_count:
+            raise NobelSourceError(
+                'Nobel pagination meta.count changed between pages: '
+                f'{expected_count} != {count}'
+            )
+        remaining = expected_count - len(combined)
+        if len(raw_page) > remaining:
+            raise NobelSourceError(
+                'Nobel pagination returned more laureates than meta.count'
+            )
+        if not raw_page and remaining > 0:
+            raise NobelSourceError(
+                'Nobel pagination returned an empty page before meta.count'
+            )
+        for item in raw_page:
+            parsed = _parse_laureate(item)
+            if parsed.laureate_id in seen_ids:
+                raise NobelSourceError(
+                    'Nobel pagination returned duplicate laureate id: '
+                    f'{parsed.laureate_id!r}'
+                )
+            seen_ids.add(parsed.laureate_id)
+            combined.append(parsed)
+        if len(combined) == expected_count:
+            return tuple(combined)
+        if not raw_page:
+            raise NobelSourceError(
+                'Nobel pagination stopped short of meta.count'
+            )
+        offset = offset + len(raw_page)
+        if offset <= max(seen_offsets):
+            raise NobelSourceError('Nobel pagination offset did not advance')
+    raise NobelSourceError(
+        'Nobel pagination exceeded the maximum number of pages before '
+        'reaching meta.count'
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -512,6 +652,7 @@ def _record_to_cache_dict(record: _Laureate) -> dict:
         'match_names': list(record.match_names),
         'prize': {
             'award_year': prize.award_year,
+            'motivation': prize.motivation,
             'notes': prize.notes,
             'prize_status': prize.prize_status,
             'source_url': prize.source_url,
@@ -541,6 +682,7 @@ def _prize_from_cache_dict(data) -> _LiteraturePrize | None:
     prize_status = data.get('prize_status')
     source_url = data.get('source_url')
     notes = data.get('notes')
+    motivation = data.get('motivation')
     if (
         not isinstance(prize_status, str)
         or not prize_status.strip()
@@ -557,11 +699,18 @@ def _prize_from_cache_dict(data) -> _LiteraturePrize | None:
     if notes is not None:
         if not isinstance(notes, str) or not notes.strip() or notes != notes.strip():
             return None
+    if (
+        not isinstance(motivation, str)
+        or not motivation.strip()
+        or motivation != motivation.strip()
+    ):
+        return None
     return _LiteraturePrize(
         award_year=award_year,
         prize_status=prize_status,
         source_url=source_url,
         notes=notes,
+        motivation=motivation,
     )
 
 
@@ -660,6 +809,11 @@ def _validate_cached_archive(records: tuple[_Laureate, ...]) -> None:
                 f'Nobel laureate {record.laureate_id} notes do not match '
                 f'prize status {prize.prize_status!r}'
             )
+        if not prize.motivation or prize.motivation != prize.motivation.strip():
+            raise NobelSourceError(
+                f'Nobel laureate {record.laureate_id} is missing a usable '
+                'English prize motivation'
+            )
     missing_cited: list[str] = []
     for mapping in _CITED_WORKS:
         laureate = by_id.get(mapping.laureate_id)
@@ -720,11 +874,6 @@ def _save_persistent_archive(records: tuple[_Laureate, ...]) -> None:
         )
     except OSError:
         pass
-
-
-def _load_live_archive() -> tuple[_Laureate, ...]:
-    status, body = _request_json()
-    return _parse_laureates_payload(status, body)
 
 
 def _get_laureates() -> tuple[_Laureate, ...]:
@@ -817,8 +966,10 @@ def _person_matches_laureate(person: str, laureate: _Laureate) -> bool:
     )
 
 
-def _to_award_result(laureate: _Laureate) -> AwardResult:
-    # Ordinary Literature prize: the laureate, not every book they wrote.
+def _to_award_result(
+    laureate: _Laureate, *, cited: bool = False
+) -> AwardResult:
+    # The laureate received the prize. cited marks an explicitly named work.
     prize = laureate.prize
     return AwardResult(
         work_title=laureate.known_name,
@@ -832,27 +983,8 @@ def _to_award_result(laureate: _Laureate) -> AwardResult:
         source_url=prize.source_url,
         notes=prize.notes,
         identity_kind='author',
-    )
-
-
-def _to_cited_work_result(
-    laureate: _Laureate, mapping: _CitedWorkMapping
-) -> AwardResult:
-    # Semantic cited-work flag; prize.notes stay factual (usually None).
-    prize = laureate.prize
-    return AwardResult(
-        work_title=mapping.canonical_title,
-        work_author=laureate.known_name,
-        award_name=AWARD_NAME,
-        award_year=prize.award_year,
-        category=CATEGORY_LITERATURE,
-        status='Winner',
-        rank=None,
-        source_name=SOURCE_NAME,
-        source_url=prize.source_url,
-        notes=prize.notes,
-        identity_kind='work',
-        is_specifically_cited_work=True,
+        is_specifically_cited_work=cited,
+        source_details=_source_details_for(prize),
     )
 
 
@@ -863,8 +995,8 @@ def lookup(
 ) -> list[AwardResult]:
     """Look up Nobel Prize in Literature results.
 
-    A mapped cited work replaces the generic author-level result for that
-    laureate. Other books by the same laureate remain author-level.
+    Every result is author-level. A mapped cited title sets
+    is_specifically_cited_work without replacing the laureate award.
     """
     cleaned_title = title.strip()
     cleaned_author = author.strip()
@@ -886,11 +1018,8 @@ def lookup(
             if not _person_matches_laureate(person, laureate):
                 continue
             seen.add(laureate.laureate_id)
-            cited = _cited_work_for(laureate, cleaned_title)
-            if cited is not None:
-                matches.append(_to_cited_work_result(laureate, cited))
-            else:
-                matches.append(_to_award_result(laureate))
+            cited = _cited_work_for(laureate, cleaned_title) is not None
+            matches.append(_to_award_result(laureate, cited=cited))
     matches.sort(
         key=lambda result: (
             result.award_year or 0,

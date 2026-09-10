@@ -6,6 +6,17 @@
 
 - International Booker Prize executable source for official Winner and
   Shortlisted translated works from 2016 through 2026
+- Nobel Check Awards display of the official English prize motivation and
+  of unusual prize statuses (declined, restricted)
+
+### Changed
+
+- Nobel Literature results are always author-level Winners. The eight
+  works explicitly named in official motivations keep a citation
+  annotation instead of being represented as book-level Nobel Winners.
+- Nobel API pagination now follows additional pages when the laureate
+  count exceeds one response page.
+- Nobel persistent cache version incremented to retain prize motivations.
 
 ## 0.2.0 beta - 2026-09-01
 
