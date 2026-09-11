@@ -44,6 +44,7 @@ from qt.core import (
     QObject,
     QProgressBar,
     QPushButton,
+    QSizePolicy,
     Qt,
     QThread,
     QTimer,
@@ -116,6 +117,16 @@ class _AwardLookupThread(QThread):
         )
 
 
+def _prepare_wrapping_label(label):
+    """Keep wrapped QLabel height from being squeezed below its content."""
+    label.setWordWrap(True)
+    label.setSizePolicy(
+        QSizePolicy.Policy.Preferred,
+        QSizePolicy.Policy.Minimum,
+    )
+    return label
+
+
 class _LookupProgressDialog(QDialog):
     """Determinate lookup progress owned by the open Edit Metadata dialog."""
 
@@ -135,6 +146,7 @@ class _LookupProgressDialog(QDialog):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(16, 16, 16, 16)
         layout.setSpacing(8)
+        layout.setSizeConstraint(QVBoxLayout.SizeConstraint.SetMinimumSize)
 
         if show_first_search_warning:
             heading = QLabel('FIRST AWARD SEARCH THIS SESSION', self)
@@ -142,14 +154,12 @@ class _LookupProgressDialog(QDialog):
             heading_font.setBold(True)
             heading.setFont(heading_font)
             heading.setStyleSheet('color: #cc0000; font-weight: bold;')
-            heading.setWordWrap(True)
-            layout.addWidget(heading)
+            layout.addWidget(_prepare_wrapping_label(heading))
 
             intro = QLabel(
                 'Award data must be loaded from several websites.', self
             )
-            intro.setWordWrap(True)
-            layout.addWidget(intro)
+            layout.addWidget(_prepare_wrapping_label(intro))
 
             warning = QLabel(
                 'This first search may take 10-20 seconds, and longer if an '
@@ -160,23 +170,21 @@ class _LookupProgressDialog(QDialog):
             warning_font.setBold(True)
             warning.setFont(warning_font)
             warning.setStyleSheet('color: #cc0000; font-weight: bold;')
-            warning.setWordWrap(True)
-            layout.addWidget(warning)
+            layout.addWidget(_prepare_wrapping_label(warning))
 
             later = QLabel(
                 'Progress is shown below. Later searches this session '
                 'should be much faster.',
                 self,
             )
-            later.setWordWrap(True)
-            layout.addWidget(later)
+            layout.addWidget(_prepare_wrapping_label(later))
 
-        self._status = QLabel('0 of 0 award sources complete', self)
-        self._status.setWordWrap(True)
+        self._status = _prepare_wrapping_label(
+            QLabel('0 of 0 award sources complete', self)
+        )
         layout.addWidget(self._status)
 
-        self._last_completed = QLabel('', self)
-        self._last_completed.setWordWrap(True)
+        self._last_completed = _prepare_wrapping_label(QLabel('', self))
         layout.addWidget(self._last_completed)
 
         self._bar = QProgressBar(self)
@@ -189,14 +197,13 @@ class _LookupProgressDialog(QDialog):
         self._elapsed = QLabel('Elapsed: 0.0 seconds', self)
         layout.addWidget(self._elapsed)
 
-        cancel_note = QLabel(
+        self._cancel_note = QLabel(
             'Cancel stops waiting for this search. Website requests already '
             'in progress may finish in the background.',
             self,
         )
-        cancel_note.setWordWrap(True)
-        cancel_note.setTextFormat(Qt.TextFormat.PlainText)
-        layout.addWidget(cancel_note)
+        self._cancel_note.setTextFormat(Qt.TextFormat.PlainText)
+        layout.addWidget(_prepare_wrapping_label(self._cancel_note))
 
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Cancel,
