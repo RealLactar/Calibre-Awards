@@ -23,7 +23,7 @@ from calibre_plugins.calibre_awards.awards.formatter import (
     DEFAULT_AWARD_OUTPUT_TEMPLATE,
     format_award_result,
 )
-from calibre_plugins.calibre_awards.awards.source_info import SOURCE_INFOS
+from calibre_plugins.calibre_awards.awards.source_registry import AWARD_SOURCES
 from calibre_plugins.calibre_awards.awards.source_settings import (
     compute_enabled_source_keys,
 )
@@ -620,7 +620,7 @@ def _enabled_lookup_source_keys():
     # Resolve prefs here. The engine gets an explicit tuple; sources do not
     # read plugin preferences themselves.
     return compute_enabled_source_keys(
-        tuple(info.key for info in SOURCE_INFOS),
+        tuple(source.key for source in AWARD_SOURCES),
         prefs['disabled_source_keys'],
     )
 
@@ -698,6 +698,9 @@ def _start_award_lookup(dialog, button):
 
 def _inject_check_awards_button(dialog):
     # Undocumented internals: button_box_layout / button_box on MetadataSingleDialogBase.
+    if not _enabled_lookup_source_keys():
+        return
+
     if dialog.findChild(QPushButton, BUTTON_OBJECT_NAME) is not None:
         return
 

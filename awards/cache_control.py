@@ -43,7 +43,9 @@ CACHE_REFRESH_BUTTON_LABEL = 'Refresh'
 SOURCES_GROUP_HINT = (
     'Select the award sources used by Check Awards. '
     'Refresh clears cached data for an enabled source; fresh data will be '
-    'retrieved the next time that source is checked.'
+    'retrieved the next time that source is checked. '
+    'If no executable award sources are selected, Check Awards is hidden '
+    'in Edit Metadata.'
 )
 
 # One reset callable per registered source key. Adding a source to

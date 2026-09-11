@@ -207,6 +207,11 @@ class AwardSourcesLayoutTests(unittest.TestCase):
         self.assertIn("QGroupBox('Award sources'", text)
         self.assertIn('SOURCES_GROUP_HINT', text)
         self.assertIn('Refresh clears cached data for an enabled source', SOURCES_GROUP_HINT)
+        self.assertIn(
+            'If no executable award sources are selected, Check Awards is '
+            'hidden in Edit Metadata.',
+            SOURCES_GROUP_HINT,
+        )
 
     def test_one_source_row_per_registered_source(self):
         rows = cache_refresh_source_rows()
