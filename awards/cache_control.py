@@ -90,8 +90,8 @@ def source_cache_refresh_confirm_title(display_name: str) -> str:
     return f'Refresh cached {display_name} data?'
 
 
-def source_cache_refresh_confirm_body(display_name: str) -> str:
-    if display_name == 'Pulitzer Prizes':
+def source_cache_refresh_confirm_body(source_key: str, display_name: str) -> str:
+    if source_key == 'pulitzer':
         return (
             'This will clear in-memory Pulitzer lookup data and request a '
             'fresh official download the next time Pulitzer is checked.\n\n'
@@ -112,8 +112,8 @@ def source_cache_refresh_confirm_body(display_name: str) -> str:
     )
 
 
-def source_cache_refresh_status_text(display_name: str) -> str:
-    if display_name == 'Pulitzer Prizes':
+def source_cache_refresh_status_text(source_key: str, display_name: str) -> str:
+    if source_key == 'pulitzer':
         return (
             'Pulitzer Prizes in-memory cache cleared.\n'
             'The next Check Awards search may try a live official refresh; '

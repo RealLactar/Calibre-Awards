@@ -441,7 +441,7 @@ class ConfigWidget(QWidget):
         confirmed = question_dialog(
             self,
             source_cache_refresh_confirm_title(display_name),
-            source_cache_refresh_confirm_body(display_name),
+            source_cache_refresh_confirm_body(source_key, display_name),
             skip_dialog_name=None,
         )
         try:
@@ -464,7 +464,7 @@ class ConfigWidget(QWidget):
             return
         if persistent_ok:
             self.cache_status.setText(
-                source_cache_refresh_status_text(display_name)
+                source_cache_refresh_status_text(source_key, display_name)
             )
             return
         error_dialog(

@@ -767,7 +767,7 @@ class ConfirmedRefreshHelperTests(CacheControlTestCase):
         self.assertTrue(refresh_award_source_cache('nebula'))
         self.assertIn(
             'Nebula Awards cached data cleared.',
-            source_cache_refresh_status_text('Nebula Awards'),
+            source_cache_refresh_status_text('nebula', 'Nebula Awards'),
         )
         self.assertNotIn(
             'cached data cleared',

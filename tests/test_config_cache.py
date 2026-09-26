@@ -190,7 +190,9 @@ class FakeAwardSourcesPanel:
         if persistent_ok is None:
             return
         if persistent_ok:
-            self.status = source_cache_refresh_status_text(display_name)
+            self.status = source_cache_refresh_status_text(
+                source_key, display_name
+            )
             self.failure_text = None
             return
         self.failure_text = source_cache_refresh_failure_text(display_name)
@@ -632,7 +634,7 @@ class ConfirmationAndStatusTests(unittest.TestCase):
         refresh.assert_called_once_with('hugo')
         self.assertEqual(
             panel.status,
-            source_cache_refresh_status_text('Hugo Awards'),
+            source_cache_refresh_status_text('hugo', 'Hugo Awards'),
         )
         self.assertIsNone(panel.failure_text)
 
@@ -665,7 +667,7 @@ class ConfirmationAndStatusTests(unittest.TestCase):
             panel.click_refresh('nebula', confirmed=True)
         self.assertEqual(
             panel.status,
-            source_cache_refresh_status_text('Nebula Awards'),
+            source_cache_refresh_status_text('nebula', 'Nebula Awards'),
         )
         with patch(
             'awards.cache_control.refresh_award_source_cache',
@@ -674,7 +676,7 @@ class ConfirmationAndStatusTests(unittest.TestCase):
             panel.click_refresh('hugo', confirmed=True)
         self.assertEqual(
             panel.status,
-            source_cache_refresh_status_text('Nebula Awards'),
+            source_cache_refresh_status_text('nebula', 'Nebula Awards'),
         )
         self.assertEqual(
             panel.failure_text,
@@ -685,7 +687,7 @@ class ConfirmationAndStatusTests(unittest.TestCase):
 
     def test_confirmation_copy_mentions_books_and_immediate_action(self):
         title = source_cache_refresh_confirm_title('Nebula Awards')
-        body = source_cache_refresh_confirm_body('Nebula Awards')
+        body = source_cache_refresh_confirm_body('nebula', 'Nebula Awards')
         self.assertEqual(title, 'Refresh cached Nebula Awards data?')
         self.assertIn('No award information already stored in your books', body)
         self.assertIn('not undone by Canceling Preferences', body)
@@ -699,6 +701,82 @@ class ConfirmationAndStatusTests(unittest.TestCase):
         self.assertIn('source_cache_refresh_failure_text(', text)
         self.assertIn('error_dialog(', text)
         self.assertIn('skip_dialog_name=None', text)
+        self.assertIn(
+            'source_cache_refresh_confirm_body(source_key, display_name)',
+            text,
+        )
+        self.assertIn(
+            'source_cache_refresh_status_text(source_key, display_name)',
+            text,
+        )
+
+
+_PULITZER_CONFIRM_BODY = (
+    'This will clear in-memory Pulitzer lookup data and request a '
+    'fresh official download the next time Pulitzer is checked.\n\n'
+    'Saved Pulitzer results and the reviewed official snapshot remain '
+    'available if the website blocks unattended retrieval.\n\n'
+    'No award information already stored in your books will be changed.\n\n'
+    'This action happens immediately and is not undone by Canceling '
+    'Preferences.'
+)
+_PULITZER_STATUS_TEXT = (
+    'Pulitzer Prizes in-memory cache cleared.\n'
+    'The next Check Awards search may try a live official refresh; '
+    'usable Pulitzer data is kept if that refresh is blocked.'
+)
+
+
+class PulitzerRefreshTextKeyTests(unittest.TestCase):
+    def test_pulitzer_key_selects_preserve_confirmation_body(self):
+        body = source_cache_refresh_confirm_body('pulitzer', 'Pulitzer Prizes')
+        self.assertEqual(body, _PULITZER_CONFIRM_BODY)
+        self.assertNotIn('remove saved', body)
+
+    def test_pulitzer_key_selects_preserve_status_text(self):
+        status = source_cache_refresh_status_text('pulitzer', 'Pulitzer Prizes')
+        self.assertEqual(status, _PULITZER_STATUS_TEXT)
+        self.assertNotIn('Fresh data will be retrieved', status)
+
+    def test_other_source_key_uses_generic_refresh_text(self):
+        body = source_cache_refresh_confirm_body('nebula', 'Nebula Awards')
+        status = source_cache_refresh_status_text('hugo', 'Hugo Awards')
+        self.assertIn('remove saved Nebula Awards lookup data', body)
+        self.assertNotIn('reviewed official snapshot', body)
+        self.assertEqual(
+            status,
+            'Hugo Awards cached data cleared.\n'
+            'Fresh data will be retrieved by the next Check Awards search.',
+        )
+
+    def test_pulitzer_text_follows_source_key_not_display_name(self):
+        body = source_cache_refresh_confirm_body(
+            'pulitzer',
+            'Official Pulitzer Archive',
+        )
+        status = source_cache_refresh_status_text(
+            'pulitzer',
+            'Official Pulitzer Archive',
+        )
+        self.assertEqual(body, _PULITZER_CONFIRM_BODY)
+        self.assertEqual(status, _PULITZER_STATUS_TEXT)
+        self.assertNotIn('Official Pulitzer Archive', body)
+        self.assertNotIn('Official Pulitzer Archive', status)
+        generic_body = source_cache_refresh_confirm_body(
+            'nebula',
+            'Pulitzer Prizes',
+        )
+        generic_status = source_cache_refresh_status_text(
+            'nebula',
+            'Pulitzer Prizes',
+        )
+        self.assertIn('remove saved Pulitzer Prizes lookup data', generic_body)
+        self.assertNotIn('reviewed official snapshot', generic_body)
+        self.assertEqual(
+            generic_status,
+            'Pulitzer Prizes cached data cleared.\n'
+            'Fresh data will be retrieved by the next Check Awards search.',
+        )
 
 
 class ApplyCancelInteractionTests(unittest.TestCase):
