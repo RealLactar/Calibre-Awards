@@ -1,6 +1,6 @@
 # Calibre Awards
 
-**0.2.0 beta** — a preview release. Coverage and matching will keep changing
+**0.3.0 beta** — a preview release. Coverage and matching will keep changing
 during the 0.x line. Please report mismatches.
 
 Calibre Awards looks up literary awards for one book from Calibre's
@@ -14,7 +14,9 @@ Edit Metadata** dialog.
 Check Awards searches the award sources you have enabled, using the book's
 **Title** and **Author**. **Series** is used where a source supports series
 awards. Matching results are shown for review. You can optionally write
-selected award values into a configured Calibre custom column.
+selected award values into a configured Calibre custom column. If no
+executable award source is enabled, **Check Awards** is hidden in Edit
+Metadata.
 
 Network lookup runs outside the GUI thread, so Calibre stays responsive while
 sources are checked.
@@ -144,7 +146,8 @@ Open **Preferences → Plugins → Calibre Awards → Customize plugin**.
 **Award sources.** Enable or disable individual executable sources. **Select
 All** and **Select None** change only the checkboxes in this dialog until
 you apply preferences. A newly added executable source starts enabled unless
-you disable it. **National Book Awards** has no enable checkbox because it
+you disable it. If none are enabled, **Check Awards** is hidden in Edit
+Metadata. **National Book Awards** has no enable checkbox because it
 is currently unavailable.
 
 **Refresh.** Each enabled source has a **Refresh** button. Refresh clears
@@ -166,7 +169,9 @@ Default:
 
 `<placement> - <year> <award> - <category>`
 
-You may omit placeholders or add literal text.
+You may omit placeholders or add literal text. **Category** is optional.
+When a result has no category, that placeholder is left out. The formatted
+value does not keep a fake category marker or a dangling separator.
 
 **Placement** is the explicit ordinal rank when one exists (`1st`, `2nd`,
 `3rd`, …). Otherwise it is the result status, such as Winner, Finalist,
@@ -216,6 +221,14 @@ Uncached lookups require an internet connection.
   not a Wikipedia, Wikidata, or other third-party runtime source.
 - **National Book Awards.** Currently **Transport blocked**. Informational
   only; it cannot be enabled.
+- **Edgar Awards.** Bibliographic mystery and crime categories from 1946.
+  Award year is the ceremony year. Nominees are official announced slates
+  and do not imply rank. Early years are often winner-only. Media, screen,
+  stage, person, service, design, and Special Edgar categories are excluded.
+- **Romantic Novel of the Year.** Winners from 1960 where the current
+  archive includes them. That archive omits 1966 and 2011–2017. Official
+  shortlists begin in 2018. Industry awards, person awards, and the Joan
+  Hessayon Award are excluded.
 - **International Booker Prize.** The modern work-level prize is covered from
   2016 through 2026. The 2005–2015 biennial Man Booker International Prize
   honoured an author's body of work rather than a single book and is not
@@ -226,8 +239,9 @@ Uncached lookups require an internet connection.
 - **International Prize for Arabic Fiction.** Official English coverage
   begins in 2020. The 2008–2019 archive has not been migrated to the current
   site. Official English spellings may differ from later translations.
-- **PEN/Hemingway.** Winners from 1976. Finalists only from 2026 in this
-  release.
+- **PEN/Hemingway.** Winners from 1976. Finalists from 2026, when
+  administration transferred to the PEN/Faulkner Foundation. Earlier
+  Finalists, Runners-up, and Honorable Mentions are not returned.
 - **Prix Goncourt.** Finalist coverage from the 2018 official third
   selection (3ème sélection). Earlier selection rounds are not returned.
 - **Miles Franklin.** Production coverage from 2007. The 2025 nonwinning
@@ -243,11 +257,12 @@ Uncached lookups require an internet connection.
   are not automatically treated as qualifying by current policy.
 - **Locus.** Matching is conservative. An omitted middle initial may appear
   as a Possible Author Match and require confirmation.
-- **Nobel.** An author-level award. Check Awards shows the official English
-  prize motivation. Eight historical works explicitly named in that
-  motivation receive a citation annotation; they are not treated as books
-  that won the Nobel Prize. Editorial Nobel work lists are not harvested.
-  Ordinary books by a laureate are not claimed to have won the prize.
+- **Nobel.** Nobel Prize in Literature results are author-level. Check Awards
+  may show the official English motivation and unusual prize statuses such
+  as declined or restricted. Works explicitly cited in a motivation are
+  annotations; they are not books that themselves won the Nobel Prize.
+  Editorial Nobel work lists are not harvested. Ordinary books by a laureate
+  are not claimed to have won the prize.
 - **Translated or alternate titles.** Conservative matching can miss books
   whose Calibre title or author differs from the source's official form.
 - **Website changes.** Award websites are external and may temporarily break
@@ -264,13 +279,13 @@ Install from the **public release ZIP**, not from a Git checkout.
 
 1. In Calibre, open **Preferences → Plugins**.
 2. Choose **Load plugin from file**.
-3. Select `Calibre-Awards-0.2.0.zip`.
+3. Select `Calibre-Awards-0.3.0.zip`.
 4. Restart Calibre if it asks you to.
 
 Advanced users can install the same ZIP from a command prompt:
 
 ```text
-calibre-customize -a Calibre-Awards-0.2.0.zip
+calibre-customize -a Calibre-Awards-0.3.0.zip
 ```
 
 ## Upgrading
@@ -285,6 +300,10 @@ existing preferences are typically kept. You do not need to delete cache or
 preferences for a normal upgrade. A future release will say so if a setting
 cannot be migrated.
 
+Edgar Awards, Romantic Novel of the Year Awards, and the International
+Booker Prize were not in 0.2.0. After an upgrade they start enabled, so
+the first Check Awards search may take longer while those sources load.
+
 ## Uninstall
 
 **Preferences → Plugins**, select **Calibre Awards**, then **Remove plugin**.
@@ -296,9 +315,9 @@ cannot be migrated.
 - Internet connection for uncached lookups
 - No extra Python packages to install
 
-Calibre Awards 0.2.0 beta requires Calibre 6.0.0 or later. This release was
-tested with Calibre 9.14.0. That is the version used for the 0.2.0 beta
-smoke test, not a claim that only 9.14.0 is supported.
+Calibre Awards 0.3.0 beta requires Calibre 6.0.0 or later. The 0.3.0 beta
+smoke test was performed using Calibre 9.15.0. That is not a claim that
+only 9.15.0 is supported.
 
 Check Awards uses Calibre's single-book Edit Metadata interface. A future
 Calibre change to that window may require a plugin update.

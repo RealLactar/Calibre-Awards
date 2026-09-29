@@ -940,6 +940,49 @@ class ShortlistParserTests(unittest.TestCase):
         self.assertIsNone(result.rank)
         self.assertEqual(result.status, 'Shortlisted')
 
+    def test_2018_en_dash_publisher_is_not_kept_in_the_author(self):
+        html = (
+            '<!DOCTYPE html><html><body>'
+            '<p>The Category Shortlists</p>'
+            '<h2>Contemporary Romantic Novel</h2>'
+            '<p>The Keeper of Lost Things, Ruth Hogan \u2013 Two Roads, '
+            'John Murray Press</p>'
+            '<h2>Epic Romantic Novel</h2>'
+            '<p>This Love, Dani Atkins, Simon &amp; Schuster</p>'
+            '<p>Hyphenated Credit, Mary-Jane O&#8217;Neil, Publisher</p>'
+            '<p>Initial Credit, B.K. Borison, Publisher</p>'
+            '</body></html>'
+        )
+        records = src._parse_announcement_html(
+            html,
+            source_url=SHORTLIST_2018,
+            award_year=2018,
+            default_status='Shortlisted',
+        )
+        by_title = {record.work_title: record for record in records}
+        keeper = by_title['The Keeper of Lost Things']
+        self.assertEqual(keeper.work_author, 'Ruth Hogan')
+        self.assertNotIn('Two Roads', keeper.work_author)
+        self.assertEqual(keeper.work_title, 'The Keeper of Lost Things')
+        self.assertEqual(keeper.category, 'Contemporary Romantic Novel')
+        self.assertEqual(keeper.status, 'Shortlisted')
+        self.assertEqual(keeper.award_year, 2018)
+        self.assertEqual(keeper.source_url, SHORTLIST_2018)
+        self.assertTrue(
+            src._record_matches(
+                keeper,
+                'The Keeper of Lost Things',
+                'Ruth Hogan',
+            )
+        )
+        self.assertEqual(by_title['This Love'].work_author, 'Dani Atkins')
+        self.assertEqual(by_title['This Love'].category, 'Epic Romantic Novel')
+        self.assertEqual(
+            by_title['Hyphenated Credit'].work_author,
+            'Mary-Jane O\u2019Neil',
+        )
+        self.assertEqual(by_title['Initial Credit'].work_author, 'B.K. Borison')
+
     def test_finalist_wording_normalizes_to_shortlisted(self):
         html = comma_list_html(
             [('Debut Romantic Novel', [('The Flatshare', "Beth O'Leary", 'Quercus')])],

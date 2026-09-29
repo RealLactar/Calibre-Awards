@@ -386,6 +386,7 @@ class PulitzerNetworkTests(unittest.TestCase):
         self.fiction_html = _load_fixture('fiction_excerpt.html')
         self.novel_html = _load_fixture('novel_excerpt.html')
         self.requests: list = []
+        self.error_bodies: list[io.BytesIO] = []
 
     def tearDown(self):
         pulitzer._reset_runtime_state()
@@ -402,10 +403,11 @@ class PulitzerNetworkTests(unittest.TestCase):
         if spec is None:
             raise AssertionError(f'unexpected URL {url}')
         status, body = spec
-        if status == 403:
-            raise HTTPError(url, 403, 'Forbidden', hdrs=None, fp=io.BytesIO(body.encode('utf-8')))
         if status != 200:
-            raise HTTPError(url, status, 'Error', hdrs=None, fp=io.BytesIO(body.encode('utf-8')))
+            fp = io.BytesIO(body.encode('utf-8'))
+            self.error_bodies.append(fp)
+            reason = 'Forbidden' if status == 403 else 'Error'
+            raise HTTPError(url, status, reason, hdrs=None, fp=fp)
         return _FakeResponse(url, status, body)
 
     def _load_live_with(self, mapping):
@@ -469,6 +471,8 @@ class PulitzerNetworkTests(unittest.TestCase):
             [request.full_url for request in self.requests],
             [FICTION_URL],
         )
+        self.assertEqual(len(self.error_bodies), 1)
+        self.assertTrue(self.error_bodies[0].closed)
 
     def test_novel_403_after_fiction_success_caches_nothing(self):
         mapping = {
@@ -484,6 +488,43 @@ class PulitzerNetworkTests(unittest.TestCase):
             [request.full_url for request in self.requests],
             [FICTION_URL, NOVEL_URL],
         )
+        self.assertEqual(len(self.error_bodies), 1)
+        self.assertTrue(self.error_bodies[0].closed)
+
+    def test_http_error_closes_when_body_read_fails(self):
+        fp = io.BytesIO(b'challenge')
+
+        def handler(request, timeout=None):
+            raise HTTPError(
+                request.full_url,
+                403,
+                'Forbidden',
+                hdrs=None,
+                fp=fp,
+            )
+
+        with self._install_opener(handler):
+            with patch.object(
+                pulitzer,
+                '_read_response_body',
+                side_effect=OSError('unreadable body'),
+            ):
+                with self.assertRaises(OSError):
+                    pulitzer._load_live_archive()
+        self.assertTrue(fp.closed)
+
+    def test_http_500_plain_body_stays_generic_and_closes(self):
+        mapping = {
+            FICTION_URL: (500, 'upstream failed'),
+            NOVEL_URL: (200, self.novel_html),
+        }
+        with self.assertRaises(PulitzerSourceError) as raised:
+            self._load_live_with(mapping)
+        message = str(raised.exception)
+        self.assertIn('HTTP 500', message)
+        self.assertNotIn('blocked', message)
+        self.assertEqual(len(self.error_bodies), 1)
+        self.assertTrue(self.error_bodies[0].closed)
 
     def test_cloudflare_challenge_http_200_is_not_cached(self):
         mapping = {

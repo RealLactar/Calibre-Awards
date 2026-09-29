@@ -118,7 +118,12 @@ class _AwardLookupThread(QThread):
 
 
 def _prepare_wrapping_label(label):
-    """Keep wrapped QLabel height from being squeezed below its content."""
+    """Keep wrapped QLabel text from being clipped.
+
+    Word wrap uses Qt height-for-width. A Preferred vertical policy lets
+    the layout keep the single-line height and clip the extra lines.
+    Minimum vertical policy keeps the wrapped height.
+    """
     label.setWordWrap(True)
     label.setSizePolicy(
         QSizePolicy.Policy.Preferred,
@@ -617,6 +622,11 @@ def _apply_selected_award_writeback(dialog, selected_assessments, template):
 
 
 def _enabled_lookup_source_keys():
+    """Return enabled executable source keys.
+
+    The same tuple decides whether Check Awards is shown and which sources
+    a lookup may start.
+    """
     # Resolve prefs here. The engine gets an explicit tuple; sources do not
     # read plugin preferences themselves.
     return compute_enabled_source_keys(
@@ -633,6 +643,7 @@ def _start_award_lookup(dialog, button):
     enabled_keys = _enabled_lookup_source_keys()
     # Empty tuple means none. Do not coerce to None (None means all sources).
     # No worker or network activity in this case.
+    # Still reached if Preferences changes while Edit Metadata stays open.
     if enabled_keys == ():
         info_dialog(
             dialog,
@@ -697,13 +708,13 @@ def _start_award_lookup(dialog, button):
 
 
 def _inject_check_awards_button(dialog):
-    # Undocumented internals: button_box_layout / button_box on MetadataSingleDialogBase.
     if not _enabled_lookup_source_keys():
         return
 
     if dialog.findChild(QPushButton, BUTTON_OBJECT_NAME) is not None:
         return
 
+    # Undocumented internals: button_box_layout / button_box on MetadataSingleDialogBase.
     layout = getattr(dialog, 'button_box_layout', None)
     button_box = getattr(dialog, 'button_box', None)
     if layout is None or button_box is None:

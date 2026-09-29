@@ -1,6 +1,6 @@
 """Official Mystery Writers of America Edgar Awards database source.
 
-Phase 1 covers bibliographic work categories from the server-rendered
+Covers bibliographic work categories from the server-rendered
 Participants Database at edgarawards.com. Media, person/service, design,
 and Special Edgars rows are ignored. Unknown future categories fail closed
 without discarding the rest of the archive.
@@ -285,9 +285,12 @@ def _fetch_html(url: str) -> str:
             final_url = getattr(response, 'geturl', lambda: url)()
             html = _read_response_body(response)
     except urllib.error.HTTPError as exc:
-        raise EdgarSourceError(
-            f'Edgar request failed with HTTP {exc.code} for {url}'
-        ) from exc
+        try:
+            raise EdgarSourceError(
+                f'Edgar request failed with HTTP {exc.code} for {url}'
+            ) from exc
+        finally:
+            exc.close()
     except urllib.error.URLError as exc:
         raise EdgarSourceError(
             f'Edgar request failed for {url}: {exc.reason}'

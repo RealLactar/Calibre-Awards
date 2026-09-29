@@ -1,27 +1,39 @@
 # Changelog
 
-## Unreleased
+## 0.3.0 beta - 2026-09-28
 
 ### Added
 
-- Reviewed bundled Pulitzer Fiction/Novel award snapshot sourced from the
-  official Pulitzer category pages, used when unattended retrieval is blocked
-- International Booker Prize executable source for official Winner and
-  Shortlisted translated works from 2016 through 2026
+- Edgar Awards
+- Romantic Novel of the Year Awards
+- International Booker Prize
+- Executable award-source count increased from 17 to 20
+- Reviewed bundled Pulitzer Fiction/Novel snapshot, used when unattended
+  retrieval is blocked
 - Nobel Check Awards display of the official English prize motivation and
   of unusual prize statuses (declined, restricted)
 
 ### Changed
 
-- Pulitzer lookup uses the official snapshot on cold start (zero required
-  HTTP). Live Pulitzer.org category-page refresh remains opportunistic.
-  Manual Pulitzer Refresh no longer deletes last-known-good Pulitzer data.
-- Nobel Literature results are always author-level Winners. The eight
-  works explicitly named in official motivations keep a citation
-  annotation instead of being represented as book-level Nobel Winners.
-- Nobel API pagination now follows additional pages when the laureate
-  count exceeds one response page.
-- Nobel persistent cache version incremented to retain prize motivations.
+- Pulitzer cold start uses the reviewed official snapshot. Live refresh
+  remains opportunistic. Pulitzer Refresh keeps last-known-good Pulitzer
+  data and that snapshot.
+- Nobel Literature results are always author-level. Works explicitly named
+  in official motivations are citation annotations, not books that won the
+  Nobel Prize.
+- Nobel lookups follow additional API pages when needed. Saved Nobel cache
+  from earlier releases is rebuilt.
+- Category is optional in award output. A result with no category omits
+  that placeholder and does not leave a fake marker or dangling separator.
+- Preferences explains that Check Awards is hidden when no executable award
+  sources are enabled.
+
+### Fixed
+
+- Progress-dialog Cancel explanation is no longer clipped
+- Check Awards no longer appears when no executable sources are enabled
+- Pulitzer Refresh confirmation and status text follow the Pulitzer source
+  key rather than the display label
 
 ## 0.2.0 beta - 2026-09-01
 

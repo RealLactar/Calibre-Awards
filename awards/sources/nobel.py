@@ -209,11 +209,14 @@ def _request_json(url: str = LAUREATES_URL) -> tuple[int, str]:
             status = getattr(response, 'status', None) or response.getcode()
             body = _read_response_body(response)
     except urllib.error.HTTPError as exc:
-        body = _read_response_body(exc)
-        raise NobelSourceError(
-            f'Nobel request failed with HTTP {exc.code} for {url}'
-            + (f': {body[:200].strip()}' if body.strip() else '')
-        ) from exc
+        try:
+            body = _read_response_body(exc)
+            raise NobelSourceError(
+                f'Nobel request failed with HTTP {exc.code} for {url}'
+                + (f': {body[:200].strip()}' if body.strip() else '')
+            ) from exc
+        finally:
+            exc.close()
     except urllib.error.URLError as exc:
         raise NobelSourceError(
             f'Nobel request failed for {url}: {exc.reason}'
@@ -439,6 +442,8 @@ def _parse_literature_prize(
     prize_status = _collapse_ws(status)
     motivation = _plain_english_motivation(prize.get('motivation'))
     if motivation is None:
+        # A missing motivation fails the refresh. Do not store a partial
+        # laureate archive that silently omits official prize text.
         raise NobelSourceError(
             f'Nobel laureate {laureate_id} is missing a usable English '
             'prize motivation'

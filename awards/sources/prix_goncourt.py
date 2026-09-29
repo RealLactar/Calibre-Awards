@@ -1,9 +1,8 @@
 """Official Prix Goncourt winners archive plus 3ème sélection finalists.
 
-Winners come from Tous les lauréats (Phase 1). Finalists are enrichment
-from the Académie's year-by-year selections page, trusted from 2018,
-3ème sélection only. 1ère and 2ème selections are ignored. JavaScript
-is not required.
+Winners come from Tous les lauréats. Finalists are enrichment from the
+Académie's year-by-year selections page, trusted from 2018, 3ème sélection
+only. 1ère and 2ème selections are ignored. JavaScript is not required.
 """
 
 from __future__ import annotations
@@ -160,9 +159,12 @@ def _fetch_html(url: str) -> str:
             status = getattr(response, 'status', None) or response.getcode()
             html = _read_response_body(response)
     except urllib.error.HTTPError as exc:
-        raise PrixGoncourtSourceError(
-            f'Prix Goncourt request failed with HTTP {exc.code} for {url}'
-        ) from exc
+        try:
+            raise PrixGoncourtSourceError(
+                f'Prix Goncourt request failed with HTTP {exc.code} for {url}'
+            ) from exc
+        finally:
+            exc.close()
     except urllib.error.URLError as exc:
         raise PrixGoncourtSourceError(
             f'Prix Goncourt request failed for {url}: {exc.reason}'

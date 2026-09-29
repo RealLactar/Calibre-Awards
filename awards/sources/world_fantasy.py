@@ -269,11 +269,14 @@ def _fetch_html(opener: urllib.request.OpenerDirector, url: str) -> str:
             status = getattr(response, 'status', None) or response.getcode()
             html = _read_response_body(response)
     except urllib.error.HTTPError as exc:
-        body = _read_response_body(exc)
-        raise WorldFantasySourceError(
-            f'World Fantasy request failed with HTTP {exc.code} for {url}'
-            + (f': {body[:200].strip()}' if body.strip() else '')
-        ) from exc
+        try:
+            body = _read_response_body(exc)
+            raise WorldFantasySourceError(
+                f'World Fantasy request failed with HTTP {exc.code} for {url}'
+                + (f': {body[:200].strip()}' if body.strip() else '')
+            ) from exc
+        finally:
+            exc.close()
     except urllib.error.URLError as exc:
         raise WorldFantasySourceError(
             f'World Fantasy request failed for {url}: {exc.reason}'

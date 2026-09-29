@@ -1,10 +1,9 @@
 """Official Women's Prize for Fiction winners and shortlists.
 
-Phase 1 Winner pipeline: two HTTP GETs (previous-prizes cards plus the
-current prize page). Phase 2 adds official Shortlisted records for
-2017-present from first-party announcement pages, cached per year.
-Longlist is ignored. Historical Orange Prize years use the current
-award name.
+Winners come from two HTTP GETs: previous-prizes cards plus the current
+prize page. Shortlisted records for 2017-present come from first-party
+announcement pages, cached per year. Longlist is ignored. Historical
+Orange Prize years use the current award name.
 """
 
 from __future__ import annotations
@@ -245,9 +244,12 @@ def _fetch_html(url: str) -> str:
             status = getattr(response, 'status', None) or response.getcode()
             html = _read_response_body(response)
     except urllib.error.HTTPError as exc:
-        raise WomensPrizeFictionSourceError(
-            f"Women's Prize request failed with HTTP {exc.code} for {url}"
-        ) from exc
+        try:
+            raise WomensPrizeFictionSourceError(
+                f"Women's Prize request failed with HTTP {exc.code} for {url}"
+            ) from exc
+        finally:
+            exc.close()
     except urllib.error.URLError as exc:
         raise WomensPrizeFictionSourceError(
             f"Women's Prize request failed for {url}: {exc.reason}"

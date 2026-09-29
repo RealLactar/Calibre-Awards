@@ -241,16 +241,19 @@ def _fetch_response(url: str) -> tuple[int, str, str]:
             body = _read_response_body(response)
             final_url = response.geturl() or url
     except urllib.error.HTTPError as exc:
-        body = ''
         try:
-            body = exc.read().decode('utf-8', errors='replace')
-        except Exception:
-            pass
-        if exc.code == 404:
-            return 404, body, url
-        raise PenHemingwaySourceError(
-            f'PEN/Hemingway request failed with HTTP {exc.code} for {url}'
-        ) from exc
+            body = ''
+            try:
+                body = exc.read().decode('utf-8', errors='replace')
+            except Exception:
+                pass
+            if exc.code == 404:
+                return 404, body, url
+            raise PenHemingwaySourceError(
+                f'PEN/Hemingway request failed with HTTP {exc.code} for {url}'
+            ) from exc
+        finally:
+            exc.close()
     except urllib.error.URLError as exc:
         raise PenHemingwaySourceError(
             f'PEN/Hemingway request failed for {url}: {exc.reason}'

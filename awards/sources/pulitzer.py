@@ -178,12 +178,15 @@ def _fetch_html(opener: urllib.request.OpenerDirector, url: str) -> str:
             status = getattr(response, 'status', None) or response.getcode()
             html = _read_response_body(response)
     except urllib.error.HTTPError as exc:
-        body = _read_response_body(exc)
-        if exc.code == 403 or _is_cloudflare_challenge(body):
-            raise _blocked_error(url, exc.code) from exc
-        raise PulitzerSourceError(
-            f'Pulitzer request failed with HTTP {exc.code} for {url}'
-        ) from exc
+        try:
+            body = _read_response_body(exc)
+            if exc.code == 403 or _is_cloudflare_challenge(body):
+                raise _blocked_error(url, exc.code) from exc
+            raise PulitzerSourceError(
+                f'Pulitzer request failed with HTTP {exc.code} for {url}'
+            ) from exc
+        finally:
+            exc.close()
     except urllib.error.URLError as exc:
         raise PulitzerSourceError(
             f'Pulitzer request failed for {url}: {exc.reason}'
@@ -782,6 +785,7 @@ def _read_bundled_seed_bytes() -> bytes:
     # treating this ZIP-loaded module's synthetic __file__ as a filesystem path.
     load_resource = globals().get('get_resources')
     if load_resource is not None:
+        # Calibre 6 accepts only this one positional argument.
         raw = load_resource(_SEED_ZIP_PATH)
         if not raw:
             raise PulitzerSourceError(

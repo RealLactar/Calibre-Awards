@@ -1,10 +1,10 @@
 """Official International Prize for Arabic Fiction Winners and Shortlists.
 
-Phase 1 covers populated English prize-year pages on en.arabicfiction.org
-from 2020 onward. Longlist is ignored. The 2008-2019 archive has not yet
-been migrated to the current site and is out of scope. The 2020 Winner is
-taken from the official book profile because that year page has no visible
-Winner card. Next.js RSC / framework JSON is not parsed.
+Covers populated English prize-year pages on en.arabicfiction.org from 2020
+onward. Longlist is ignored. The 2008-2019 archive is not on the current
+site. The 2020 Winner is taken from the official book profile because that
+year page has no visible Winner card. Next.js RSC / framework JSON is not
+parsed.
 """
 
 from __future__ import annotations
@@ -227,9 +227,12 @@ def _fetch_response(url: str) -> tuple[int, str, str]:
             body = _read_response_body(response)
             final_url = response.geturl() or url
     except urllib.error.HTTPError as exc:
-        raise IpafSourceError(
-            f'IPAF request failed with HTTP {exc.code} for {url}'
-        ) from exc
+        try:
+            raise IpafSourceError(
+                f'IPAF request failed with HTTP {exc.code} for {url}'
+            ) from exc
+        finally:
+            exc.close()
     except urllib.error.URLError as exc:
         raise IpafSourceError(
             f'IPAF request failed for {url}: {exc.reason}'

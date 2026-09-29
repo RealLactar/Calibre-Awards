@@ -1,9 +1,9 @@
 """Official Horror Writers Association Bram Stoker Award Winners and Finalists.
 
-Phase 1 covers bibliographic work categories on HWA HTML year-census pages
-from 1987 through the latest completed publication-year cycle. Preliminary
-Ballot, recommendation lists, screenplay, other-media, and person/service
-honors are ignored. Historical category names are preserved.
+Covers bibliographic work categories on HWA HTML year-census pages from 1987
+through the latest completed publication-year cycle. Preliminary Ballot,
+recommendation lists, screenplay, other-media, and person/service honors are
+ignored. Historical category names are preserved.
 """
 
 from __future__ import annotations
@@ -1251,9 +1251,12 @@ def _fetch_response(url: str, headers: dict[str, str] | None = None) -> tuple[in
             body = _read_response_body(response)
             final_url = response.geturl() or url
     except urllib.error.HTTPError as exc:
-        raise BramStokerSourceError(
-            f'Bram Stoker request failed with HTTP {exc.code} for {url}'
-        ) from exc
+        try:
+            raise BramStokerSourceError(
+                f'Bram Stoker request failed with HTTP {exc.code} for {url}'
+            ) from exc
+        finally:
+            exc.close()
     except urllib.error.URLError as exc:
         raise BramStokerSourceError(
             f'Bram Stoker request failed for {url}: {exc.reason}'

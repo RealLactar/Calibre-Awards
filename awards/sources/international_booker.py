@@ -4,7 +4,7 @@ One HTTP GET of the published International Booker winners/shortlist archive.
 Longlist rows are ignored except to harvest same-document canonical book URLs.
 JavaScript is not required.
 
-Phase 1 covers the modern work-level prize from 2016 through 2026 only.
+Covers the modern work-level prize from 2016 through 2026 only.
 2005-2015 was a biennial author/body-of-work prize and is not emitted.
 2027 is the first Bukhman International Booker Prize cycle and is not
 emitted until that naming and competitive-data question is solved separately.
@@ -119,7 +119,7 @@ def _utc_now() -> datetime:
 
 
 def _year_is_supported(award_year: int) -> bool:
-    """Phase 1 emits 2016-2026 only. 2027+ cannot opt in by archive growth."""
+    """2016-2026 only. Later years cannot opt in by archive growth."""
     return award_year in SUPPORTED_YEARS
 
 
@@ -138,9 +138,12 @@ def _fetch_html(url: str) -> str:
             status = getattr(response, 'status', None) or response.getcode()
             html = _read_response_body(response)
     except urllib.error.HTTPError as exc:
-        raise InternationalBookerSourceError(
-            f'International Booker request failed with HTTP {exc.code} for {url}'
-        ) from exc
+        try:
+            raise InternationalBookerSourceError(
+                f'International Booker request failed with HTTP {exc.code} for {url}'
+            ) from exc
+        finally:
+            exc.close()
     except urllib.error.URLError as exc:
         raise InternationalBookerSourceError(
             f'International Booker request failed for {url}: {exc.reason}'

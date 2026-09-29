@@ -56,8 +56,7 @@ INTERNATIONAL_BOOKER_SHORTLIST_POLICY = AwardPolicy(
         'the modern work-level prize from 2016 through 2026. The 2005-2015 '
         'biennial Man Booker International Prize honoured an author\'s body '
         'of work rather than a single book. The 2027 Bukhman International '
-        'Booker Prize naming and competitive cycle are not included in this '
-        'phase.'
+        'Booker Prize naming and competitive cycle are not covered.'
     ),
 )
 
@@ -136,7 +135,7 @@ PEN_HEMINGWAY_FINALIST_POLICY = AwardPolicy(
         'administration. Finalist qualifies under this award-specific '
         'policy. Finalist does not imply an ordinal rank. Historical '
         'secondary distinctions from prior administrators are not '
-        'returned in this phase. Longlisted-only works are not returned.'
+        'returned. Longlisted-only works are not returned.'
     ),
 )
 

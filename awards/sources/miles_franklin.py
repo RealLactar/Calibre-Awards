@@ -208,9 +208,12 @@ def _fetch_html(url: str) -> str:
             status = getattr(response, 'status', None) or response.getcode()
             html = _read_response_body(response)
     except urllib.error.HTTPError as exc:
-        raise MilesFranklinSourceError(
-            f'Miles Franklin request failed with HTTP {exc.code} for {url}'
-        ) from exc
+        try:
+            raise MilesFranklinSourceError(
+                f'Miles Franklin request failed with HTTP {exc.code} for {url}'
+            ) from exc
+        finally:
+            exc.close()
     except urllib.error.URLError as exc:
         raise MilesFranklinSourceError(
             f'Miles Franklin request failed for {url}: {exc.reason}'

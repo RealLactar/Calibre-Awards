@@ -541,6 +541,29 @@ class NewberyLookupTests(unittest.TestCase):
 class NewberyFetchHtmlTests(unittest.TestCase):
     def test_http_error_becomes_source_error(self):
         opener = Mock()
+        fp = io.BytesIO(b'nope')
+        http_error = HTTPError(
+            ARCHIVE_URL_1992_2003,
+            500,
+            'Error',
+            hdrs=None,
+            fp=fp,
+        )
+
+        def _open(request, timeout=None):
+            raise http_error
+
+        opener.open.side_effect = _open
+        with self.assertRaises(NewberySourceError) as caught:
+            newbery._fetch_html(opener, ARCHIVE_URL_1992_2003)
+        self.assertIn('HTTP 500', str(caught.exception))
+        self.assertIn('nope', str(caught.exception))
+        self.assertIs(caught.exception.__cause__, http_error)
+        self.assertTrue(fp.closed)
+
+    def test_http_error_closes_when_body_read_fails(self):
+        opener = Mock()
+        fp = io.BytesIO(b'nope')
 
         def _open(request, timeout=None):
             raise HTTPError(
@@ -548,13 +571,18 @@ class NewberyFetchHtmlTests(unittest.TestCase):
                 500,
                 'Error',
                 hdrs=None,
-                fp=io.BytesIO(b'nope'),
+                fp=fp,
             )
 
         opener.open.side_effect = _open
-        with self.assertRaises(NewberySourceError) as caught:
-            newbery._fetch_html(opener, ARCHIVE_URL_1992_2003)
-        self.assertIn('HTTP 500', str(caught.exception))
+        with patch.object(
+            newbery,
+            '_read_response_body',
+            side_effect=OSError('unreadable body'),
+        ):
+            with self.assertRaises(OSError):
+                newbery._fetch_html(opener, ARCHIVE_URL_1992_2003)
+        self.assertTrue(fp.closed)
 
     def test_non_200_becomes_source_error(self):
         opener = Mock()

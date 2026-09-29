@@ -107,6 +107,9 @@ _TITLE_BY_AUTHOR_RE = re.compile(
     r'^(?P<title>.+?)\s+by\s+(?P<author>.+)$',
     re.IGNORECASE,
 )
+# Spaced en dash or em dash between author and publisher. A hyphen inside
+# a name is not surrounded by spaces and is left intact.
+_AUTHOR_PUBLISHER_DASH_RE = re.compile(r'\s+[\u2013\u2014]\s+')
 _LEADING_ARTICLE_RE = re.compile(r'^(the|a|an)\b', re.IGNORECASE)
 _PROGRAMME_HEADING_RE = re.compile(
     r'^(?:the\s+)?'
@@ -699,9 +702,12 @@ def _fetch(url: str, *, headers: dict[str, str] | None = None) -> str:
             final = _require_official_url(response.geturl())
             body = _read_response_body(response)
     except urllib.error.HTTPError as exc:
-        raise RomanticNovelAwardsSourceError(
-            f'RNA request failed with HTTP {exc.code} for {url}'
-        ) from exc
+        try:
+            raise RomanticNovelAwardsSourceError(
+                f'RNA request failed with HTTP {exc.code} for {url}'
+            ) from exc
+        finally:
+            exc.close()
     except urllib.error.URLError as exc:
         raise RomanticNovelAwardsSourceError(
             f'RNA request failed for {url}: {exc.reason}'
@@ -1006,7 +1012,9 @@ def _parse_title_author_line(line: str) -> tuple[str, str] | None:
     parts = [part.strip() for part in text.split(',') if part.strip()]
     if len(parts) >= 2 and ' by ' not in text.casefold():
         title = parts[0].strip(' "\'“”‘’*')
-        author = _collapse_ws(parts[1])
+        author = _collapse_ws(
+            _AUTHOR_PUBLISHER_DASH_RE.split(parts[1], maxsplit=1)[0]
+        )
         if (
             title
             and author

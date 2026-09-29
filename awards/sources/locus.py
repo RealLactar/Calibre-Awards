@@ -229,13 +229,16 @@ def _request_html(opener: urllib.request.OpenerDirector, url: str) -> tuple[int,
             body = _read_response_body(response)
             final_url = response.geturl() or url
     except urllib.error.HTTPError as exc:
-        if exc.code == 404:
-            return 404, ''
-        body = _read_response_body(exc)
-        raise LocusSourceError(
-            f'Locus request failed with HTTP {exc.code} for {url}'
-            + (f': {body[:200].strip()}' if body.strip() else '')
-        ) from exc
+        try:
+            if exc.code == 404:
+                return 404, ''
+            body = _read_response_body(exc)
+            raise LocusSourceError(
+                f'Locus request failed with HTTP {exc.code} for {url}'
+                + (f': {body[:200].strip()}' if body.strip() else '')
+            ) from exc
+        finally:
+            exc.close()
     except urllib.error.URLError as exc:
         raise LocusSourceError(
             f'Locus request failed for {url}: {exc.reason}'

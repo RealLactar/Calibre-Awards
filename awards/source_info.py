@@ -486,7 +486,7 @@ SOURCE_INFOS: tuple[SourceInfo, ...] = (
             'Finalists are included from 2026, when administration '
             'transferred to the PEN/Faulkner Foundation. Historical '
             'Finalists, Runners-up, and Honorable Mentions from prior '
-            'administrators are not returned in this phase. '
+            'administrators are not returned. '
             'Longlisted-only works are not returned. The PEN/Faulkner '
             'Award for Fiction, PEN/Malamud Award, and PEN/Faulkner '
             'Literary Champion are excluded. No ordinal rank is inferred.'
