@@ -32,6 +32,7 @@ from awards.sources import (
     romantic_novel_awards,
     womens_prize_fiction,
     world_fantasy,
+    wolfson_history,
     bram_stoker,
     edgar,
 )
@@ -132,7 +133,7 @@ class SourceInfoRegistryConsistencyTests(unittest.TestCase):
             tuple(source.display_name for source in AWARD_SOURCES),
         )
         self.assertEqual(len(SOURCE_INFOS), len(AWARD_SOURCES))
-        self.assertEqual(len(SOURCE_INFOS), 20)
+        self.assertEqual(len(SOURCE_INFOS), 21)
         self.assertNotIn(
             'national_book_awards',
             [info.key for info in SOURCE_INFOS],
@@ -331,6 +332,7 @@ class SourceInfoScopeAndHomepageTests(unittest.TestCase):
             'nobel': ('author',),
             'booker': ('work',),
             'international_booker': ('work',),
+            'wolfson_history': ('work',),
             'german_book_prize': ('work',),
             'prix_goncourt': ('work',),
             'miles_franklin': ('work',),
@@ -362,6 +364,10 @@ class SourceInfoScopeAndHomepageTests(unittest.TestCase):
         self.assertEqual(hosts['nobel'], 'www.nobelprize.org')
         self.assertEqual(hosts['booker'], 'thebookerprizes.com')
         self.assertEqual(hosts['international_booker'], 'thebookerprizes.com')
+        self.assertEqual(
+            hosts['wolfson_history'],
+            'www.wolfsonhistoryprize.org.uk',
+        )
         self.assertEqual(hosts['german_book_prize'], 'www.deutscher-buchpreis.de')
         self.assertEqual(hosts['prix_goncourt'], 'www.academiegoncourt.com')
         self.assertEqual(hosts['miles_franklin'], 'www.perpetual.com.au')
@@ -390,6 +396,10 @@ class SourceInfoScopeAndHomepageTests(unittest.TestCase):
         self.assertEqual(
             _info('international_booker').homepage_url,
             international_booker.SOURCE_HOME_URL,
+        )
+        self.assertEqual(
+            _info('wolfson_history').homepage_url,
+            wolfson_history.SOURCE_HOME_URL,
         )
         self.assertEqual(
             _info('german_book_prize').homepage_url,
@@ -422,6 +432,7 @@ class SourceInfoScopeAndHomepageTests(unittest.TestCase):
                 'pulitzer',
                 'booker',
                 'international_booker',
+                'wolfson_history',
                 'german_book_prize',
                 'prix_goncourt',
                 'miles_franklin',
@@ -468,6 +479,26 @@ class SourceInfoScopeAndHomepageTests(unittest.TestCase):
         self.assertIn('bukhman', limitation)
         self.assertIn('translator', limitation)
         self.assertIn('notes', limitation)
+
+    def test_wolfson_history_description_and_limitation(self):
+        info = _info('wolfson_history')
+        self.assertEqual(info.display_name, 'Wolfson History Prize')
+        self.assertEqual(info.categories, ('History',))
+        self.assertEqual(info.categories, wolfson_history.SOURCEINFO_CATEGORIES)
+        self.assertEqual(info.identity_scopes, ('work',))
+        description = info.description.casefold()
+        self.assertIn('1972', description)
+        self.assertIn('co-equal', description)
+        self.assertIn('2017', description)
+        limitation = info.limitation.casefold()
+        self.assertIn('1988', limitation)
+        self.assertIn('distinguished-contribution', limitation)
+        self.assertIn('do not imply rank', limitation)
+        self.assertIn('before a winner', limitation)
+        combined = f'{description}\n{limitation}'
+        self.assertNotIn('category=none', combined)
+        self.assertNotIn('parser', combined)
+        self.assertNotIn('cache version', combined)
 
     def test_german_book_prize_description_and_limitation(self):
         info = _info('german_book_prize')
@@ -670,7 +701,7 @@ class SourceInfoImportAndFormatTests(unittest.TestCase):
         with patch.object(urllib.request, 'urlopen') as mocked_open:
             reloaded = importlib.reload(source_info)
             infos = reloaded.SOURCE_INFOS
-            self.assertEqual(len(infos), 20)
+            self.assertEqual(len(infos), 21)
             self.assertEqual(infos[0].key, 'pulitzer')
             self.assertEqual(infos[-1].key, 'newbery')
             mocked_open.assert_not_called()

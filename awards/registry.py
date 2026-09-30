@@ -60,6 +60,20 @@ INTERNATIONAL_BOOKER_SHORTLIST_POLICY = AwardPolicy(
     ),
 )
 
+WOLFSON_HISTORY_SHORTLIST_POLICY = AwardPolicy(
+    award_name='Wolfson History Prize',
+    category=None,
+    start_year=2017,
+    qualifying_statuses=frozenset({'Shortlisted'}),
+    notes=(
+        'The Wolfson History Prize publishes an official six-book shortlist '
+        'from which the Winner is selected. Shortlisted qualifies under this '
+        'award-specific policy. Shortlisted does not imply an ordinal rank. '
+        'Historical years may have more than one Winner; those Winners are '
+        'co-equal. Distinguished contribution honors are not returned.'
+    ),
+)
+
 GERMAN_BOOK_PRIZE_POLICY = AwardPolicy(
     award_name='Deutscher Buchpreis',
     category='Fiction',
@@ -213,6 +227,7 @@ AWARD_POLICIES: tuple[AwardPolicy, ...] = (
     NEWBERY_POLICY,
     BOOKER_POLICY,
     INTERNATIONAL_BOOKER_SHORTLIST_POLICY,
+    WOLFSON_HISTORY_SHORTLIST_POLICY,
     GERMAN_BOOK_PRIZE_POLICY,
     PRIX_GONCOURT_POLICY,
     MILES_FRANKLIN_POLICY,

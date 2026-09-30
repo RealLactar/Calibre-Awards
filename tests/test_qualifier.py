@@ -11,10 +11,12 @@ import unittest
 from awards.model import AwardResult
 from awards.qualifier import QualificationDecision, qualify_award_result
 from awards.registry import (
+    find_award_policy,
     BOOKER_POLICY,
     GERMAN_BOOK_PRIZE_POLICY,
     INTERNATIONAL_BOOKER_SHORTLIST_POLICY,
     MILES_FRANKLIN_POLICY,
+    WOLFSON_HISTORY_SHORTLIST_POLICY,
     NEWBERY_POLICY,
     PRIX_GONCOURT_POLICY,
     PULITZER_FICTION_POLICY,
@@ -710,6 +712,97 @@ class QualifyMilesFranklinPolicyTests(unittest.TestCase):
         with self.assertRaises(ValueError) as caught:
             qualify_award_result(wrong_category, MILES_FRANKLIN_POLICY)
         self.assertIn('does not apply', str(caught.exception))
+
+
+class QualifyWolfsonHistoryShortlistPolicyTests(unittest.TestCase):
+    def _result(self, **overrides) -> AwardResult:
+        values = {
+            'work_title': (
+                'The Boundless Deep: Young Tennyson, Science and the Crisis '
+                'of Belief'
+            ),
+            'work_author': 'Richard Holmes',
+            'award_name': 'Wolfson History Prize',
+            'award_year': 2026,
+            'category': None,
+            'status': 'Shortlisted',
+            'rank': None,
+            'source_name': 'Wolfson History Prize',
+            'source_url': (
+                'https://www.wolfsonhistoryprize.org.uk/past-winners/all-winners/'
+            ),
+        }
+        values.update(overrides)
+        return AwardResult(**values)
+
+    def test_winner_qualifies_normally_without_a_rank(self):
+        result = self._result(
+            award_year=1972,
+            status='Winner',
+            work_title='Religion and the Decline of Magic',
+            work_author='Keith Thomas',
+        )
+        assessment = qualify_award_result(result, policy=None)
+        self.assertEqual(assessment.decision, QualificationDecision.QUALIFIES)
+        self.assertIsNone(result.rank)
+        self.assertIsNone(result.category)
+
+    def test_modern_winner_qualifies_under_the_discovered_shortlist_policy(self):
+        result = self._result(
+            award_year=2025,
+            status='Winner',
+            work_title='Winner 2025',
+            work_author='Author 2025',
+        )
+        policy = find_award_policy(result)
+        self.assertIs(policy, WOLFSON_HISTORY_SHORTLIST_POLICY)
+        assessment = qualify_award_result(result, policy)
+        self.assertEqual(assessment.decision, QualificationDecision.QUALIFIES)
+        self.assertIsNone(result.rank)
+        self.assertIsNone(result.category)
+
+    def test_shortlisted_from_2017_qualifies_without_a_rank(self):
+        result = self._result()
+        assessment = qualify_award_result(result, WOLFSON_HISTORY_SHORTLIST_POLICY)
+        self.assertEqual(assessment.decision, QualificationDecision.QUALIFIES)
+        self.assertEqual(
+            assessment.reason,
+            'Award-specific policy identifies this status as satisfying '
+            'the inclusion rule.',
+        )
+        self.assertIsNone(result.rank)
+        self.assertIsNone(result.category)
+
+    def test_pre_2017_shortlisted_does_not_qualify_through_the_policy(self):
+        result = self._result(award_year=2016, status='Shortlisted')
+        with self.assertRaises(ValueError) as caught:
+            qualify_award_result(result, WOLFSON_HISTORY_SHORTLIST_POLICY)
+        self.assertIn('does not apply', str(caught.exception))
+        assessment = qualify_award_result(result, policy=None)
+        self.assertEqual(assessment.decision, QualificationDecision.REVIEW)
+        self.assertIsNone(result.rank)
+
+    def test_unrelated_shortlisted_award_is_not_broadened(self):
+        booker = AwardResult(
+            work_title='Empire of the Sun',
+            work_author='J. G. Ballard',
+            award_name='Booker Prize',
+            award_year=1984,
+            category='Fiction',
+            status='Shortlisted',
+            rank=None,
+            source_name='The Booker Prize',
+            source_url=(
+                'https://thebookerprizes.com/the-booker-library/books/'
+                'empire-of-the-sun'
+            ),
+        )
+        with self.assertRaises(ValueError) as caught:
+            qualify_award_result(booker, WOLFSON_HISTORY_SHORTLIST_POLICY)
+        self.assertIn('does not apply', str(caught.exception))
+        assessment = qualify_award_result(booker, BOOKER_POLICY)
+        self.assertEqual(assessment.decision, QualificationDecision.QUALIFIES)
+        self.assertIsNone(booker.rank)
 
 
 if __name__ == '__main__':

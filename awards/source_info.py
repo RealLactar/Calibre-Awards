@@ -31,6 +31,7 @@ from .sources import (
     romantic_novel_awards,
     womens_prize_fiction,
     world_fantasy,
+    wolfson_history,
 )
 
 _IDENTITY_SCOPES = frozenset({'work', 'series', 'author'})
@@ -135,6 +136,10 @@ def _booker_categories() -> tuple[str, ...]:
 
 def _international_booker_categories() -> tuple[str, ...]:
     return international_booker.SOURCEINFO_CATEGORIES
+
+
+def _wolfson_history_categories() -> tuple[str, ...]:
+    return wolfson_history.SOURCEINFO_CATEGORIES
 
 
 def _german_book_prize_categories() -> tuple[str, ...]:
@@ -357,6 +362,25 @@ SOURCE_INFOS: tuple[SourceInfo, ...] = (
             'Bukhman International Booker Prize and competitive results do '
             'not yet exist. Translator credit is stored as notes rather than '
             'emitted as a separate award.'
+        ),
+    ),
+    SourceInfo(
+        key='wolfson_history',
+        display_name='Wolfson History Prize',
+        categories=_wolfson_history_categories(),
+        identity_scopes=('work',),
+        homepage_url=wolfson_history.SOURCE_HOME_URL,
+        description=(
+            'Official Wolfson History Prize book awards from 1972 onward. '
+            'Historical years may have more than one co-equal Winner. '
+            'Official shortlist coverage begins in 2017.'
+        ),
+        limitation=(
+            'The official archive omits 1988. Lifetime and '
+            'distinguished-contribution honors are excluded. Shortlist '
+            'order and the order of historical Winners do not imply rank. '
+            'The current award cycle can list a shortlist before a Winner '
+            'is announced.'
         ),
     ),
     SourceInfo(

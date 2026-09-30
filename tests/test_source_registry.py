@@ -11,6 +11,7 @@ from awards.sources import (
     edgar,
     international_booker,
     german_book_prize,
+    wolfson_history,
     ipaf,
     miles_franklin,
     national_book_critics_circle,
@@ -39,6 +40,7 @@ class AwardSourceRegistryTests(unittest.TestCase):
                 'nobel',
                 'booker',
                 'international_booker',
+                'wolfson_history',
                 'german_book_prize',
                 'prix_goncourt',
                 'miles_franklin',
@@ -66,6 +68,7 @@ class AwardSourceRegistryTests(unittest.TestCase):
                 'Nobel Award',
                 'The Booker Prize',
                 'International Booker Prize',
+                'Wolfson History Prize',
                 'Deutscher Buchpreis',
                 'Prix Goncourt',
                 'Miles Franklin Literary Award',
@@ -80,7 +83,7 @@ class AwardSourceRegistryTests(unittest.TestCase):
 
     def test_executable_registry_count_excludes_national_book_awards(self):
         keys = [source.key for source in AWARD_SOURCES]
-        self.assertEqual(len(AWARD_SOURCES), 20)
+        self.assertEqual(len(AWARD_SOURCES), 21)
         self.assertNotIn('national_book_awards', keys)
         self.assertNotIn(
             'National Book Awards',
@@ -123,6 +126,13 @@ class AwardSourceRegistryTests(unittest.TestCase):
             item for item in AWARD_SOURCES if item.key == 'international_booker'
         ][0]
         self.assertIs(source.lookup, international_booker.lookup)
+
+    def test_wolfson_history_uses_the_public_lookup_function(self):
+        source = [
+            item for item in AWARD_SOURCES if item.key == 'wolfson_history'
+        ][0]
+        self.assertIs(source.lookup, wolfson_history.lookup)
+        self.assertEqual(source.display_name, 'Wolfson History Prize')
 
     def test_german_book_prize_uses_the_public_lookup_function(self):
         german_source = [

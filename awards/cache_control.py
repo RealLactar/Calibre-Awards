@@ -37,6 +37,7 @@ from .sources import (
     romantic_novel_awards,
     womens_prize_fiction,
     world_fantasy,
+    wolfson_history,
 )
 
 CACHE_REFRESH_BUTTON_LABEL = 'Refresh'
@@ -73,6 +74,7 @@ _SOURCE_RUNTIME_RESETS = {
     'romantic_novel_awards': romantic_novel_awards._reset_runtime_state,
     'womens_prize_fiction': womens_prize_fiction._reset_runtime_state,
     'world_fantasy': world_fantasy._reset_runtime_state,
+    'wolfson_history': wolfson_history._reset_runtime_state,
 }
 
 
