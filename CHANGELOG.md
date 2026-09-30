@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Wolfson History Prize executable source, with Winner coverage from the
+  official archive beginning in 1972 and official Shortlisted coverage
+  from 2017
+
 ## 0.3.0 beta - 2026-09-28
 
 ### Added

@@ -34,6 +34,7 @@ from .sources.pulitzer import lookup as pulitzer_lookup
 from .sources.romantic_novel_awards import lookup as romantic_novel_awards_lookup
 from .sources.womens_prize_fiction import lookup as womens_prize_fiction_lookup
 from .sources.world_fantasy import lookup as world_fantasy_lookup
+from .sources.wolfson_history import lookup as wolfson_history_lookup
 
 
 class AwardSourceLookup(Protocol):
@@ -111,6 +112,11 @@ AWARD_SOURCES: tuple[AwardSource, ...] = (
         key='international_booker',
         display_name='International Booker Prize',
         lookup=international_booker_lookup,
+    ),
+    AwardSource(
+        key='wolfson_history',
+        display_name='Wolfson History Prize',
+        lookup=wolfson_history_lookup,
     ),
     AwardSource(
         key='german_book_prize',

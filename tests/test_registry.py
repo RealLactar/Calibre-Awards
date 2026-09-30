@@ -21,6 +21,7 @@ from awards.registry import (
     GERMAN_BOOK_PRIZE_POLICY,
     INTERNATIONAL_BOOKER_SHORTLIST_POLICY,
     IPAF_SHORTLISTED_POLICY,
+    WOLFSON_HISTORY_SHORTLIST_POLICY,
     MILES_FRANKLIN_POLICY,
     NBCC_FINALIST_POLICY,
     NEWBERY_POLICY,
@@ -127,6 +128,7 @@ class AwardPolicyRegistryTests(unittest.TestCase):
                 NEWBERY_POLICY,
                 BOOKER_POLICY,
                 INTERNATIONAL_BOOKER_SHORTLIST_POLICY,
+                WOLFSON_HISTORY_SHORTLIST_POLICY,
                 GERMAN_BOOK_PRIZE_POLICY,
                 PRIX_GONCOURT_POLICY,
                 MILES_FRANKLIN_POLICY,
@@ -1067,6 +1069,71 @@ class AwardPolicyRegistryTests(unittest.TestCase):
         )
         self.assertIsNone(winner.rank)
         self.assertIsNone(shortlisted.rank)
+
+
+class WolfsonHistoryPolicyTests(unittest.TestCase):
+    def _result(self, **overrides) -> AwardResult:
+        values = {
+            'work_title': (
+                'The Boundless Deep: Young Tennyson, Science and the Crisis '
+                'of Belief'
+            ),
+            'work_author': 'Richard Holmes',
+            'award_name': 'Wolfson History Prize',
+            'award_year': 2026,
+            'category': None,
+            'status': 'Shortlisted',
+            'rank': None,
+            'source_name': 'Wolfson History Prize',
+            'source_url': (
+                'https://www.wolfsonhistoryprize.org.uk/past-winners/all-winners/'
+            ),
+        }
+        values.update(overrides)
+        return AwardResult(**values)
+
+    def test_shortlist_policy_shape(self):
+        policy = WOLFSON_HISTORY_SHORTLIST_POLICY
+        self.assertEqual(policy.award_name, 'Wolfson History Prize')
+        self.assertIsNone(policy.category)
+        self.assertEqual(policy.start_year, 2017)
+        self.assertIsNone(policy.end_year)
+        self.assertEqual(policy.qualifying_statuses, frozenset({'shortlisted'}))
+        self.assertIn(policy, AWARD_POLICIES)
+        notes = policy.notes.casefold()
+        self.assertIn('six-book shortlist', notes)
+        self.assertIn('does not imply an ordinal rank', notes)
+        self.assertIn('co-equal', notes)
+        self.assertIn('distinguished contribution', notes)
+
+    def test_shortlisted_from_2017_finds_the_policy(self):
+        self.assertIs(
+            find_award_policy(self._result(award_year=2017)),
+            WOLFSON_HISTORY_SHORTLIST_POLICY,
+        )
+
+    def test_pre_2017_shortlisted_does_not_match_the_policy(self):
+        self.assertIsNone(
+            find_award_policy(self._result(award_year=2016, status='Shortlisted'))
+        )
+
+    def test_historical_winner_is_outside_the_shortlist_policy_years(self):
+        winner = self._result(
+            award_year=1972,
+            status='Winner',
+            work_title='Religion and the Decline of Magic',
+            work_author='Keith Thomas',
+        )
+        self.assertIsNone(find_award_policy(winner))
+
+    def test_booker_shortlisted_keeps_the_booker_policy(self):
+        booker = _booker_result(
+            work_title='Empire of the Sun',
+            work_author='J. G. Ballard',
+            award_year=1984,
+            status='Shortlisted',
+        )
+        self.assertIs(find_award_policy(booker), BOOKER_POLICY)
 
 
 if __name__ == '__main__':

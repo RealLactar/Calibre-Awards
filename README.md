@@ -27,7 +27,7 @@ Book lookup happens only from **Check Awards** in Edit Metadata.
 
 ## Supported awards
 
-The plugin currently has **20 executable award sources**. Category coverage
+The plugin currently has **21 executable award sources**. Category coverage
 is limited to the literary work awards each source currently advertises in
 the plugin. Anthology, editor, artist, publisher, and similar non-work
 honors are omitted where they fall outside those categories.
@@ -49,6 +49,7 @@ scope catalog.
 | Nobel Award | Nobel Prize in Literature laureate archive | Author-level Winner; official motivation shown in Check Awards; eight reviewed motivation citations are annotations, not book-level Wins |
 | The Booker Prize | 1969–present | Winner; Shortlisted |
 | International Booker Prize | Official Winner and Shortlisted translated works, 2016–2026 | Winner; Shortlisted |
+| Wolfson History Prize | Official book-award archive from 1972; official shortlists from 2017 | Winner; Shortlisted |
 | Deutscher Buchpreis | 2005–present | Winner; Shortlisted |
 | Prix Goncourt | Winners from 1903; Finalists from 2018 | Winner; Finalist (official 3ème sélection) |
 | Miles Franklin Literary Award | Production coverage from 2007 | Winner; Finalist when the archive labels the work Finalist, Shortlist, or Shortlisted |
@@ -236,6 +237,11 @@ Uncached lookups require an internet connection.
   the official prize name changes to the Bukhman International Booker Prize
   and competitive results do not yet exist. Translator credit is stored in
   notes rather than as a separate award.
+- **Wolfson History Prize.** Official book awards from 1972. The official
+  archive omits 1988. Historical years may have more than one co-equal
+  Winner. Official shortlists begin in 2017. Lifetime and
+  distinguished-contribution honors are excluded. List order is not rank.
+  The current cycle may list a shortlist before a Winner is announced.
 - **International Prize for Arabic Fiction.** Official English coverage
   begins in 2020. The 2008–2019 archive has not been migrated to the current
   site. Official English spellings may differ from later translations.

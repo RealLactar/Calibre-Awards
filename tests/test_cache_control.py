@@ -41,6 +41,7 @@ from awards.sources import (
     romantic_novel_awards,
     womens_prize_fiction,
     world_fantasy,
+    wolfson_history,
 )
 
 _UTC = timezone.utc
@@ -118,6 +119,7 @@ class CacheControlTestCase(unittest.TestCase):
         pulitzer._reset_runtime_state()
         womens_prize_fiction._reset_runtime_state()
         world_fantasy._reset_runtime_state()
+        wolfson_history._reset_runtime_state()
         self._temp = TemporaryDirectory()
         self.cache_dir = Path(self._temp.name)
         cache.set_cache_directory(self.cache_dir)
@@ -143,6 +145,7 @@ class CacheControlTestCase(unittest.TestCase):
         pulitzer._reset_runtime_state()
         womens_prize_fiction._reset_runtime_state()
         world_fantasy._reset_runtime_state()
+        wolfson_history._reset_runtime_state()
         cache._reset_runtime_state()
         self._temp.cleanup()
 
@@ -180,6 +183,19 @@ class ArchiveSourceRefreshTests(CacheControlTestCase):
         self.assertIsNotNone(cache.load_source_cache('hugo', 1))
         self.assertEqual(hugo._archive_records_cache, ())
 
+    def test_refresh_wolfson_history_clears_disk_and_ram_without_network(self):
+        _save_archive('wolfson_history')
+        wolfson_history._archive_records_cache = ()
+        self.assertIs(
+            cache_control._SOURCE_RUNTIME_RESETS['wolfson_history'],
+            wolfson_history._reset_runtime_state,
+        )
+        with patch('urllib.request.urlopen', side_effect=AssertionError('network')):
+            self.assertTrue(refresh_award_source_cache('wolfson_history'))
+        self.assertFalse((self.cache_dir / 'wolfson_history.json').exists())
+        self.assertIsNone(cache.load_source_cache('wolfson_history', 1))
+        self.assertIsNone(wolfson_history._archive_records_cache)
+
     def test_sibling_archive_caches_survive(self):
         for key in (
             'pulitzer',
@@ -192,6 +208,7 @@ class ArchiveSourceRefreshTests(CacheControlTestCase):
             'nobel',
             'booker',
             'international_booker',
+            'wolfson_history',
             'german_book_prize',
             'prix_goncourt',
             'miles_franklin',
@@ -215,6 +232,7 @@ class ArchiveSourceRefreshTests(CacheControlTestCase):
             'nobel',
             'booker',
             'international_booker',
+            'wolfson_history',
             'german_book_prize',
             'prix_goncourt',
             'miles_franklin',
