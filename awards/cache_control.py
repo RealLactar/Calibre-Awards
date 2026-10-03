@@ -17,6 +17,7 @@ from __future__ import annotations
 from . import cache
 from .source_info import SOURCE_INFOS
 from .sources import (
+    bad_sex_fiction,
     balrog,
     booker,
     bram_stoker,
@@ -53,6 +54,7 @@ SOURCES_GROUP_HINT = (
 # One reset callable per registered source key. Adding a source to
 # AWARD_SOURCES without a mapping here is caught by tests.
 _SOURCE_RUNTIME_RESETS = {
+    'bad_sex_fiction': bad_sex_fiction._reset_runtime_state,
     'balrog': balrog._reset_runtime_state,
     'booker': booker._reset_runtime_state,
     'bram_stoker': bram_stoker._reset_runtime_state,
@@ -95,6 +97,10 @@ def source_cache_refresh_confirm_title(display_name: str) -> str:
 
 
 def source_cache_refresh_confirm_body(source_key: str, display_name: str) -> str:
+    if source_key == 'bad_sex_fiction':
+        return ('The in-memory Bad Sex in Fiction archive will be cleared. '
+                'The next lookup reloads the bundled reviewed 1993–2019 winners; '
+                'this source does not download new data. No book metadata is changed.')
     if source_key == 'pulitzer':
         return (
             'This will clear in-memory Pulitzer lookup data and request a '
@@ -117,6 +123,10 @@ def source_cache_refresh_confirm_body(source_key: str, display_name: str) -> str
 
 
 def source_cache_refresh_status_text(source_key: str, display_name: str) -> str:
+    if source_key == 'bad_sex_fiction':
+        return ('The in-memory Bad Sex in Fiction archive will be cleared. '
+                'The next lookup reloads the bundled reviewed 1993–2019 winners; '
+                'this source does not download new data. No book metadata is changed.')
     if source_key == 'pulitzer':
         return (
             'Pulitzer Prizes in-memory cache cleared.\n'

@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from typing import Protocol
 
 from .model import AwardResult
+from .sources.bad_sex_fiction import lookup as bad_sex_fiction_lookup
 from .sources.balrog import lookup as balrog_lookup
 from .sources.booker import lookup as booker_lookup
 from .sources.bram_stoker import lookup as bram_stoker_lookup
@@ -164,6 +165,8 @@ AWARD_SOURCES: tuple[AwardSource, ...] = (
         display_name='International Prize for Arabic Fiction',
         lookup=ipaf_lookup,
     ),
+    AwardSource(key='bad_sex_fiction', display_name='Bad Sex in Fiction Award',
+                lookup=bad_sex_fiction_lookup),
     AwardSource(
         key='newbery',
         display_name='John Newbery Medal',

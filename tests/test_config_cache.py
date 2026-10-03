@@ -62,6 +62,7 @@ _EXPECTED_SOURCE_ORDER = (
     'pen_faulkner',
     'pen_hemingway',
     'ipaf',
+    'bad_sex_fiction',
     'newbery',
 )
 
@@ -377,7 +378,7 @@ class AwardSourcesLayoutTests(unittest.TestCase):
         hemingway = _EXPECTED_SOURCE_ORDER.index('pen_hemingway')
         self.assertEqual(panel.inserted_source_rows[hemingway + 1], 'ipaf')
         ipaf_row = _EXPECTED_SOURCE_ORDER.index('ipaf')
-        self.assertEqual(panel.inserted_source_rows[ipaf_row + 1], 'newbery')
+        self.assertEqual(panel.inserted_source_rows[ipaf_row + 1], 'bad_sex_fiction')
 
     def test_one_refresh_button_per_registered_source(self):
         panel = FakeAwardSourcesPanel()
@@ -436,8 +437,8 @@ class AwardSourcesUnavailableRowTests(unittest.TestCase):
 
     def test_executable_rows_retain_checkbox_and_refresh(self):
         panel = FakeAwardSourcesPanel()
-        self.assertEqual(len(panel.source_checkboxes), 22)
-        self.assertEqual(len(panel.source_refresh_buttons), 22)
+        self.assertEqual(len(panel.source_checkboxes), 23)
+        self.assertEqual(len(panel.source_refresh_buttons), 23)
         for source_key, display_name in cache_refresh_source_rows():
             self.assertIn(source_key, panel.source_checkboxes)
             self.assertIn(source_key, panel.source_refresh_buttons)

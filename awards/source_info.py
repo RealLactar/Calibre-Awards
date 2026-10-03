@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from urllib.parse import urlparse
 
 from .sources import (
+    bad_sex_fiction,
     balrog,
     booker,
     bram_stoker,
@@ -558,6 +559,16 @@ SOURCE_INFOS: tuple[SourceInfo, ...] = (
             'earlier announcements or later published translations. No '
             'generated transliteration or ordinal rank is used.'
         ),
+    ),
+    SourceInfo(
+        key='bad_sex_fiction', display_name='Bad Sex in Fiction Award',
+        categories=bad_sex_fiction.CATEGORIES, identity_scopes=('work',),
+        homepage_url=bad_sex_fiction.SOURCE_HOME_URL,
+        description='Literary Review satirical fiction prize, matched by title and author.',
+        limitation=('Bundled reviewed winners for 1993–2019, including both 2019 winners. '
+                    'Winner-only; shortlists and John Updike’s lifetime achievement are excluded. '
+                    '2020 was cancelled. No live retrieval; Refresh reloads the bundled archive. '
+                    'Earlier gaps and the 1994/1995 date discrepancy use a historical secondary source.'),
     ),
     SourceInfo(
         key='newbery',

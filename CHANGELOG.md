@@ -4,6 +4,9 @@
 
 ### Added
 
+- Bad Sex in Fiction Award: 28 reviewed historical book winners (1993–2019),
+  including both 2019 winners, offline lookup, source attribution and Preferences.
+
 - Balrog Award literary-source coverage for 1979–1985 using the public ISFDB
   copy, with Winners and Nominations, conservative identity matching, cached
   archive retrieval, Preferences and source-specific Refresh.

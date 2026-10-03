@@ -218,6 +218,7 @@ class ArchiveSourceRefreshTests(CacheControlTestCase):
             'pen_faulkner',
             'pen_hemingway',
             'ipaf',
+            'bad_sex_fiction',
             'newbery',
         ):
             _save_archive(key)
@@ -243,6 +244,7 @@ class ArchiveSourceRefreshTests(CacheControlTestCase):
             'pen_faulkner',
             'pen_hemingway',
             'ipaf',
+            'bad_sex_fiction',
             'newbery',
         ):
             self.assertTrue((self.cache_dir / f'{key}.json').is_file(), key)

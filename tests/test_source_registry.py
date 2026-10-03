@@ -50,6 +50,7 @@ class AwardSourceRegistryTests(unittest.TestCase):
                 'pen_faulkner',
                 'pen_hemingway',
                 'ipaf',
+                'bad_sex_fiction',
                 'newbery',
             ),
         )
@@ -79,13 +80,14 @@ class AwardSourceRegistryTests(unittest.TestCase):
                 'PEN/Faulkner Award for Fiction',
                 'PEN/Hemingway Award for Debut Novel',
                 'International Prize for Arabic Fiction',
+                'Bad Sex in Fiction Award',
                 'John Newbery Medal',
             ),
         )
 
     def test_executable_registry_count_excludes_national_book_awards(self):
         keys = [source.key for source in AWARD_SOURCES]
-        self.assertEqual(len(AWARD_SOURCES), 22)
+        self.assertEqual(len(AWARD_SOURCES), 23)
         self.assertNotIn('national_book_awards', keys)
         self.assertNotIn(
             'National Book Awards',

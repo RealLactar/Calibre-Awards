@@ -27,7 +27,7 @@ Book lookup happens only from **Check Awards** in Edit Metadata.
 
 ## Supported awards
 
-The plugin currently has **22 executable award sources**. Category coverage
+The plugin currently has **23 executable award sources**. Category coverage
 is limited to the literary work awards each source currently advertises in
 the plugin. Anthology, editor, artist, publisher, and similar non-work
 honors are omitted where they fall outside those categories.
@@ -59,6 +59,7 @@ scope catalog.
 | PEN/Faulkner Award for Fiction | Winner and Finalist from 1981 | Winner; Finalist |
 | PEN/Hemingway Award for Debut Novel | Winners from 1976; Finalists from 2026 | Winner; Finalist |
 | International Prize for Arabic Fiction | Official English prize-year pages from 2020 | Winner; Shortlisted |
+| Bad Sex in Fiction Award | Bundled reviewed book winners, 1993–2019; no network required | Winner |
 | John Newbery Medal | 1930–2023 | Winner; Honor |
 
 **National Book Awards** is not an executable source. Preferences shows it
@@ -372,3 +373,5 @@ Do not include passwords, API keys, or other private account information.
 Calibre Awards is licensed under [GPL-3.0-or-later](LICENSE).
 
 Balrog award data is retrieved from the public ISFDB copy at https://isfdb.stoecker.eu/ and is attributed to the ISFDB team under Creative Commons Attribution 4.0 (https://creativecommons.org/licenses/by/4.0/). The plugin parses and normalizes those records for matching.
+
+Bad Sex in Fiction Award: bundled reviewed book winners, 1993–2019 (28 records, including joint 2019 winners). No shortlists or author lifetime honors. No network required; Refresh reloads the bundled archive. Historical secondary attribution and a corrected 1994/1995 date discrepancy are documented in awards/data/bad_sex_provenance.md.
