@@ -252,6 +252,18 @@ def _request_html(opener: urllib.request.OpenerDirector, url: str) -> tuple[int,
         raise LocusSourceError(
             f'Locus request redirected off SFADB: {url} -> {final_url}'
         )
+    if int(status) == 200 and (
+        urlparse(final_url).path.rstrip('/').casefold()
+        == '/cgi-sys/suspendedpage.cgi'
+        or re.search(r'<title>\s*Account Suspended\s*</title>', body, re.I)
+    ):
+        # Hosting error pages return HTTP 200 but contain no award data.
+        # Raising here preserves a validated stale cache during refresh.
+        raise LocusSourceError(
+            f'SFADB is unavailable: its hosting provider is serving an '
+            f'Account Suspended page for {url}. Cached data is used when '
+            'available; uncached Locus results cannot be checked.'
+        )
     return int(status), body
 
 

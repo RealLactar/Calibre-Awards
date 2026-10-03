@@ -210,9 +210,13 @@ class ConfigWidget(QWidget):
         select_none = QPushButton('Select None', buttons)
         select_all.clicked.connect(self.select_all_sources)
         select_none.clicked.connect(self.select_no_sources)
+        self.refresh_all_button = QPushButton('Refresh all', buttons)
+        self.refresh_all_button.setAutoDefault(False)
+        self.refresh_all_button.clicked.connect(self._on_refresh_all_sources)
         buttons_layout.addWidget(select_all)
         buttons_layout.addWidget(select_none)
         buttons_layout.addStretch(1)
+        buttons_layout.addWidget(self.refresh_all_button)
         sources_layout.addWidget(buttons)
         self.cache_status = QLabel('', sources_group)
         self.cache_status.setWordWrap(True)
@@ -451,6 +455,7 @@ class ConfigWidget(QWidget):
                 confirmed=bool(confirmed),
             )
         except Exception:
+            self.source_refresh_buttons[source_key].setText('Retry Refresh')
             error_dialog(
                 self,
                 'Calibre Awards',
@@ -463,16 +468,72 @@ class ConfigWidget(QWidget):
         if persistent_ok is None:
             return
         if persistent_ok:
+            self._mark_refresh_queued(source_key)
             self.cache_status.setText(
                 source_cache_refresh_status_text(source_key, display_name)
             )
             return
+        self.source_refresh_buttons[source_key].setText('Retry Refresh')
         error_dialog(
             self,
             'Calibre Awards',
             source_cache_refresh_failure_text(display_name),
             show=True,
         )
+
+    def _mark_refresh_queued(self, source_key):
+        button = self.source_refresh_buttons[source_key]
+        button.setText('Refresh queued')
+        button.setToolTip(
+            'Refresh requested in this preferences session. '
+            'Fresh data will be requested the next time this source is checked.'
+        )
+
+    def _on_refresh_all_sources(self):
+        rows = [
+            (key, self.source_checkboxes[key].text())
+            for key in self.source_checkboxes
+            if self.source_checkboxes[key].isChecked()
+        ]
+        if not rows:
+            self.cache_status.setText('Select at least one award source to refresh.')
+            return
+        if not question_dialog(
+            self,
+            'Refresh all enabled award sources?',
+            f'This will refresh cached data for {len(rows)} enabled award '
+            'sources. Fresh data will be requested the next time each source '
+            'is checked. Pulitzer keeps its saved data as a fallback.\n\n'
+            'Awards stored in your books will not change. This action happens '
+            'immediately and is not undone by Canceling Preferences.',
+            skip_dialog_name=None,
+        ):
+            return
+        failed = []
+        for key, name in rows:
+            try:
+                ok = run_source_cache_refresh_if_confirmed(
+                    key, name, confirmed=True,
+                )
+            except Exception:
+                ok = False
+            if ok:
+                self._mark_refresh_queued(key)
+            else:
+                self.source_refresh_buttons[key].setText('Retry Refresh')
+                failed.append(name)
+        if failed:
+            self.refresh_all_button.setText('Retry Refresh all')
+            self.cache_status.setText(
+                f'Refresh queued for {len(rows) - len(failed)} sources. '
+                'Could not fully clear: ' + ', '.join(failed) + '. Try again.'
+            )
+        else:
+            self.refresh_all_button.setText('Refresh all queued')
+            self.cache_status.setText(
+                f'Refresh queued for all {len(rows)} enabled sources. '
+                'Fresh data will be requested on the next Check Awards search.'
+            )
 
     def validate(self):
         if (

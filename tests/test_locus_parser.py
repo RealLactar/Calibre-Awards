@@ -1841,6 +1841,40 @@ class RedirectHostTests(LocusTestCase):
         self.assertIn('redirected off SFADB', str(ctx.exception))
 
 
+class HostingSuspensionTests(LocusTestCase):
+    def test_suspension_is_a_source_failure_and_stops_slug_probing(self):
+        for final_url, body in (
+            ('https://www.sfadb.com/cgi-sys/suspendedpage.cgi', b'<html>unavailable</html>'),
+            (URL_SIMMONS, b'<html><title>Account Suspended</title></html>'),
+        ):
+            with self.subTest(final_url=final_url):
+                class Response:
+                    status = 200
+                    headers = {}
+
+                    def geturl(self):
+                        return final_url
+
+                    def read(self):
+                        return body
+
+                    def __enter__(self):
+                        return self
+
+                    def __exit__(self, *args):
+                        return False
+
+                from unittest.mock import Mock
+                opener = Mock()
+                opener.open.return_value = Response()
+                with patch.object(locus, '_build_opener', return_value=opener):
+                    with self.assertRaisesRegex(locus.LocusSourceError, 'Account Suspended'):
+                        locus.lookup('Hyperion', 'Dan Simmons')
+                self.assertEqual(opener.open.call_count, 1)
+                self.assertEqual(locus._author_page_cache, {})
+                self.assertEqual(locus._annual_page_cache, {})
+
+
 class CacheTests(LocusTestCase):
     def test_second_lookup_reuses_author_and_annual_pages(self):
         with patch.object(locus, '_request_html', side_effect=_fake_request) as mocked:

@@ -4,9 +4,19 @@
 
 ### Added
 
+- Refresh all enabled award sources with one confirmation in Preferences.
+  Successful Refresh buttons show Refresh queued for the current preferences
+  session; partial failures remain available for retry.
+
 - Wolfson History Prize executable source, with Winner coverage from the
   official archive beginning in 1972 and official Shortlisted coverage
   from 2017
+
+### Fixed
+
+- Locus now reports SFADB hosting suspension pages as source failures instead
+  of treating HTTP 200 responses with no award data as successful no-match
+  lookups. Validated stale caches remain usable during failed refreshes.
 
 ## 0.3.0 beta - 2026-09-28
 
