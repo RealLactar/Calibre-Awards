@@ -4,6 +4,10 @@
 
 ### Added
 
+- Balrog Award literary-source coverage for 1979–1985 using the public ISFDB
+  copy, with Winners and Nominations, conservative identity matching, cached
+  archive retrieval, Preferences and source-specific Refresh.
+
 - Refresh all enabled award sources with one confirmation in Preferences.
   Successful Refresh buttons show Refresh queued for the current preferences
   session; partial failures remain available for retry.

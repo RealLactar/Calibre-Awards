@@ -133,7 +133,7 @@ class SourceInfoRegistryConsistencyTests(unittest.TestCase):
             tuple(source.display_name for source in AWARD_SOURCES),
         )
         self.assertEqual(len(SOURCE_INFOS), len(AWARD_SOURCES))
-        self.assertEqual(len(SOURCE_INFOS), 21)
+        self.assertEqual(len(SOURCE_INFOS), 22)
         self.assertNotIn(
             'national_book_awards',
             [info.key for info in SOURCE_INFOS],
@@ -326,6 +326,7 @@ class SourceInfoScopeAndHomepageTests(unittest.TestCase):
             'hugo': ('work', 'series'),
             'locus': ('work',),
             'world_fantasy': ('work',),
+            'balrog': ('work',),
             'bram_stoker': ('work',),
             'edgar': ('work',),
             'romantic_novel_awards': ('work',),
@@ -429,6 +430,7 @@ class SourceInfoScopeAndHomepageTests(unittest.TestCase):
     def test_only_documented_sources_have_limitations(self):
         for info in SOURCE_INFOS:
             if info.key in {
+                'balrog',
                 'pulitzer',
                 'booker',
                 'international_booker',
@@ -701,7 +703,7 @@ class SourceInfoImportAndFormatTests(unittest.TestCase):
         with patch.object(urllib.request, 'urlopen') as mocked_open:
             reloaded = importlib.reload(source_info)
             infos = reloaded.SOURCE_INFOS
-            self.assertEqual(len(infos), 21)
+            self.assertEqual(len(infos), 22)
             self.assertEqual(infos[0].key, 'pulitzer')
             self.assertEqual(infos[-1].key, 'newbery')
             mocked_open.assert_not_called()

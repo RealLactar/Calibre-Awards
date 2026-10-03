@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from typing import Protocol
 
 from .model import AwardResult
+from .sources.balrog import lookup as balrog_lookup
 from .sources.booker import lookup as booker_lookup
 from .sources.bram_stoker import lookup as bram_stoker_lookup
 from .sources.international_booker import lookup as international_booker_lookup
@@ -82,6 +83,11 @@ AWARD_SOURCES: tuple[AwardSource, ...] = (
         key='world_fantasy',
         display_name='World Fantasy Awards',
         lookup=world_fantasy_lookup,
+    ),
+    AwardSource(
+        key='balrog',
+        display_name='Balrog Award',
+        lookup=balrog_lookup,
     ),
     AwardSource(
         key='bram_stoker',

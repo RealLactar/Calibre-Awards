@@ -27,7 +27,7 @@ Book lookup happens only from **Check Awards** in Edit Metadata.
 
 ## Supported awards
 
-The plugin currently has **21 executable award sources**. Category coverage
+The plugin currently has **22 executable award sources**. Category coverage
 is limited to the literary work awards each source currently advertises in
 the plugin. Anthology, editor, artist, publisher, and similar non-work
 honors are omitted where they fall outside those categories.
@@ -43,6 +43,7 @@ scope catalog.
 | Hugo Awards | Regular archive from 1953 (no regular 1954 page; that year is Retro-only) | Winner; Finalist; explicit Best Novel rank only for curated official-statistics years; series awards where supported |
 | Locus Awards | Ranked literary categories from the Science Fiction Awards Database (SFADB) annual archive | Explicit ordinal ranks; the Preferences rank cutoff decides which ranks qualify |
 | World Fantasy Awards | Novel and Short Fiction from 1975; Novella from 1982; Collection from 1988 | Winner; Nominee |
+| Balrog Award | ISFDB public copy, award years 1979–1985; 1984–1985 literary records winner-only | Winner; Nomination (review) |
 | Bram Stoker Awards | Publication-year cycles from 1987 through the latest completed cycle (verified through 2025) | Winner; Final Ballot works as Finalist |
 | Edgar Awards | Bibliographic mystery and crime categories from 1946 | Winner; Nominee |
 | Romantic Novel of the Year Awards | Winners from 1960 where the current archive includes them; official shortlists from 2018 | Winner; Shortlisted |
@@ -369,3 +370,5 @@ Do not include passwords, API keys, or other private account information.
 ## License
 
 Calibre Awards is licensed under [GPL-3.0-or-later](LICENSE).
+
+Balrog award data is retrieved from the public ISFDB copy at https://isfdb.stoecker.eu/ and is attributed to the ISFDB team under Creative Commons Attribution 4.0 (https://creativecommons.org/licenses/by/4.0/). The plugin parses and normalizes those records for matching.

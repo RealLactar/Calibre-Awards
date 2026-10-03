@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from urllib.parse import urlparse
 
 from .sources import (
+    balrog,
     booker,
     bram_stoker,
     edgar,
@@ -249,6 +250,26 @@ SOURCE_INFOS: tuple[SourceInfo, ...] = (
         homepage_url=world_fantasy.SOURCE_HOME_URL,
         description=(
             'World Fantasy work awards in the supported literary categories.'
+        ),
+    ),
+    SourceInfo(
+        key='balrog',
+        display_name='Balrog Award',
+        categories=balrog.CATEGORIES,
+        identity_scopes=('work',),
+        homepage_url=balrog.SOURCE_HOME_URL,
+        description=(
+            'Balrog literary awards from the Internet Speculative Fiction '
+            'Database public copy at stoecker.eu. Winners and source-labeled '
+            'Nominations are matched by title and author.'
+        ),
+        limitation=(
+            'Award years 1979–1985. Novel, Short Fiction, Short Story, '
+            'Collection and Collection/Anthology category names are preserved. '
+            'The 1984–1985 literary records are winner-only. Nominations '
+            'require review; no ordinal rank is inferred. Film, person, '
+            'publication and achievement honors are excluded. This is a '
+            'third-party ISFDB copy; original-site access may be blocked.'
         ),
     ),
     SourceInfo(
