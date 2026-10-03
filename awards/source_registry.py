@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from typing import Protocol
 
 from .model import AwardResult
+from .sources.diagram import lookup as diagram_lookup
 from .sources.bad_sex_fiction import lookup as bad_sex_fiction_lookup
 from .sources.balrog import lookup as balrog_lookup
 from .sources.booker import lookup as booker_lookup
@@ -167,6 +168,8 @@ AWARD_SOURCES: tuple[AwardSource, ...] = (
     ),
     AwardSource(key='bad_sex_fiction', display_name='Bad Sex in Fiction Award',
                 lookup=bad_sex_fiction_lookup),
+    AwardSource(key='diagram', display_name='Diagram Prize for Oddest Title of the Year',
+                lookup=diagram_lookup),
     AwardSource(
         key='newbery',
         display_name='John Newbery Medal',

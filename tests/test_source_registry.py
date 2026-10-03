@@ -51,6 +51,7 @@ class AwardSourceRegistryTests(unittest.TestCase):
                 'pen_hemingway',
                 'ipaf',
                 'bad_sex_fiction',
+                'diagram',
                 'newbery',
             ),
         )
@@ -81,13 +82,14 @@ class AwardSourceRegistryTests(unittest.TestCase):
                 'PEN/Hemingway Award for Debut Novel',
                 'International Prize for Arabic Fiction',
                 'Bad Sex in Fiction Award',
+                'Diagram Prize for Oddest Title of the Year',
                 'John Newbery Medal',
             ),
         )
 
     def test_executable_registry_count_excludes_national_book_awards(self):
         keys = [source.key for source in AWARD_SOURCES]
-        self.assertEqual(len(AWARD_SOURCES), 23)
+        self.assertEqual(len(AWARD_SOURCES), 24)
         self.assertNotIn('national_book_awards', keys)
         self.assertNotIn(
             'National Book Awards',

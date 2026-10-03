@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from urllib.parse import urlparse
 
 from .sources import (
+    diagram,
     bad_sex_fiction,
     balrog,
     booker,
@@ -569,6 +570,18 @@ SOURCE_INFOS: tuple[SourceInfo, ...] = (
                     'Winner-only; shortlists and John Updike’s lifetime achievement are excluded. '
                     '2020 was cancelled. No live retrieval; Refresh reloads the bundled archive. '
                     'Earlier gaps and the 1994/1995 date discrepancy use a historical secondary source.'),
+    ),
+    SourceInfo(
+        key='diagram', display_name=diagram.AWARD_NAME,
+        categories=diagram.CATEGORIES, identity_scopes=('work',),
+        homepage_url=diagram.SOURCE_HOME_URL,
+        description='The Bookseller’s humorous prize recognizing the oddest book title.',
+        limitation=('42 bundled annual winners with identified authors/editors, 1979–2025. '
+                    'Historical secondary-source attribution is retained. '
+                    '1978, 1981 and 1982 lack usable credited identities and are excluded; '
+                    '1987, 1991 and 2017 had no award. Shortlists and Diagram of Diagrams '
+                    'anniversary awards are excluded. No live retrieval; Refresh reloads '
+                    'the bundled archive. Award year may precede the announcement year.'),
     ),
     SourceInfo(
         key='newbery',

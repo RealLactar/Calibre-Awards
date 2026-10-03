@@ -32,6 +32,7 @@ _CURRENT = (
     'pen_hemingway',
     'ipaf',
     'bad_sex_fiction',
+    'diagram',
     'newbery',
 )
 
@@ -108,7 +109,7 @@ class ComputeEnabledSourceKeysTests(unittest.TestCase):
     def test_one_disabled(self):
         self.assertEqual(
             compute_enabled_source_keys(_CURRENT, ('pulitzer',)),
-            ('nebula', 'hugo', 'locus', 'world_fantasy', 'balrog', 'bram_stoker', 'edgar', 'romantic_novel_awards', 'nobel', 'booker', 'international_booker', 'wolfson_history', 'german_book_prize', 'prix_goncourt', 'miles_franklin', 'womens_prize_fiction', 'national_book_critics_circle', 'pen_faulkner', 'pen_hemingway', 'ipaf', 'bad_sex_fiction', 'newbery'),
+            ('nebula', 'hugo', 'locus', 'world_fantasy', 'balrog', 'bram_stoker', 'edgar', 'romantic_novel_awards', 'nobel', 'booker', 'international_booker', 'wolfson_history', 'german_book_prize', 'prix_goncourt', 'miles_franklin', 'womens_prize_fiction', 'national_book_critics_circle', 'pen_faulkner', 'pen_hemingway', 'ipaf', 'bad_sex_fiction', 'diagram', 'newbery'),
         )
 
     def test_several_disabled(self):
@@ -136,7 +137,7 @@ class ComputeEnabledSourceKeysTests(unittest.TestCase):
         self.assertEqual(disabled, ('pulitzer', 'removed_old_source'))
         self.assertEqual(
             compute_enabled_source_keys(_CURRENT, disabled),
-            ('nebula', 'hugo', 'locus', 'world_fantasy', 'balrog', 'bram_stoker', 'edgar', 'romantic_novel_awards', 'nobel', 'booker', 'international_booker', 'wolfson_history', 'german_book_prize', 'prix_goncourt', 'miles_franklin', 'womens_prize_fiction', 'national_book_critics_circle', 'pen_faulkner', 'pen_hemingway', 'ipaf', 'bad_sex_fiction', 'newbery'),
+            ('nebula', 'hugo', 'locus', 'world_fantasy', 'balrog', 'bram_stoker', 'edgar', 'romantic_novel_awards', 'nobel', 'booker', 'international_booker', 'wolfson_history', 'german_book_prize', 'prix_goncourt', 'miles_franklin', 'womens_prize_fiction', 'national_book_critics_circle', 'pen_faulkner', 'pen_hemingway', 'ipaf', 'bad_sex_fiction', 'diagram', 'newbery'),
         )
 
     def test_future_source_defaults_enabled(self):
@@ -167,6 +168,7 @@ class ComputeEnabledSourceKeysTests(unittest.TestCase):
                 'pen_hemingway',
                 'ipaf',
                 'bad_sex_fiction',
+                'diagram',
                 'newbery',
                 'future_source',
             ),
@@ -197,7 +199,7 @@ class SourceInfosPreferenceCompositionTests(unittest.TestCase):
         self.assertEqual(all_keys[0], 'pulitzer')
         self.assertEqual(all_keys[-1], 'newbery')
         self.assertIn('newbery', all_keys)
-        self.assertEqual(len(all_keys), 23)
+        self.assertEqual(len(all_keys), 24)
         self.assertIn('wolfson_history', all_keys)
         self.assertIn('national_book_critics_circle', all_keys)
         self.assertIn('pen_faulkner', all_keys)
@@ -290,7 +292,7 @@ class SourceInfosPreferenceCompositionTests(unittest.TestCase):
         )
         self.assertEqual(
             all_keys.index('newbery'),
-            all_keys.index('bad_sex_fiction') + 1,
+            all_keys.index('diagram') + 1,
         )
 
     def test_prix_goncourt_defaults_enabled_for_preexisting_disabled_list(self):

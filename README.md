@@ -27,7 +27,7 @@ Book lookup happens only from **Check Awards** in Edit Metadata.
 
 ## Supported awards
 
-The plugin currently has **23 executable award sources**. Category coverage
+The plugin currently has **24 executable award sources**. Category coverage
 is limited to the literary work awards each source currently advertises in
 the plugin. Anthology, editor, artist, publisher, and similar non-work
 honors are omitted where they fall outside those categories.
@@ -60,6 +60,7 @@ scope catalog.
 | PEN/Hemingway Award for Debut Novel | Winners from 1976; Finalists from 2026 | Winner; Finalist |
 | International Prize for Arabic Fiction | Official English prize-year pages from 2020 | Winner; Shortlisted |
 | Bad Sex in Fiction Award | Bundled reviewed book winners, 1993–2019; no network required | Winner |
+| Diagram Prize for Oddest Title of the Year | 42 bundled annual winners with credited identities, 1979–2025 | Winner |
 | John Newbery Medal | 1930–2023 | Winner; Honor |
 
 **National Book Awards** is not an executable source. Preferences shows it
@@ -375,3 +376,5 @@ Calibre Awards is licensed under [GPL-3.0-or-later](LICENSE).
 Balrog award data is retrieved from the public ISFDB copy at https://isfdb.stoecker.eu/ and is attributed to the ISFDB team under Creative Commons Attribution 4.0 (https://creativecommons.org/licenses/by/4.0/). The plugin parses and normalizes those records for matching.
 
 Bad Sex in Fiction Award: bundled reviewed book winners, 1993–2019 (28 records, including joint 2019 winners). No shortlists or author lifetime honors. No network required; Refresh reloads the bundled archive. Historical secondary attribution and a corrected 1994/1995 date discrepancy are documented in awards/data/bad_sex_provenance.md.
+
+Diagram Prize uses a reviewed historical archive with secondary-source attribution. Three early anonymous entries, no-award years, shortlists and anniversary honors are excluded. Refresh reloads the bundled archive; adding later winners requires a plugin update. See awards/data/diagram_provenance.md for provenance and title aliases.

@@ -4,6 +4,10 @@
 
 ### Added
 
+- Diagram Prize for Oddest Title of the Year: 42 reviewed annual winners
+  (1979–2025), offline lookup, complete credited-author matching, Preferences
+  and source-specific Refresh.
+
 - Bad Sex in Fiction Award: 28 reviewed historical book winners (1993–2019),
   including both 2019 winners, offline lookup, source attribution and Preferences.
 
