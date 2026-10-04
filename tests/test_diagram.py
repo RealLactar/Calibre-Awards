@@ -26,7 +26,7 @@ class DiagramPrizeTests(unittest.TestCase):
             self.assertTrue(refresh_award_source_cache('diagram'))
             self.assertIsNone(diagram._records)
             self.assertEqual(record, diagram.lookup('How to Avoid Huge Ships', 'John W. Trimmer')[0])
-        self.assertIn('does not download', source_cache_refresh_confirm_body('diagram', diagram.AWARD_NAME))
+        self.assertIn('reloads the bundled archive', source_cache_refresh_confirm_body('diagram', diagram.AWARD_NAME))
 
     def test_complete_coauthor_identity_order_and_separator(self):
         self.assertEqual(len(diagram.lookup('The Big Book of Lesbian Horse Stories',

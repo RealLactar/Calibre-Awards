@@ -25,6 +25,25 @@
 
 ### Fixed
 
+- Bulk Refresh reconciles retries when source selections change, includes newly
+  selected sources, and skips requests already queued during the Preferences
+  session. Individual retry success updates the bulk button and failure state.
+
+- Nebula prefers separately linked nominee authors over compact citation text,
+  preserving titles containing “, by ...”. Its cache version is now 2 so
+  archives parsed with the older behavior are rebuilt without affecting other
+  sources. Existing modern compact citations remain supported.
+
+- Manual and bulk Refresh now retain validated saved fallback data until a
+  replacement succeeds. Requests persist across restarts, bypass the ordinary
+  stale-refresh budget, and track Locus author/annual entries independently.
+  Failed updates remain pending and are identified in matched results.
+- Bulk Refresh retries only failed sources still selected, and continues after
+  a source raises an exception. Network and bundled-source messages now describe
+  their different behavior accurately.
+- Diagram's 2025 winner matches the organizer's verified alternate spelling,
+  “Mid-century Montreal's,” without broadening title or author matching.
+
 - Locus now reports SFADB hosting suspension pages as source failures instead
   of treating HTTP 200 responses with no award data as successful no-match
   lookups. Validated stale caches remain usable during failed refreshes.

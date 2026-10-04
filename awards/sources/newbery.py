@@ -844,7 +844,7 @@ def _get_listing_records() -> tuple[_ListingRecord, ...]:
             if cache.cache_is_fresh(payload):
                 _listing_records_cache = records
                 return records
-            if not cache.try_claim_stale_refresh():
+            if not cache.try_claim_stale_refresh(SOURCE_KEY):
                 _listing_records_cache = records
                 return records
         else:

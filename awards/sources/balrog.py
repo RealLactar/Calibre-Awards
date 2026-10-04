@@ -194,7 +194,7 @@ def _get_records():
         if _records is not None:
             return _records
         disk = _load_disk()
-        if disk and (cache.cache_is_fresh(disk[1]) or not cache.try_claim_stale_refresh()):
+        if disk and (cache.cache_is_fresh(disk[1]) or not cache.try_claim_stale_refresh(SOURCE_KEY)):
             _records = disk[0]
             return _records
         try:

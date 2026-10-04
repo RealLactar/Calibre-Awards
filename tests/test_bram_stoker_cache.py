@@ -543,15 +543,15 @@ class BramStokerCacheTests(unittest.TestCase):
             fetch.assert_not_called()
         self.assertIsNone(src._ram_index())
         self.assertIsNone(src._ram_year(2025))
-        self.assertIsNone(
+        self.assertIsNotNone(
             cache.load_cache_entry(
                 src.SOURCE_KEY, src.INDEX_ENTRY_KIND, src.INDEX_ENTRY_KEY, 1
             )
         )
-        self.assertIsNone(
+        self.assertIsNotNone(
             cache.load_cache_entry(src.SOURCE_KEY, src.YEAR_ENTRY_KIND, '2025', 1)
         )
-        self.assertFalse(_entry_path(self.cache_dir, 'index', 'years').exists())
+        self.assertTrue(_entry_path(self.cache_dir, 'index', 'years').exists())
         self.assertIsNotNone(cache.load_source_cache('hugo', 1))
 
     def test_2026_preliminary_only_is_absent(self):

@@ -1468,7 +1468,7 @@ def _get_archive_records() -> tuple[_ParsedRecord, ...]:
             if cache.cache_is_fresh(payload):
                 _archive_records_cache = records
                 return records
-            if not cache.try_claim_stale_refresh():
+            if not cache.try_claim_stale_refresh(SOURCE_KEY):
                 _archive_records_cache = records
                 return records
         else:
@@ -1840,7 +1840,7 @@ def _get_one_shortlist_year(
     loaded = _load_persistent_shortlist_year(award_year, completed=completed)
     if loaded is not None:
         snapshot, payload = loaded
-        if cache.cache_is_fresh(payload) or not cache.try_claim_stale_refresh():
+        if cache.cache_is_fresh(payload) or not cache.try_claim_stale_refresh(SOURCE_KEY):
             _store_shortlist_year(award_year, snapshot.records)
             return snapshot.records
         try:

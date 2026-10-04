@@ -84,7 +84,7 @@ class NebulaPersistentCacheTests(unittest.TestCase):
 
     def test_cache_identity_constants(self):
         self.assertEqual(nebula.SOURCE_KEY, 'nebula')
-        self.assertEqual(nebula.CACHE_VERSION, 1)
+        self.assertEqual(nebula.CACHE_VERSION, 2)
         self.assertEqual(nebula.CACHE_BASE_TTL_SECONDS, 7 * 24 * 60 * 60)
         self.assertEqual(nebula.CACHE_REFRESH_OFFSET_SECONDS, 0)
         self.assertEqual(
@@ -296,7 +296,7 @@ class NebulaPersistentCacheTests(unittest.TestCase):
 
     def test_version_mismatch_uses_live_path(self):
         archive = _complete_archive()
-        _save_disk(archive, generated_at=datetime.now(_UTC), version=2)
+        _save_disk(archive, generated_at=datetime.now(_UTC), version=nebula.CACHE_VERSION + 1)
         live = _complete_archive()
         with patch.object(nebula, '_load_live_archive', return_value=live) as mocked:
             results = nebula.lookup('Dune', 'Frank Herbert')

@@ -119,7 +119,16 @@ def _lookup_one_source(
     series: str | None,
 ) -> list[AwardResult] | SourceFailure:
     try:
-        return source.lookup(title, author, series=series)
+        from .cache_control import prepare_source_lookup
+        prepare_source_lookup(source.key)
+        results = source.lookup(title, author, series=series)
+        if cache.source_refresh_pending(source.key):
+            from dataclasses import replace
+            results = [replace(result, source_details=result.source_details + (
+                'Refresh pending: some requested source updates have not completed; '
+                'saved fallback data is retained.',
+            )) for result in results]
+        return results
     except Exception as exc:
         # Isolate the source: other scheduled lookups still complete.
         return SourceFailure(

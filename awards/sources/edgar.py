@@ -794,7 +794,7 @@ def _get_archive_records() -> tuple[_ParsedRecord, ...]:
             if cache.cache_is_fresh(payload):
                 _archive_records_cache = records
                 return records
-            if not cache.try_claim_stale_refresh():
+            if not cache.try_claim_stale_refresh(SOURCE_KEY):
                 _archive_records_cache = records
                 return records
         else:

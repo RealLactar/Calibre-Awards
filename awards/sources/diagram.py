@@ -60,7 +60,8 @@ _WINNERS = (
     (2024, 'The Philosopher Fish: Sturgeon, Caviar, and the Geography of Desire', 'Richard Adams Carey'),
     (2025, "The Pornographic Delicatessen: Midcentury Montréal's Erotic Art, Media, and Spaces", 'Matthew Purvis'),
 )
-_TITLE_ALIASES = {1993: ('American Bottom Archaeology: A Summary of the FAI-270 Project Contribution to the Culture '
+_TITLE_ALIASES = {2025: ("The Pornographic Delicatessen: Mid-century Montreal's Erotic Art, Media, and Spaces",),
+                  1993: ('American Bottom Archaeology: A Summary of the FAI-270 Project Contribution to the Culture '
         'History of the Mississippi River Valley',),
  2004: ('Bombproof Your Horse: Teach Your Horse to Be Confident, Obedient, and Safe, No Matter '
         'What You Encounter',),

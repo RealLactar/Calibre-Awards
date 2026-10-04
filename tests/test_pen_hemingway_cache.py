@@ -541,7 +541,7 @@ class PenHemingwayCacheTests(unittest.TestCase):
         self.assertEqual(tracker.calls, [])
         self.assertIsNone(ph._ram_landing())
         self.assertIsNone(ph._ram_year(2026))
-        self.assertIsNone(
+        self.assertIsNotNone(
             cache.load_cache_entry(
                 ph.SOURCE_KEY,
                 ph.ARCHIVE_ENTRY_KIND,
@@ -549,7 +549,7 @@ class PenHemingwayCacheTests(unittest.TestCase):
                 ph.ARCHIVE_CACHE_VERSION,
             )
         )
-        self.assertIsNone(
+        self.assertIsNotNone(
             cache.load_cache_entry(
                 ph.SOURCE_KEY, ph.YEAR_ENTRY_KIND, '2026', ph.YEAR_CACHE_VERSION
             )

@@ -26,8 +26,16 @@ substitution, fuzzy title matching, arbitrary subtitle stripping or single
 coauthor match is permitted. Institution of Mechanical Engineers is the
 explicit corporate credit for Designing High Performance Stiffened Structures.
 
-Three explicitly documented full-title aliases are accepted: American Bottom
-Archaeology, Bombproof Your Horse, and How to Poo on a Date. Other titles
+Four explicitly documented full-title aliases are accepted: American Bottom
+Archaeology, Bombproof Your Horse, How to Poo on a Date, and the organizer's
+2025 spelling documented below. Other titles
 must match the listed winning title, including its subtitle where listed.
 Refresh clears RAM and reloads the bundled archive. Updates require a plugin
 update. Award category is unset because this is a single title prize.
+
+Review follow-up 2026-10-03: accept the exact organizer voting-page title
+"The Pornographic Delicatessen: Mid-century Montreal's Erotic Art, Media, and Spaces"
+as a 2025 alias. Canonical title and attribution are unchanged. Evidence URL:
+https://www.thebookseller.com/dynamic-forms/dynamic-forms?DynamicFormScreen=EntryForm&ccs=194&cl=25
+The task's reviewer supplied this verified spelling; our follow-up retrieval
+returned HTTP 429. No generic accent stripping or subtitle removal is used.

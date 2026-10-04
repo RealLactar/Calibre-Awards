@@ -401,7 +401,7 @@ class EdgarPersistentCacheTests(unittest.TestCase):
             edgar, 'lookup', side_effect=AssertionError('lookup')
         ):
             self.assertTrue(refresh_award_source_cache('edgar'))
-        self.assertFalse(self._disk_path().exists())
+        self.assertTrue(self._disk_path().exists())
         self.assertIsNone(edgar._archive_records_cache)
         self.assertTrue((self.cache_dir / 'hugo.json').is_file())
         self.assertEqual(hugo._archive_records_cache, ())

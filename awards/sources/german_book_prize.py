@@ -1376,6 +1376,14 @@ def _get_index_years() -> tuple[int, ...]:
     loaded = _load_persistent_index()
     if loaded is not None:
         years, _payload = loaded
+        if cache.payload_refresh_requested(_payload):
+            try:
+                live = _acquire_live_index_years()
+            except Exception:
+                live = None
+            if live is not None:
+                _save_persistent_index(live)
+                years = live
         with _cache_lock:
             _index_years_cache = years
         return years
@@ -1395,6 +1403,14 @@ def _get_completed_year_records(award_year: int) -> tuple[_ParsedRecord, ...]:
     loaded = _load_persistent_completed_year(award_year)
     if loaded is not None:
         records, _payload = loaded
+        if cache.payload_refresh_requested(_payload):
+            try:
+                live = _acquire_completed_year_records(award_year)
+            except Exception:
+                live = None
+            if live is not None:
+                _save_persistent_completed_year(award_year, live)
+                records = live
         _store_year_records(award_year, records)
         return records
     records = _acquire_completed_year_records(award_year)
@@ -1412,7 +1428,7 @@ def _get_current_year_records(current_year: int) -> tuple[_ParsedRecord, ...]:
     loaded = _load_persistent_current_year(current_year)
     if loaded is not None:
         records, payload = loaded
-        if cache.cache_is_fresh(payload) or not cache.try_claim_stale_refresh():
+        if cache.cache_is_fresh(payload) or not cache.try_claim_stale_refresh(SOURCE_KEY):
             _store_year_records(current_year, records)
             return records
         try:

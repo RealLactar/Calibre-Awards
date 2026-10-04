@@ -212,7 +212,7 @@ class AwardSourcesLayoutTests(unittest.TestCase):
         self.assertNotIn('Clear Everything', text)
         self.assertIn("QGroupBox('Award sources'", text)
         self.assertIn('SOURCES_GROUP_HINT', text)
-        self.assertIn('Refresh clears cached data for an enabled source', SOURCES_GROUP_HINT)
+        self.assertIn('Refresh requests a download while retaining saved fallback data', SOURCES_GROUP_HINT)
         self.assertIn(
             'If no executable award sources are selected, Check Awards is '
             'hidden in Edit Metadata.',
@@ -654,10 +654,10 @@ class ConfirmationAndStatusTests(unittest.TestCase):
             return_value=True,
         ):
             panel.click_refresh('nebula', confirmed=True)
-            self.assertIn('Nebula Awards cached data cleared.', panel.status)
+            self.assertIn('Nebula Awards: Download request queued.', panel.status)
             panel.click_refresh('locus', confirmed=True)
-        self.assertIn('Locus Awards cached data cleared.', panel.status)
-        self.assertNotIn('Nebula Awards cached data cleared.', panel.status)
+        self.assertIn('Locus Awards: Download request queued.', panel.status)
+        self.assertNotIn('Nebula Awards: Download request queued.', panel.status)
 
     def test_status_label_is_in_award_sources_group(self):
         text = _config_text()
@@ -692,16 +692,16 @@ class ConfirmationAndStatusTests(unittest.TestCase):
             source_cache_refresh_failure_text('Hugo Awards'),
         )
         self.assertNotIn('cached data cleared', panel.failure_text)
-        self.assertIn('could not be removed', panel.failure_text)
+        self.assertIn('could not be saved', panel.failure_text)
 
     def test_confirmation_copy_mentions_books_and_immediate_action(self):
         title = source_cache_refresh_confirm_title('Nebula Awards')
         body = source_cache_refresh_confirm_body('nebula', 'Nebula Awards')
         self.assertEqual(title, 'Refresh cached Nebula Awards data?')
-        self.assertIn('No award information already stored in your books', body)
+        self.assertIn('No book metadata will change', body)
         self.assertIn('not undone by Canceling Preferences', body)
-        self.assertIn('in-memory cache', body)
-        self.assertIn('may take longer', body)
+        self.assertIn('Validated saved data', body)
+        self.assertIn('next lookup', body)
 
     def test_config_uses_question_dialog_and_immediate_helper(self):
         text = _config_text()
@@ -720,72 +720,43 @@ class ConfirmationAndStatusTests(unittest.TestCase):
         )
 
 
-_PULITZER_CONFIRM_BODY = (
-    'This will clear in-memory Pulitzer lookup data and request a '
-    'fresh official download the next time Pulitzer is checked.\n\n'
-    'Saved Pulitzer results and the reviewed official snapshot remain '
-    'available if the website blocks unattended retrieval.\n\n'
-    'No award information already stored in your books will be changed.\n\n'
-    'This action happens immediately and is not undone by Canceling '
-    'Preferences.'
-)
-_PULITZER_STATUS_TEXT = (
-    'Pulitzer Prizes in-memory cache cleared.\n'
-    'The next Check Awards search may try a live official refresh; '
-    'usable Pulitzer data is kept if that refresh is blocked.'
-)
-
-
 class PulitzerRefreshTextKeyTests(unittest.TestCase):
-    def test_pulitzer_key_selects_preserve_confirmation_body(self):
+    def test_pulitzer_retains_saved_and_bundled_fallback(self):
         body = source_cache_refresh_confirm_body('pulitzer', 'Pulitzer Prizes')
-        self.assertEqual(body, _PULITZER_CONFIRM_BODY)
-        self.assertNotIn('remove saved', body)
+        self.assertIn('saved data and any bundled fallback are retained', body)
+        self.assertNotIn('delete', body)
 
-    def test_pulitzer_key_selects_preserve_status_text(self):
-        status = source_cache_refresh_status_text('pulitzer', 'Pulitzer Prizes')
-        self.assertEqual(status, _PULITZER_STATUS_TEXT)
-        self.assertNotIn('Fresh data will be retrieved', status)
+    def test_bundled_status_describes_completed_queue_action(self):
+        for key in ('diagram', 'bad_sex_fiction'):
+            text = source_cache_refresh_status_text(key, 'Historical award')
+            self.assertIn('reload queued', text)
+            self.assertIn('plugin update', text)
+            self.assertNotIn('will be', text)
 
-    def test_other_source_key_uses_generic_refresh_text(self):
-        body = source_cache_refresh_confirm_body('nebula', 'Nebula Awards')
-        status = source_cache_refresh_status_text('hugo', 'Hugo Awards')
-        self.assertIn('remove saved Nebula Awards lookup data', body)
-        self.assertNotIn('reviewed official snapshot', body)
-        self.assertEqual(
-            status,
-            'Hugo Awards cached data cleared.\n'
-            'Fresh data will be retrieved by the next Check Awards search.',
-        )
+    def test_mixed_bulk_description_covers_both_behaviors(self):
+        from awards.cache_control import bulk_refresh_description
+        text = bulk_refresh_description(('hugo', 'diagram'))
+        self.assertIn('Downloads are requested', text)
+        self.assertIn('fallback data is retained', text)
+        self.assertIn('Bundled sources reload', text)
+        self.assertIn('plugin update', text)
 
-    def test_pulitzer_text_follows_source_key_not_display_name(self):
-        body = source_cache_refresh_confirm_body(
-            'pulitzer',
-            'Official Pulitzer Archive',
-        )
-        status = source_cache_refresh_status_text(
-            'pulitzer',
-            'Official Pulitzer Archive',
-        )
-        self.assertEqual(body, _PULITZER_CONFIRM_BODY)
-        self.assertEqual(status, _PULITZER_STATUS_TEXT)
-        self.assertNotIn('Official Pulitzer Archive', body)
-        self.assertNotIn('Official Pulitzer Archive', status)
-        generic_body = source_cache_refresh_confirm_body(
-            'nebula',
-            'Pulitzer Prizes',
-        )
-        generic_status = source_cache_refresh_status_text(
-            'nebula',
-            'Pulitzer Prizes',
-        )
-        self.assertIn('remove saved Pulitzer Prizes lookup data', generic_body)
-        self.assertNotIn('reviewed official snapshot', generic_body)
-        self.assertEqual(
-            generic_status,
-            'Pulitzer Prizes cached data cleared.\n'
-            'Fresh data will be retrieved by the next Check Awards search.',
-        )
+    def test_network_and_bundled_wording_follows_source_key(self):
+        for key in ('pulitzer', 'nebula'):
+            body = source_cache_refresh_confirm_body(key, 'Custom source name')
+            status = source_cache_refresh_status_text(key, 'Custom source name')
+            self.assertIn('Custom source name', body)
+            self.assertIn('Download request queued', status)
+            self.assertIn('fallback', body)
+            self.assertIn('survive restarts', body)
+            self.assertNotIn('cleared', status)
+        for key in ('diagram', 'bad_sex_fiction'):
+            body = source_cache_refresh_confirm_body(key, 'Bundled source')
+            status = source_cache_refresh_status_text(key, 'Bundled source')
+            self.assertIn('reloads the bundled archive', body)
+            self.assertIn('plugin update', body)
+            self.assertIn('reload queued', status)
+            self.assertNotIn('download', body.lower())
 
 
 class ApplyCancelInteractionTests(unittest.TestCase):
@@ -800,7 +771,7 @@ class ApplyCancelInteractionTests(unittest.TestCase):
         ) as refresh:
             panel.click_refresh('locus', confirmed=True)
         refresh.assert_called_once_with('locus')
-        self.assertIn('Locus Awards cached data cleared.', panel.status)
+        self.assertIn('Locus Awards: Download request queued.', panel.status)
         body = _save_settings_body()
         self.assertIn("prefs['disabled_source_keys']", body)
         self.assertNotIn('cache_status', body)

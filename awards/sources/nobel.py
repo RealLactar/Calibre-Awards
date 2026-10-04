@@ -899,7 +899,7 @@ def _get_laureates() -> tuple[_Laureate, ...]:
             if cache.cache_is_fresh(payload):
                 _laureates_cache = records
                 return records
-            if not cache.try_claim_stale_refresh():
+            if not cache.try_claim_stale_refresh(SOURCE_KEY):
                 _laureates_cache = records
                 return records
         else:

@@ -561,7 +561,7 @@ class RomanticNovelAwardsCacheTests(unittest.TestCase):
         self.assertIsNone(src._winners_cache)
         self.assertIsNone(src._news_index_cache)
         self.assertEqual(src._year_cache, {})
-        self.assertIsNone(
+        self.assertIsNotNone(
             cache.load_cache_entry(
                 src.SOURCE_KEY,
                 src.WINNERS_ENTRY_KIND,
@@ -569,7 +569,7 @@ class RomanticNovelAwardsCacheTests(unittest.TestCase):
                 src.WINNERS_CACHE_VERSION,
             )
         )
-        self.assertIsNone(
+        self.assertIsNotNone(
             cache.load_cache_entry(
                 src.SOURCE_KEY,
                 src.NEWS_INDEX_ENTRY_KIND,
@@ -577,7 +577,7 @@ class RomanticNovelAwardsCacheTests(unittest.TestCase):
                 src.NEWS_INDEX_CACHE_VERSION,
             )
         )
-        self.assertIsNone(
+        self.assertIsNotNone(
             cache.load_cache_entry(
                 src.SOURCE_KEY,
                 src.YEAR_ENTRY_KIND,

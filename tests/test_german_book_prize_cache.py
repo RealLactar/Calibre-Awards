@@ -519,10 +519,10 @@ class GermanBookPrizeCacheTests(unittest.TestCase):
             self.assertTrue(refresh_award_source_cache('german_book_prize'))
         urlopen.assert_not_called()
         gbp_lookup.assert_not_called()
-        self.assertFalse(
+        self.assertTrue(
             _entry_path(self.cache_dir, gbp.INDEX_ENTRY_KIND, gbp.ARCHIVE_INDEX_URL).exists()
         )
-        self.assertFalse(
+        self.assertTrue(
             _entry_path(
                 self.cache_dir, gbp.YEAR_ENTRY_KIND, gbp._year_entry_key(2005)
             ).exists()

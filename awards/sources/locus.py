@@ -352,9 +352,11 @@ def _try_claim_optional_refresh() -> bool:
     Also consumes the shared engine stale-refresh slot when a budget is
     active. Without a budget, Locus still refreshes at most once per lookup.
     """
+    if cache.source_refresh_pending(SOURCE_KEY):
+        return True
     if getattr(_lookup_refresh_state, 'optional_claimed', False):
         return False
-    if not cache.try_claim_stale_refresh():
+    if not cache.try_claim_stale_refresh(SOURCE_KEY):
         return False
     _lookup_refresh_state.optional_claimed = True
     return True
@@ -999,7 +1001,7 @@ def _resolve_author_page(
                 _author_page_cache[canonical_url] = page
             return page
         refreshed = None
-        if not _has_stale_current_annual_disk(page, query_title):
+        if cache.payload_refresh_requested(payload) or not _has_stale_current_annual_disk(page, query_title):
             refreshed = _try_optional_author_refresh(
                 opener, canonical_url, author
             )
@@ -1580,7 +1582,7 @@ def _get_annual_records(
         use_stale_immediately = (
             cache.cache_is_fresh(payload)
             or year is None
-            or not _annual_year_is_current(year)
+            or (not _annual_year_is_current(year) and not cache.payload_refresh_requested(payload))
             or not _try_claim_optional_refresh()
         )
         if not use_stale_immediately:

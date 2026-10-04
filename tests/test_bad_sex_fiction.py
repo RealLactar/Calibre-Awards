@@ -24,7 +24,7 @@ class BadSexFictionTests(unittest.TestCase):
             self.assertTrue(refresh_award_source_cache(source.SOURCE_KEY))
             self.assertIsNone(source._records)
             self.assertEqual(first, source.lookup('Katerina', 'James Frey'))
-        self.assertIn('does not download', source_cache_refresh_confirm_body(source.SOURCE_KEY, source.AWARD_NAME))
+        self.assertIn('reloads the bundled archive', source_cache_refresh_confirm_body(source.SOURCE_KEY, source.AWARD_NAME))
 
     def test_corrected_early_years_have_secondary_attribution(self):
         for title, author, year in [('The Stonebreakers', 'Philip Hook', 1994),

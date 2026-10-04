@@ -326,7 +326,7 @@ def _get_archive_records() -> tuple[_ParsedRecord, ...]:
         disk_records = disk[0] if disk is not None else None
         disk_payload = disk[1] if disk is not None else None
 
-        if _refresh_requested:
+        if _refresh_requested or cache.source_refresh_pending(SOURCE_KEY):
             _refresh_requested = False
             live = _optional_live_archive()
             if live is not None:
@@ -340,7 +340,7 @@ def _get_archive_records() -> tuple[_ParsedRecord, ...]:
             if cache.cache_is_fresh(disk_payload):
                 _archive_records_cache = disk_records
                 return disk_records
-            if not cache.try_claim_stale_refresh():
+            if not cache.try_claim_stale_refresh(SOURCE_KEY):
                 _archive_records_cache = disk_records
                 return disk_records
             live = _optional_live_archive()

@@ -1,15 +1,8 @@
-"""Per-source award-cache maintenance. Qt-free and Calibre-free.
+"""Queue source updates without network access or deleting validated fallback.
 
-refresh_award_source_cache() invalidates that source's persistent disk cache
-and in-process RAM. It does not look up awards or open the network. The next
-Check Awards search lazily rebuilds the selected source.
-
-Pulitzer is the exception: Refresh clears RAM and requests a lazy official
-live refresh, but it does not delete the last validated disk archive. The
-bundled seed remains available if live retrieval is blocked.
-
-Locus refresh clears both author and annual keyed caches. The action is
-immediate maintenance, not a saved preference.
+Disk requests survive restarts; explicit refresh bypasses the ordinary stale
+refresh budget. Bundled sources reset RAM and reload their shipped archive.
+Refresh is immediate maintenance, not a saved preference.
 """
 
 from __future__ import annotations
@@ -46,8 +39,8 @@ from .sources import (
 CACHE_REFRESH_BUTTON_LABEL = 'Refresh'
 SOURCES_GROUP_HINT = (
     'Select the award sources used by Check Awards. '
-    'Refresh clears cached data for an enabled source; fresh data will be '
-    'retrieved the next time that source is checked. '
+    'Refresh requests a download while retaining saved fallback data. '
+    'Bundled sources reload their archive; new coverage requires a plugin update. '
     'If no executable award sources are selected, Check Awards is hidden '
     'in Edit Metadata.'
 )
@@ -98,64 +91,41 @@ def source_cache_refresh_confirm_title(display_name: str) -> str:
     return f'Refresh cached {display_name} data?'
 
 
-def source_cache_refresh_confirm_body(source_key: str, display_name: str) -> str:
-    if source_key == 'diagram':
-        return ('The Diagram Prize in-memory archive is cleared by Refresh. '
-                'The next lookup reloads the bundled reviewed winners; '
-                'this source does not download new data. No book metadata is changed.')
-    if source_key == 'bad_sex_fiction':
-        return ('The in-memory Bad Sex in Fiction archive will be cleared. '
-                'The next lookup reloads the bundled reviewed 1993–2019 winners; '
-                'this source does not download new data. No book metadata is changed.')
-    if source_key == 'pulitzer':
-        return (
-            'This will clear in-memory Pulitzer lookup data and request a '
-            'fresh official download the next time Pulitzer is checked.\n\n'
-            'Saved Pulitzer results and the reviewed official snapshot remain '
-            'available if the website blocks unattended retrieval.\n\n'
-            'No award information already stored in your books will be changed.\n\n'
-            'This action happens immediately and is not undone by Canceling '
-            'Preferences.'
-        )
-    return (
-        f'This will remove saved {display_name} lookup data and clear its '
-        'current in-memory cache.\n\n'
-        'No award information already stored in your books will be changed.\n\n'
-        f'The next Check Awards search may take longer while fresh '
-        f'{display_name} data is retrieved.\n\n'
-        'This action happens immediately and is not undone by Canceling '
-        'Preferences.'
-    )
+BUNDLED_SOURCE_KEYS = frozenset({'bad_sex_fiction', 'diagram'})
 
 
-def source_cache_refresh_status_text(source_key: str, display_name: str) -> str:
-    if source_key == 'diagram':
-        return ('The Diagram Prize in-memory archive is cleared by Refresh. '
-                'The next lookup reloads the bundled reviewed winners; '
-                'this source does not download new data. No book metadata is changed.')
-    if source_key == 'bad_sex_fiction':
-        return ('The in-memory Bad Sex in Fiction archive will be cleared. '
-                'The next lookup reloads the bundled reviewed 1993–2019 winners; '
-                'this source does not download new data. No book metadata is changed.')
-    if source_key == 'pulitzer':
-        return (
-            'Pulitzer Prizes in-memory cache cleared.\n'
-            'The next Check Awards search may try a live official refresh; '
-            'usable Pulitzer data is kept if that refresh is blocked.'
-        )
-    return (
-        f'{display_name} cached data cleared.\n'
-        'Fresh data will be retrieved by the next Check Awards search.'
-    )
+def source_refresh_description(source_key):
+    if source_key in BUNDLED_SOURCE_KEYS:
+        return 'The next lookup reloads the bundled archive. New coverage requires a plugin update.'
+    return ('A download is requested for the next lookup. Validated saved data and any bundled fallback are retained '
+            'until a replacement succeeds. Pending disk requests survive restarts and '
+            'bypass the ordinary stale-refresh budget.')
 
 
-def source_cache_refresh_failure_text(display_name: str) -> str:
-    return (
-        f'{display_name} in-memory cache was cleared, but some saved cache '
-        'data could not be removed.\n\n'
-        'The next Check Awards search may still use the existing saved data.\n\n'
-        'Close Calibre and try Refresh again.'
-    )
+def bulk_refresh_description(source_keys):
+    keys = set(source_keys)
+    parts = []
+    if keys - BUNDLED_SOURCE_KEYS:
+        parts.append('Downloads are requested on the next lookup; validated saved fallback data is retained.')
+    if keys & BUNDLED_SOURCE_KEYS:
+        parts.append('Bundled sources reload their archive; new coverage requires a plugin update.')
+    return ' '.join(parts)
+
+
+def source_cache_refresh_confirm_body(source_key, display_name):
+    return (f'Request a refresh for {display_name}?\n\n' + source_refresh_description(source_key)
+            + '\n\nNo book metadata will change. This happens immediately and is not undone '
+              'by Canceling Preferences.')
+
+
+def source_cache_refresh_status_text(source_key, display_name):
+    action = 'Bundled archive reload queued' if source_key in BUNDLED_SOURCE_KEYS else 'Download request queued'
+    return f'{display_name}: {action}.\n' + source_refresh_description(source_key)
+
+
+def source_cache_refresh_failure_text(display_name):
+    return (f'{display_name}: the refresh request could not be saved. '
+            'Saved fallback data was retained. Try Refresh again.')
 
 
 def bind_source_refresh_callback(handler, source_key: str, display_name: str):
@@ -187,11 +157,10 @@ def run_source_cache_refresh_if_confirmed(
 ) -> bool | None:
     """Refresh one source only after confirmation.
 
-    Returns None if cancelled. Returns True when persistent cache data for
-    that source is gone. Returns False when RAM was reset but some saved
-    files could not be removed. Cancel leaves disk, RAM, and preferences
-    unchanged. Confirm invalidates that source immediately and does not
-    wait for Apply/OK.
+    Returns None if cancelled, True if the request was queued, or False if
+    the request could not be persisted. Saved fallback is retained in all
+    cases. Cancel leaves disk, RAM, and preferences unchanged. Confirm queues
+    the request immediately and does not wait for Apply/OK.
     """
     if not confirmed:
         return None
@@ -199,27 +168,28 @@ def run_source_cache_refresh_if_confirmed(
 
 
 def refresh_award_source_cache(source_key: str) -> bool:
-    """Reset one source's RAM and, except for Pulitzer, delete its disk cache.
-
-    Pulitzer Refresh never deletes last-known-good disk data or the bundled
-    seed. It requests a lazy official live refresh on the next lookup.
-    Other sources: disk is cleared first so a later RAM reset cannot be
-    refilled from the old file. RAM is still reset if persistent deletion
-    fails. Returns True when managed persistent data for that source is
-    absent afterwards, or when Pulitzer refresh was requested. Unknown keys
-    raise ValueError and do not touch any cache. No network request is made.
-    """
+    """Queue a lazy refresh; keep persistent records and clear source RAM."""
     if not isinstance(source_key, str) or not source_key.strip():
         raise ValueError('unknown award source cache key')
     key = source_key.strip()
     reset = _SOURCE_RUNTIME_RESETS.get(key)
     if reset is None:
         raise ValueError(f'unknown award source cache key: {key!r}')
-    if key == 'pulitzer':
-        return bool(pulitzer.mark_official_refresh_requested())
-    persistent_ok = False
-    try:
-        persistent_ok = cache.invalidate_source_cache(key)
-    finally:
+    if key in BUNDLED_SOURCE_KEYS:
         reset()
-    return bool(persistent_ok)
+        return True
+    try:
+        return cache.request_source_refresh(key)
+    finally:
+        if key == 'pulitzer':
+            pulitzer.mark_official_refresh_requested()
+        else:
+            reset()
+
+
+def prepare_source_lookup(source_key):
+    """Retry pending entries in the background even if RAM contains fallback."""
+    if cache.source_refresh_pending(source_key):
+        reset = _SOURCE_RUNTIME_RESETS.get(source_key)
+        if reset is not None:
+            reset()

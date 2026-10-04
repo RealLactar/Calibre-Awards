@@ -27,7 +27,9 @@ from ..model import AwardResult
 TIMEOUT_SECONDS = 30
 SOURCE_HOME_URL = 'https://nebulas.sfwa.org/'
 SOURCE_KEY = 'nebula'
-CACHE_VERSION = 1
+# Version 1 could mistake a title's ", by ..." for its author, even when
+# the archive provided a separate nominee-author link. Reparse that archive.
+CACHE_VERSION = 2
 # 7-day base plus an explicit stagger. Do not derive from AWARD_SOURCES order.
 # Later archive sources: world_fantasy +1h, hugo +2h, newbery +3h, nobel +4h,
 # pulitzer +5h. Locus is not on this schedule yet.
@@ -446,10 +448,18 @@ def _extract_title_author(
     authors: list[str],
 ) -> tuple[str, str] | None:
     author_joined = _join_authors(authors)
+    # Historical listings identify the author structurally. A title may
+    # itself contain ", by ...", so do not treat that text as a citation
+    # when separate nominee links already supply the byline.
+    stripped_link = _strip_wrapping_quotes(work_link_text)
+    if em_text and author_joined:
+        return _strip_wrapping_quotes(em_text), author_joined
+    if stripped_link and author_joined:
+        return stripped_link, author_joined
+
     candidates = []
     if em_text:
         candidates.append(em_text)
-    stripped_link = _strip_wrapping_quotes(work_link_text)
     if stripped_link and stripped_link not in candidates:
         candidates.append(stripped_link)
     if work_link_text and work_link_text not in candidates:
@@ -462,11 +472,6 @@ def _extract_title_author(
         compact = _parse_compact_citation(_strip_wrapping_quotes(candidate))
         if compact is not None:
             return compact
-
-    if em_text and author_joined:
-        return _strip_wrapping_quotes(em_text), author_joined
-    if stripped_link and author_joined:
-        return stripped_link, author_joined
 
     # Official listings occasionally omit the nominee-author link, e.g.
     # 1990 Best Novella winner "The Hemingway Hoax". Keep the title so
@@ -1174,7 +1179,7 @@ def _get_archive_records() -> dict[str, tuple[_ParsedRecord, ...]]:
             if cache.cache_is_fresh(payload):
                 _install_ram_records(records)
                 return records
-            if not cache.try_claim_stale_refresh():
+            if not cache.try_claim_stale_refresh(SOURCE_KEY):
                 _install_ram_records(records)
                 return records
         else:

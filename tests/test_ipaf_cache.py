@@ -375,12 +375,12 @@ class IpafCacheTests(unittest.TestCase):
         self.assertTrue(refresh_award_source_cache('ipaf'))
         self.assertIsNone(src._ram_index())
         self.assertIsNone(src._ram_year(2026))
-        self.assertIsNone(
+        self.assertIsNotNone(
             cache.load_cache_entry(
                 src.SOURCE_KEY, src.INDEX_ENTRY_KIND, src.INDEX_ENTRY_KEY, 1
             )
         )
-        self.assertIsNone(
+        self.assertIsNotNone(
             cache.load_cache_entry(src.SOURCE_KEY, src.YEAR_ENTRY_KIND, '2026', 1)
         )
         self.assertIsNotNone(cache.load_source_cache('hugo', 1))

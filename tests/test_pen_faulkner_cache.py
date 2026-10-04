@@ -528,7 +528,7 @@ class PenFaulknerCacheTests(unittest.TestCase):
         self.assertEqual(tracker.calls, [])
         self.assertIsNone(pf._ram_landing())
         self.assertIsNone(pf._ram_year(2026))
-        self.assertIsNone(
+        self.assertIsNotNone(
             cache.load_cache_entry(
                 pf.SOURCE_KEY,
                 pf.ARCHIVE_ENTRY_KIND,
@@ -536,7 +536,7 @@ class PenFaulknerCacheTests(unittest.TestCase):
                 pf.ARCHIVE_CACHE_VERSION,
             )
         )
-        self.assertIsNone(
+        self.assertIsNotNone(
             cache.load_cache_entry(
                 pf.SOURCE_KEY, pf.YEAR_ENTRY_KIND, '2026', pf.YEAR_CACHE_VERSION
             )

@@ -439,7 +439,7 @@ class LocusAnnualCacheTests(unittest.TestCase):
         claims = {'n': 0}
         real_claim = cache.try_claim_stale_refresh
 
-        def wrapped_claim():
+        def wrapped_claim(source_key=None):
             claims['n'] += 1
             return real_claim()
 
@@ -850,7 +850,7 @@ class LocusAnnualCacheTests(unittest.TestCase):
         claims = {'n': 0}
         real_claim = cache.try_claim_stale_refresh
 
-        def wrapped_claim():
+        def wrapped_claim(source_key=None):
             claims['n'] += 1
             return real_claim()
 

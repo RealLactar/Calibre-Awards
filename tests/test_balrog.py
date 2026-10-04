@@ -103,7 +103,7 @@ class BalrogTests(unittest.TestCase):
         unrelated.write_text('keep')
         self.assertTrue(refresh_award_source_cache('balrog'))
         self.assertIsNone(b._records)
-        self.assertFalse((Path(self.directory.name) / 'balrog.json').exists())
+        self.assertTrue((Path(self.directory.name) / 'balrog.json').exists())
         self.assertEqual(unrelated.read_text(), 'keep')
 
     def test_empty_identity_rejected(self):

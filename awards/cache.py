@@ -106,6 +106,7 @@ def _reset_runtime_state() -> None:
     Tests only; not public plugin API.
     """
     global _active_budget
+    _memory_refresh_requests.clear()
     set_cache_directory(None)
     with _budget_lock:
         _active_budget = None
@@ -133,7 +134,7 @@ def lookup_refresh_budget():
                 _active_budget = previous
 
 
-def try_claim_stale_refresh() -> bool:
+def try_claim_stale_refresh(source_key=None) -> bool:
     """Return True if this caller may live-refresh stale-but-valid cache.
 
     At most one successful claim is granted per active lookup_refresh_budget.
@@ -142,7 +143,10 @@ def try_claim_stale_refresh() -> bool:
 
     Call this only for optional refresh of a usable stale archive. Fresh
     caches and missing or invalid caches must not consume the slot.
+    An explicit pending request for source_key bypasses that budget.
     """
+    if source_key is not None and source_refresh_pending(source_key):
+        return True
     with _budget_lock:
         budget = _active_budget
     if budget is None:
@@ -215,13 +219,12 @@ def save_source_cache(
     encoded = _encode_cache_json(payload)
     directory = _configured_directory()
     if directory is None:
+        _complete_refresh_target(key, key + '.json')
         return
-    _atomic_write_json(
-        directory,
-        _cache_path(directory, key),
-        encoded,
-        tmp_prefix=f'{key}.',
-    )
+    if _atomic_write_json(
+        directory, _cache_path(directory, key), encoded, tmp_prefix=f'{key}.',
+    ):
+        _complete_refresh_target(key, key + '.json')
 
 
 def load_cache_entry(
@@ -308,16 +311,16 @@ def save_cache_entry(
     encoded = _encode_cache_json(payload)
     directory = _configured_directory()
     if directory is None:
+        _complete_refresh_target(key, f'{key}/{kind}/{_entry_key_digest(logical_key)}.json')
         return
     final_path = _entry_cache_path(directory, key, kind, logical_key)
     if final_path is None:
         return
-    _atomic_write_json(
-        final_path.parent,
-        final_path,
-        encoded,
+    if _atomic_write_json(
+        final_path.parent, final_path, encoded,
         tmp_prefix=f'{_entry_key_digest(logical_key)[:8]}.',
-    )
+    ):
+        _complete_refresh_target(key, f'{key}/{kind}/{_entry_key_digest(logical_key)}.json')
 
 
 def invalidate_cache_entry(
@@ -399,6 +402,8 @@ def cache_is_fresh(payload: dict, *, now: datetime | None = None) -> bool:
     At the exact expiry instant the payload is stale. An unusable payload
     is treated as not fresh rather than raised.
     """
+    if payload_refresh_requested(payload):
+        return False
     generated = _parse_generated_at(
         payload.get('generated_at') if isinstance(payload, dict) else None
     )
@@ -593,33 +598,24 @@ def _encode_cache_json(payload: dict) -> bytes:
     ).encode('utf-8') + b'\n'
 
 
-def _atomic_write_json(
-    directory: Path,
-    final_path: Path,
-    encoded: bytes,
-    *,
-    tmp_prefix: str,
-) -> None:
+def _atomic_write_json(directory, final_path, encoded, *, tmp_prefix) -> bool:
+    tmp_path = None
     try:
         directory.mkdir(parents=True, exist_ok=True)
-    except OSError:
-        return
-    fd, tmp_path = tempfile.mkstemp(
-        prefix=tmp_prefix,
-        suffix='.json.tmp',
-        dir=str(directory),
-    )
-    try:
+        fd, tmp_path = tempfile.mkstemp(prefix=tmp_prefix, suffix='.json.tmp', dir=str(directory))
         with os.fdopen(fd, 'wb') as handle:
             handle.write(encoded)
             handle.flush()
             os.fsync(handle.fileno())
         os.replace(tmp_path, final_path)
+        return True
     except OSError:
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
+        if tmp_path is not None:
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+        return False
 
 
 def _is_managed_entry_filename(name: str) -> bool:
@@ -802,3 +798,113 @@ def _validated_keyed_payload(
     except (TypeError, ValueError):
         return None
     return payload
+
+# Manual refresh requests are separate from saved award data. Each request
+# tracks the managed files present at the time it was made. Keyed sources
+# complete individual targets independently, leaving failed/unvisited entries
+# pending across restarts. Repeated Refresh is idempotent while pending.
+_refresh_lock = threading.RLock()
+_memory_refresh_requests = {}
+
+
+def _refresh_path(directory, source_key):
+    return directory / (source_key + '.refresh-request')
+
+
+def _read_refresh_targets(source_key):
+    directory = _configured_directory()
+    if directory is None:
+        return set(_memory_refresh_requests.get(source_key, ()))
+    try:
+        data = json.loads(_refresh_path(directory, source_key).read_text(encoding='utf-8'))
+        if not isinstance(data, dict):
+            return set()
+        if data.get('source_key') != source_key or data.get('version') != 1:
+            return set()
+        targets = data['targets']
+        if not isinstance(targets, list) or not all(isinstance(t, str) for t in targets):
+            return set()
+        return set(targets)
+    except (OSError, ValueError, TypeError, KeyError):
+        return set()
+
+
+def _write_refresh_targets(source_key, targets):
+    directory = _configured_directory()
+    if directory is None:
+        _memory_refresh_requests[source_key] = set(targets)
+        return True
+    path = _refresh_path(directory, source_key)
+    if not targets:
+        try:
+            path.unlink(missing_ok=True)
+            return True
+        except OSError:
+            return False
+    return _atomic_write_json(directory, path, _encode_cache_json({
+        'version': 1, 'source_key': source_key, 'targets': sorted(targets),
+    }), tmp_prefix=source_key + '.refresh.')
+
+
+def request_source_refresh(source_key):
+    """Queue a source update without deleting data or opening the network.
+
+    Requests persist when disk caching is configured. Without a directory,
+    they last for this process only. Pending requests are idempotent: retry
+    never adds successfully replaced files back into the target set.
+    """
+    key = _require_safe_source_key(source_key)
+    with _refresh_lock:
+        if _read_refresh_targets(key):
+            return True
+        directory = _configured_directory()
+        targets = set()
+        if directory is not None:
+            archive = _cache_path(directory, key)
+            if archive.is_file():
+                targets.add(archive.relative_to(directory).as_posix())
+            source_dir = directory / key
+            if source_dir.is_dir():
+                for kind in source_dir.iterdir():
+                    if kind.is_dir() and _is_safe_entry_kind(kind.name):
+                        for path in kind.iterdir():
+                            if path.is_file() and _is_managed_entry_filename(path.name):
+                                targets.add(path.relative_to(directory).as_posix())
+        return _write_refresh_targets(key, targets or {'*'})
+
+
+def source_refresh_pending(source_key):
+    if not _is_safe_source_key(source_key):
+        return False
+    with _refresh_lock:
+        return bool(_read_refresh_targets(source_key))
+
+
+def payload_refresh_requested(payload):
+    """Whether this particular archive/keyed entry is a manual refresh target."""
+    if not isinstance(payload, dict):
+        return False
+    key = payload.get('source_key')
+    if not _is_safe_source_key(key):
+        return False
+    if 'entry_kind' in payload:
+        if (not _is_safe_entry_kind(payload['entry_kind'])
+                or not _is_usable_entry_key(payload.get('entry_key'))):
+            return False
+        target = f"{key}/{payload['entry_kind']}/{_entry_key_digest(payload['entry_key'])}.json"
+    else:
+        target = key + '.json'
+    with _refresh_lock:
+        pending = _read_refresh_targets(key)
+        return '*' in pending or target in pending
+
+
+def _complete_refresh_target(source_key, target):
+    # Called only after a validated source record was successfully published.
+    with _refresh_lock:
+        pending = _read_refresh_targets(source_key)
+        if not pending:
+            return
+        pending.discard('*')
+        pending.discard(target)
+        _write_refresh_targets(source_key, pending)

@@ -175,8 +175,8 @@ class ArchiveSourceRefreshTests(CacheControlTestCase):
         nebula._records_cache['best-novel'] = ()
         hugo._archive_records_cache = ()
         self.assertTrue(refresh_award_source_cache('nebula'))
-        self.assertFalse((self.cache_dir / 'nebula.json').exists())
-        self.assertIsNone(cache.load_source_cache('nebula', 1))
+        self.assertTrue((self.cache_dir / 'nebula.json').exists())
+        self.assertIsNotNone(cache.load_source_cache('nebula', 1))
         self.assertEqual(nebula._pages_cache, {})
         self.assertEqual(nebula._records_cache, {})
         self.assertTrue((self.cache_dir / 'hugo.json').is_file())
@@ -192,8 +192,8 @@ class ArchiveSourceRefreshTests(CacheControlTestCase):
         )
         with patch('urllib.request.urlopen', side_effect=AssertionError('network')):
             self.assertTrue(refresh_award_source_cache('wolfson_history'))
-        self.assertFalse((self.cache_dir / 'wolfson_history.json').exists())
-        self.assertIsNone(cache.load_source_cache('wolfson_history', 1))
+        self.assertTrue((self.cache_dir / 'wolfson_history.json').exists())
+        self.assertIsNotNone(cache.load_source_cache('wolfson_history', 1))
         self.assertIsNone(wolfson_history._archive_records_cache)
 
     def test_sibling_archive_caches_survive(self):
@@ -224,7 +224,7 @@ class ArchiveSourceRefreshTests(CacheControlTestCase):
         ):
             _save_archive(key)
         refresh_award_source_cache('hugo')
-        self.assertFalse((self.cache_dir / 'hugo.json').exists())
+        self.assertTrue((self.cache_dir / 'hugo.json').exists())
         for key in (
             'pulitzer',
             'nebula',
@@ -281,12 +281,12 @@ class LocusRefreshTests(CacheControlTestCase):
         locus._annual_page_cache[_ANNUAL_URL] = ()
         hugo._archive_records_cache = ()
         self.assertTrue(refresh_award_source_cache('locus'))
-        self.assertFalse(_entry_path(self.cache_dir, 'locus', 'authors', _AUTHOR_URL).exists())
-        self.assertFalse(_entry_path(self.cache_dir, 'locus', 'annuals', _ANNUAL_URL).exists())
-        self.assertIsNone(
+        self.assertTrue(_entry_path(self.cache_dir, 'locus', 'authors', _AUTHOR_URL).exists())
+        self.assertTrue(_entry_path(self.cache_dir, 'locus', 'annuals', _ANNUAL_URL).exists())
+        self.assertIsNotNone(
             cache.load_cache_entry('locus', 'authors', _AUTHOR_URL, 1)
         )
-        self.assertIsNone(
+        self.assertIsNotNone(
             cache.load_cache_entry('locus', 'annuals', _ANNUAL_URL, 1)
         )
         self.assertEqual(locus._author_page_cache, {})
@@ -301,7 +301,7 @@ class LocusRefreshTests(CacheControlTestCase):
         refresh_award_source_cache('locus')
         self.assertTrue((self.cache_dir / 'nebula.json').is_file())
         self.assertTrue((self.cache_dir / 'newbery.json').is_file())
-        self.assertFalse(_entry_path(self.cache_dir, 'locus', 'authors', _AUTHOR_URL).exists())
+        self.assertTrue(_entry_path(self.cache_dir, 'locus', 'authors', _AUTHOR_URL).exists())
 
     def test_one_locked_locus_file_is_persistent_failure_and_resets_ram(self):
         _save_locus_entry('authors', _AUTHOR_URL)
@@ -311,14 +311,14 @@ class LocusRefreshTests(CacheControlTestCase):
         blocked = _entry_path(
             self.cache_dir, 'locus', 'authors', _AUTHOR_URL
         ).name
-        with patch.object(Path, 'unlink', _fail_unlink_for(blocked)):
+        with patch.object(cache, 'request_source_refresh', return_value=False):
             self.assertFalse(refresh_award_source_cache('locus'))
         self.assertEqual(locus._author_page_cache, {})
         self.assertEqual(locus._annual_page_cache, {})
         self.assertTrue(
             _entry_path(self.cache_dir, 'locus', 'authors', _AUTHOR_URL).is_file()
         )
-        self.assertFalse(
+        self.assertTrue(
             _entry_path(self.cache_dir, 'locus', 'annuals', _ANNUAL_URL).exists()
         )
 
@@ -331,7 +331,7 @@ class NewberyRefreshTests(CacheControlTestCase):
         newbery._detail_author_cache['https://www.ala.org/winner/x'] = 'Madeleine L\'Engle'
         nebula._pages_cache['best-novel'] = (('https://example.test/n', 'html'),)
         refresh_award_source_cache('newbery')
-        self.assertFalse((self.cache_dir / 'newbery.json').exists())
+        self.assertTrue((self.cache_dir / 'newbery.json').exists())
         self.assertIsNone(newbery._listing_records_cache)
         self.assertEqual(newbery._detail_author_cache, {})
         self.assertTrue((self.cache_dir / 'nebula.json').is_file())
@@ -372,10 +372,10 @@ class PenFaulknerRefreshTests(CacheControlTestCase):
         self.assertTrue(refresh_award_source_cache('pen_faulkner'))
         self.assertIsNone(pen_faulkner._ram_year(2026))
         self.assertIsNone(pen_faulkner._ram_landing())
-        self.assertIsNone(
+        self.assertIsNotNone(
             cache.load_cache_entry('pen_faulkner', 'archive', 'landing', 1)
         )
-        self.assertIsNone(
+        self.assertIsNotNone(
             cache.load_cache_entry('pen_faulkner', 'years', '2026', 1)
         )
         self.assertTrue((self.cache_dir / 'hugo.json').is_file())
@@ -416,10 +416,10 @@ class PenHemingwayRefreshTests(CacheControlTestCase):
         self.assertTrue(refresh_award_source_cache('pen_hemingway'))
         self.assertIsNone(pen_hemingway._ram_year(2026))
         self.assertIsNone(pen_hemingway._ram_landing())
-        self.assertIsNone(
+        self.assertIsNotNone(
             cache.load_cache_entry('pen_hemingway', 'archive', 'landing', 1)
         )
-        self.assertIsNone(
+        self.assertIsNotNone(
             cache.load_cache_entry('pen_hemingway', 'years', '2026', 1)
         )
         self.assertTrue((self.cache_dir / 'hugo.json').is_file())
@@ -460,10 +460,10 @@ class IpafRefreshTests(CacheControlTestCase):
         self.assertTrue(refresh_award_source_cache('ipaf'))
         self.assertIsNone(ipaf._ram_year(2026))
         self.assertIsNone(ipaf._ram_index())
-        self.assertIsNone(
+        self.assertIsNotNone(
             cache.load_cache_entry('ipaf', 'index', 'prize-years', 1)
         )
-        self.assertIsNone(
+        self.assertIsNotNone(
             cache.load_cache_entry('ipaf', 'years', '2026', 1)
         )
         self.assertTrue((self.cache_dir / 'hugo.json').is_file())
@@ -511,10 +511,10 @@ class BramStokerRefreshTests(CacheControlTestCase):
         self.assertTrue(refresh_award_source_cache('bram_stoker'))
         self.assertIsNone(bram_stoker._ram_year(2025))
         self.assertIsNone(bram_stoker._ram_index())
-        self.assertIsNone(
+        self.assertIsNotNone(
             cache.load_cache_entry('bram_stoker', 'index', 'years', 1)
         )
-        self.assertIsNone(
+        self.assertIsNotNone(
             cache.load_cache_entry('bram_stoker', 'years', '2025', 1)
         )
         self.assertTrue((self.cache_dir / 'hugo.json').is_file())
@@ -568,13 +568,13 @@ class RomanticNovelAwardsRefreshTests(CacheControlTestCase):
         self.assertIsNone(romantic_novel_awards._winners_cache)
         self.assertIsNone(romantic_novel_awards._news_index_cache)
         self.assertEqual(romantic_novel_awards._year_cache, {})
-        self.assertIsNone(
+        self.assertIsNotNone(
             cache.load_cache_entry('romantic_novel_awards', 'winners', 'archive', 1)
         )
-        self.assertIsNone(
+        self.assertIsNotNone(
             cache.load_cache_entry('romantic_novel_awards', 'news_index', 'index', 1)
         )
-        self.assertIsNone(
+        self.assertIsNotNone(
             cache.load_cache_entry('romantic_novel_awards', 'year', '2026', 1)
         )
         self.assertTrue((self.cache_dir / 'hugo.json').is_file())
@@ -652,7 +652,7 @@ class IdempotentAndMissingDirTests(CacheControlTestCase):
         nebula._pages_cache['best-novel'] = (('https://example.test/n', 'html'),)
         refresh_award_source_cache('nebula')
         refresh_award_source_cache('nebula')
-        self.assertFalse((self.cache_dir / 'nebula.json').exists())
+        self.assertTrue((self.cache_dir / 'nebula.json').exists())
         self.assertEqual(nebula._pages_cache, {})
 
     def test_missing_cache_directory_is_harmless(self):
@@ -680,7 +680,7 @@ class IdempotentAndMissingDirTests(CacheControlTestCase):
         leftover = self.cache_dir / 'nebula.partial.json.tmp'
         leftover.write_text('tmp', encoding='utf-8')
         self.assertTrue(refresh_award_source_cache('nebula'))
-        self.assertFalse((self.cache_dir / 'nebula.json').exists())
+        self.assertTrue((self.cache_dir / 'nebula.json').exists())
         self.assertTrue(notes.is_file())
         self.assertEqual(notes.read_text(encoding='utf-8'), 'keep me')
         self.assertTrue(leftover.is_file())
@@ -688,7 +688,7 @@ class IdempotentAndMissingDirTests(CacheControlTestCase):
     def test_ram_reset_runs_when_persistent_deletion_fails(self):
         _save_archive('nebula')
         nebula._pages_cache['best-novel'] = (('https://example.test/n', 'html'),)
-        with patch.object(Path, 'unlink', _fail_unlink_for('nebula.json')):
+        with patch.object(cache, 'request_source_refresh', return_value=False):
             self.assertFalse(refresh_award_source_cache('nebula'))
         self.assertEqual(nebula._pages_cache, {})
         self.assertTrue((self.cache_dir / 'nebula.json').is_file())
@@ -697,7 +697,7 @@ class IdempotentAndMissingDirTests(CacheControlTestCase):
         nebula._pages_cache['best-novel'] = (('https://example.test/n', 'html'),)
         with patch.object(
             cache,
-            'invalidate_source_cache',
+            'request_source_refresh',
             side_effect=OSError('disk busy'),
         ):
             with self.assertRaises(OSError):
@@ -790,7 +790,7 @@ class ConfirmedRefreshHelperTests(CacheControlTestCase):
         _save_archive('nebula')
         self.assertTrue(refresh_award_source_cache('nebula'))
         self.assertIn(
-            'Nebula Awards cached data cleared.',
+            'Nebula Awards: Download request queued.',
             source_cache_refresh_status_text('nebula', 'Nebula Awards'),
         )
         self.assertNotIn(
@@ -801,7 +801,7 @@ class ConfirmedRefreshHelperTests(CacheControlTestCase):
     def test_persistent_failure_returns_false_not_success_copy(self):
         _save_archive('nebula')
         nebula._pages_cache['best-novel'] = (('https://example.test/n', 'html'),)
-        with patch.object(Path, 'unlink', _fail_unlink_for('nebula.json')):
+        with patch.object(cache, 'request_source_refresh', return_value=False):
             outcome = run_source_cache_refresh_if_confirmed(
                 'nebula',
                 'Nebula Awards',
@@ -811,8 +811,8 @@ class ConfirmedRefreshHelperTests(CacheControlTestCase):
         self.assertEqual(nebula._pages_cache, {})
         self.assertTrue((self.cache_dir / 'nebula.json').is_file())
         failure = source_cache_refresh_failure_text('Nebula Awards')
-        self.assertIn('in-memory cache was cleared', failure)
-        self.assertIn('could not be removed', failure)
+        self.assertIn('Saved fallback data was retained', failure)
+        self.assertIn('could not be saved', failure)
         self.assertNotIn('cached data cleared', failure)
 
 
@@ -821,7 +821,7 @@ class PersistentFailureNoNetworkTests(CacheControlTestCase):
         _save_archive('nebula')
         _save_locus_entry('authors', _AUTHOR_URL)
         with (
-            patch.object(Path, 'unlink', _fail_unlink_for('nebula.json')),
+            patch.object(cache, 'request_source_refresh', side_effect=lambda key: key != 'nebula'),
             patch('awards.engine.lookup_awards') as engine_lookup,
             patch.object(nebula, 'lookup') as nebula_lookup,
             patch.object(locus, 'lookup') as locus_lookup,

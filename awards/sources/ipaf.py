@@ -1163,7 +1163,7 @@ def _get_index() -> _IndexSnapshot:
     loaded = _load_persistent_index()
     if loaded is not None:
         snapshot, payload = loaded
-        if cache.cache_is_fresh(payload) or not cache.try_claim_stale_refresh():
+        if cache.cache_is_fresh(payload) or not cache.try_claim_stale_refresh(SOURCE_KEY):
             _store_index_snapshot(snapshot)
             return snapshot
         try:
@@ -1187,7 +1187,7 @@ def _get_one_year(award_year: int) -> _YearSnapshot:
     loaded = _load_persistent_year(award_year)
     if loaded is not None:
         snapshot, payload = loaded
-        if cache.cache_is_fresh(payload) or not cache.try_claim_stale_refresh():
+        if cache.cache_is_fresh(payload) or not cache.try_claim_stale_refresh(SOURCE_KEY):
             _store_year_snapshot(snapshot)
             return snapshot
         try:

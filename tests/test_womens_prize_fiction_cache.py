@@ -470,7 +470,7 @@ class WomensPrizeFictionPersistentCacheTests(unittest.TestCase):
             wpf, '_load_live_archive', side_effect=AssertionError('live')
         ):
             self.assertTrue(refresh_award_source_cache('womens_prize_fiction'))
-        self.assertFalse(self._disk_path().exists())
+        self.assertTrue(self._disk_path().exists())
         self.assertIsNone(wpf._archive_records_cache)
         self.assertTrue((self.cache_dir / 'hugo.json').is_file())
         self.assertTrue(pulitzer_path.is_file())
@@ -964,8 +964,8 @@ class WomensPrizeFictionShortlistCacheTests(unittest.TestCase):
             wpf, '_fetch_html', side_effect=AssertionError('network')
         ):
             self.assertTrue(refresh_award_source_cache('womens_prize_fiction'))
-        self.assertFalse((self.cache_dir / 'womens_prize_fiction.json').exists())
-        self.assertFalse(_shortlist_path(self.cache_dir, 2017).exists())
+        self.assertTrue((self.cache_dir / 'womens_prize_fiction.json').exists())
+        self.assertTrue(_shortlist_path(self.cache_dir, 2017).exists())
         self.assertIsNone(wpf._archive_records_cache)
         self.assertEqual(wpf._shortlist_year_cache, {})
         self.assertTrue((self.cache_dir / 'hugo.json').is_file())

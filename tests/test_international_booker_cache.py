@@ -486,7 +486,7 @@ class InternationalBookerPersistentCacheTests(unittest.TestCase):
             ib, '_load_live_archive', side_effect=AssertionError('live')
         ):
             self.assertTrue(refresh_award_source_cache('international_booker'))
-        self.assertFalse(self._disk_path().exists())
+        self.assertTrue(self._disk_path().exists())
         self.assertIsNone(ib._archive_records_cache)
         self.assertTrue((self.cache_dir / 'booker.json').is_file())
         self.assertEqual(booker._archive_records_cache, ())
@@ -520,7 +520,7 @@ class InternationalBookerPersistentCacheTests(unittest.TestCase):
         self.assertTrue(refresh_award_source_cache('booker'))
         self.assertTrue(self._disk_path().is_file())
         self.assertIsNotNone(ib._archive_records_cache)
-        self.assertFalse((self.cache_dir / 'booker.json').exists())
+        self.assertTrue((self.cache_dir / 'booker.json').exists())
         self.assertIsNone(booker._archive_records_cache)
 
 

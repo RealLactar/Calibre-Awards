@@ -23,6 +23,8 @@ from calibre_plugins.calibre_awards.awards.cache_control import (
     source_cache_refresh_confirm_title,
     source_cache_refresh_failure_text,
     source_cache_refresh_status_text,
+    source_refresh_description,
+    bulk_refresh_description,
 )
 from calibre_plugins.calibre_awards.awards.formatter import (
     DEFAULT_AWARD_OUTPUT_TEMPLATE,
@@ -151,6 +153,8 @@ class ConfigWidget(QWidget):
         )
         self.source_checkboxes = {}
         self.source_refresh_buttons = {}
+        self._refresh_queued_keys = set()
+        self._bulk_refresh_retry_keys = None
         for source_key, display_name in cache_refresh_source_rows():
             # Current capabilities only; stale disabled keys have no checkbox.
             # Refresh is enabled from the open checkbox, not stored prefs.
@@ -222,6 +226,8 @@ class ConfigWidget(QWidget):
         self.cache_status.setWordWrap(True)
         self.cache_status.setTextFormat(Qt.PlainText)
         sources_layout.addWidget(self.cache_status)
+        for checkbox in self.source_checkboxes.values():
+            checkbox.toggled.connect(self._sync_bulk_refresh_state)
         layout.addWidget(sources_group)
 
         rank_and_output = QGroupBox('Qualification and award output', self)
@@ -459,9 +465,7 @@ class ConfigWidget(QWidget):
             error_dialog(
                 self,
                 'Calibre Awards',
-                f'{display_name} cached data could not be fully cleared. '
-                'In-memory data was reset if possible. The next Check Awards '
-                'search may still use remaining saved data.',
+                f'{display_name}: refresh request failed. Saved fallback data was retained.',
                 show=True,
             )
             return
@@ -485,31 +489,59 @@ class ConfigWidget(QWidget):
         button = self.source_refresh_buttons[source_key]
         button.setText('Refresh queued')
         button.setToolTip(
-            'Refresh requested in this preferences session. '
-            'Fresh data will be requested the next time this source is checked.'
+            source_refresh_description(source_key)
         )
+        queued = getattr(self, '_refresh_queued_keys', set())
+        queued.add(source_key)
+        self._refresh_queued_keys = queued
+        self._sync_bulk_refresh_state()
+
+    def _sync_bulk_refresh_state(self, *_args):
+        """Reconcile session-only queue/retry state with the current selection."""
+        selected = {
+            key for key, checkbox in self.source_checkboxes.items()
+            if key in self.source_refresh_buttons and checkbox.isChecked()
+        }
+        queued = getattr(self, '_refresh_queued_keys', set())
+        failed = set(getattr(self, '_bulk_refresh_retry_keys', None) or ())
+        failed = (failed & selected) - queued
+        self._bulk_refresh_retry_keys = failed or None
+        remaining = selected - queued
+        if remaining:
+            label = 'Retry Refresh all' if remaining <= failed else 'Refresh all'
+        else:
+            label = 'Refresh all queued' if selected else 'Refresh all'
+        self.refresh_all_button.setText(label)
 
     def _on_refresh_all_sources(self):
+        self._sync_bulk_refresh_state()
+        queued = getattr(self, '_refresh_queued_keys', set())
         rows = [
             (key, self.source_checkboxes[key].text())
             for key in self.source_checkboxes
-            if self.source_checkboxes[key].isChecked()
+            if key in self.source_refresh_buttons and self.source_checkboxes[key].isChecked()
+            and key not in queued
         ]
         if not rows:
-            self.cache_status.setText('Select at least one award source to refresh.')
+            if any(checkbox.isChecked() for key, checkbox in self.source_checkboxes.items()
+                   if key in self.source_refresh_buttons):
+                self.cache_status.setText('Refresh already queued for all selected sources.')
+            else:
+                self.cache_status.setText('Select at least one award source to refresh.')
             return
         if not question_dialog(
             self,
             'Refresh all enabled award sources?',
-            f'This will refresh cached data for {len(rows)} enabled award '
-            'sources. Fresh data will be requested the next time each source '
-            'is checked. Pulitzer keeps its saved data as a fallback.\n\n'
+            f'This will queue refresh requests for {len(rows)} selected sources. '
+            + bulk_refresh_description(key for key, _name in rows) + '\n\n' +
             'Awards stored in your books will not change. This action happens '
             'immediately and is not undone by Canceling Preferences.',
             skip_dialog_name=None,
         ):
             return
         failed = []
+        failed_keys = set()
+        succeeded = []
         for key, name in rows:
             try:
                 ok = run_source_cache_refresh_if_confirmed(
@@ -519,20 +551,23 @@ class ConfigWidget(QWidget):
                 ok = False
             if ok:
                 self._mark_refresh_queued(key)
+                succeeded.append(key)
             else:
                 self.source_refresh_buttons[key].setText('Retry Refresh')
                 failed.append(name)
+                failed_keys.add(key)
+        self._bulk_refresh_retry_keys = failed_keys or None
+        self._sync_bulk_refresh_state()
         if failed:
-            self.refresh_all_button.setText('Retry Refresh all')
             self.cache_status.setText(
                 f'Refresh queued for {len(rows) - len(failed)} sources. '
-                'Could not fully clear: ' + ', '.join(failed) + '. Try again.'
+                + bulk_refresh_description(succeeded) + '\nCould not queue: '
+                + ', '.join(failed) + '. Try again.'
             )
         else:
-            self.refresh_all_button.setText('Refresh all queued')
             self.cache_status.setText(
-                f'Refresh queued for all {len(rows)} enabled sources. '
-                'Fresh data will be requested on the next Check Awards search.'
+                f'Refresh requests queued for {len(rows)} selected sources. '
+                + bulk_refresh_description(succeeded)
             )
 
     def validate(self):

@@ -361,11 +361,11 @@ class PrixGoncourtPersistentCacheTests(unittest.TestCase):
             pg, '_load_live_archive', side_effect=AssertionError('live')
         ):
             self.assertTrue(refresh_award_source_cache('prix_goncourt'))
-        self.assertFalse(self._disk_path().exists())
+        self.assertTrue(self._disk_path().exists())
         self.assertIsNone(pg._archive_records_cache)
         self.assertIsNone(pg._selection_records_cache)
         self.assertIsNone(pg._selection_coverage_cache)
-        self.assertIsNone(
+        self.assertIsNotNone(
             cache.load_cache_entry(
                 pg.SOURCE_KEY,
                 pg.SELECTION_ENTRY_KIND,
@@ -812,8 +812,8 @@ class PrixGoncourtSelectionCacheTests(unittest.TestCase):
             pg, 'lookup', side_effect=AssertionError('lookup')
         ):
             self.assertTrue(refresh_award_source_cache('prix_goncourt'))
-        self.assertFalse((self.cache_dir / 'prix_goncourt.json').exists())
-        self.assertFalse(_selection_path(self.cache_dir).exists())
+        self.assertTrue((self.cache_dir / 'prix_goncourt.json').exists())
+        self.assertTrue(_selection_path(self.cache_dir).exists())
         self.assertTrue((self.cache_dir / 'hugo.json').is_file())
         self.assertIsNone(pg._archive_records_cache)
         self.assertIsNone(pg._selection_records_cache)

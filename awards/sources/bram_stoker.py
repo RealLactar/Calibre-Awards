@@ -1686,7 +1686,7 @@ def _get_index() -> _IndexSnapshot:
             and calendar_year not in snapshot.year_urls
             and not cache.cache_is_fresh(payload)
         )
-        if not needs_future:
+        if not needs_future and not cache.payload_refresh_requested(payload):
             return snapshot
         try:
             live = _acquire_live_index()
@@ -1712,7 +1712,7 @@ def _get_one_year(
     loaded = _load_persistent_year(award_year)
     if loaded is not None:
         snapshot, payload = loaded
-        if cache.cache_is_fresh(payload) or not cache.try_claim_stale_refresh():
+        if cache.cache_is_fresh(payload) or not cache.try_claim_stale_refresh(SOURCE_KEY):
             _store_year_snapshot(snapshot)
             return snapshot
         try:

@@ -573,7 +573,7 @@ class BookerPersistentCacheTests(unittest.TestCase):
             booker, '_load_live_archive', side_effect=AssertionError('live')
         ):
             self.assertTrue(refresh_award_source_cache('booker'))
-        self.assertFalse(self._disk_path().exists())
+        self.assertTrue(self._disk_path().exists())
         self.assertIsNone(booker._archive_records_cache)
         self.assertTrue((self.cache_dir / 'hugo.json').is_file())
         self.assertTrue(pulitzer_path.is_file())

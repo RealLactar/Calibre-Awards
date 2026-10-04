@@ -154,9 +154,19 @@ you disable it. If none are enabled, **Check Awards** is hidden in Edit
 Metadata. **National Book Awards** has no enable checkbox because it
 is currently unavailable.
 
-**Refresh.** Each enabled source has a **Refresh** button. Refresh clears
-that source's local cache. It does not contact the website. The next
-**Check Awards** lookup rebuilds the cache.
+**Refresh.** Each enabled source has a **Refresh** button. **Refresh all**
+queues requests for the checked executable sources. The buttons show
+**Refresh queued** when the request succeeds. Failed requests remain
+available to retry. With unchanged selections, bulk retry processes only failed
+sources. Changing selections includes newly checked sources and updates the
+button label. Sources already queued in this Preferences session are skipped;
+individual Refresh can request them again. Individual retry success also clears
+that source's bulk failure state. Selecting or deselecting sources leaves saved
+fallback and existing pending requests intact.
+Refresh performs no network requests and does not change stored book awards.
+The next background **Check Awards** lookup attempts the requested downloads
+while retaining validated saved fallback. Bundled sources instead reload
+their shipped archive; new coverage requires a plugin update.
 
 **Qualification and award output.** Rank cutoff is 1–100 (default 5). It
 applies only when a source provides an explicit numerical rank. Unranked
@@ -204,15 +214,20 @@ Calibre Awards stores a persistent local cache under Calibre's configuration
 area so later searches can reuse previously downloaded award information.
 Each source has its own cache. Cache persists across Calibre restarts.
 
-**Refresh** in Preferences clears that source's cache. Refresh itself does
-not contact the website; the next Check Awards request rebuilds it.
-Pulitzer Refresh is narrower: it requests a live official refresh on the
-next lookup but does not discard last-known-good Pulitzer data or the
-reviewed official snapshot.
+**Refresh** retains saved data until a downloaded replacement has parsed and
+validated successfully. Failed or invalid updates preserve the saved bytes
+and timestamp, and remain pending for a later lookup. Requests persist
+across restarts when disk caching is configured; without it, requests last
+for the current process. Explicit requests bypass the normal one-source
+stale-refresh budget. Locus author and annual entries complete independently;
+failed or unvisited entries remain pending. Pulitzer's reviewed bundled
+snapshot remains available. Diagram and Bad Sex in Fiction use no network.
+Refresh is immediate and is not undone by Canceling Preferences.
 
 If one award website fails, other award sources continue running.
 
-Uncached lookups require an internet connection.
+Uncached network sources require an internet connection. Bundled sources
+remain available offline.
 
 ## Known limitations
 

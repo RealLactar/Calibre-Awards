@@ -1984,7 +1984,7 @@ def _get_news_index() -> _NewsIndex:
     disk = _load_news_index_disk()
     if disk is not None:
         index, payload = disk
-        if cache.cache_is_fresh(payload) or not cache.try_claim_stale_refresh():
+        if cache.cache_is_fresh(payload) or not cache.try_claim_stale_refresh(SOURCE_KEY):
             with _cache_lock:
                 _news_index_cache = index
             return index
@@ -2019,7 +2019,7 @@ def _get_winners() -> tuple[_ParsedRecord, ...]:
     disk = _load_winners_disk()
     if disk is not None:
         records, payload = disk
-        if cache.cache_is_fresh(payload) or not cache.try_claim_stale_refresh():
+        if cache.cache_is_fresh(payload) or not cache.try_claim_stale_refresh(SOURCE_KEY):
             with _cache_lock:
                 _winners_cache = records
             return records
@@ -2052,7 +2052,7 @@ def _get_year(
     disk = _load_year_disk(award_year)
     if disk is not None:
         snapshot, payload = disk
-        if cache.cache_is_fresh(payload) or not cache.try_claim_stale_refresh():
+        if cache.cache_is_fresh(payload) or not cache.try_claim_stale_refresh(SOURCE_KEY):
             with _cache_lock:
                 _year_cache[award_year] = snapshot
             return snapshot

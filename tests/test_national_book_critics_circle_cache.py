@@ -527,7 +527,7 @@ class NbccCacheTests(unittest.TestCase):
         with patch.object(nbcc, '_fetch_response', side_effect=tracker.fetch_response):
             self.assertTrue(refresh_award_source_cache(nbcc.SOURCE_KEY))
         self.assertEqual(tracker.calls, [])
-        self.assertIsNone(
+        self.assertIsNotNone(
             cache.load_cache_entry(
                 nbcc.SOURCE_KEY,
                 nbcc.INDEX_ENTRY_KIND,
@@ -535,7 +535,7 @@ class NbccCacheTests(unittest.TestCase):
                 nbcc.INDEX_CACHE_VERSION,
             )
         )
-        self.assertIsNone(
+        self.assertIsNotNone(
             cache.load_cache_entry(
                 nbcc.SOURCE_KEY,
                 nbcc.YEAR_ENTRY_KIND,
