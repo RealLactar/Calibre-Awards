@@ -65,6 +65,7 @@ _EXPECTED_SOURCE_ORDER = (
     'bad_sex_fiction',
     'diagram',
     'newbery',
+    'dublin',
 )
 
 
@@ -438,8 +439,8 @@ class AwardSourcesUnavailableRowTests(unittest.TestCase):
 
     def test_executable_rows_retain_checkbox_and_refresh(self):
         panel = FakeAwardSourcesPanel()
-        self.assertEqual(len(panel.source_checkboxes), 24)
-        self.assertEqual(len(panel.source_refresh_buttons), 24)
+        self.assertEqual(len(panel.source_checkboxes), 25)
+        self.assertEqual(len(panel.source_refresh_buttons), 25)
         for source_key, display_name in cache_refresh_source_rows():
             self.assertIn(source_key, panel.source_checkboxes)
             self.assertIn(source_key, panel.source_refresh_buttons)

@@ -27,7 +27,7 @@ Book lookup happens only from **Check Awards** in Edit Metadata.
 
 ## Supported awards
 
-The plugin currently has **24 executable award sources**. Category coverage
+The plugin currently has **25 executable award sources**. Category coverage
 is limited to the literary work awards each source currently advertises in
 the plugin. Anthology, editor, artist, publisher, and similar non-work
 honors are omitted where they fall outside those categories.
@@ -62,6 +62,7 @@ scope catalog.
 | Bad Sex in Fiction Award | Bundled reviewed book winners, 1993–2019; no network required | Winner |
 | Diagram Prize for Oddest Title of the Year | 42 bundled annual winners with credited identities, 1979–2025 | Winner |
 | John Newbery Medal | 1930–2023 | Winner; Honor |
+| Dublin Literary Award | Official annual archive from 1996, including former International IMPAC Dublin years | Winner; Shortlisted; Longlisted; Nominated; no inferred rank; non-winners shown unchecked for REVIEW |
 
 **National Book Awards** is not an executable source. Preferences shows it
 as unavailable (**Transport blocked**) because the current website presents
@@ -393,3 +394,5 @@ Balrog award data is retrieved from the public ISFDB copy at https://isfdb.stoec
 Bad Sex in Fiction Award: bundled reviewed book winners, 1993–2019 (28 records, including joint 2019 winners). No shortlists or author lifetime honors. No network required; Refresh reloads the bundled archive. Historical secondary attribution and a corrected 1994/1995 date discrepancy are documented in awards/data/bad_sex_provenance.md.
 
 Diagram Prize uses a reviewed historical archive with secondary-source attribution. Three early anonymous entries, no-award years, shortlists and anniversary honors are excluded. Refresh reloads the bundled archive; adding later winners requires a plugin update. See awards/data/diagram_provenance.md for provenance and title aliases.
+
+Dublin includes the official archive's Nominated, Longlisted and Shortlisted books as REVIEW results, unchecked by default. The strongest status is shown once per work/year. A longlist is a larger candidate list narrowed down before the shortlist; Dublin's 2026 judging panel reduced 69 library nominations to a longlist of 20, then a shortlist of 6. Historical archive labels are retained. The official 2013 longlist is empty, so coverage for that year remains its winner and shortlist. Complete lists are retrieved through the same public GET endpoint used by the website, beyond annual-page previews. Dublin cache schema 2 refetches earlier winner/shortlist-only caches.

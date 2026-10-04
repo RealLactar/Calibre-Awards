@@ -4,6 +4,13 @@
 
 ### Added
 
+- Dublin Literary Award: official winners, shortlists, longlists and nominations
+  from 1996, including complete candidate lists beyond annual-page previews.
+  Non-winners appear unchecked for REVIEW; each work/year keeps its strongest
+  status. Sitemap discovery, persistent caching and safe refresh fallback.
+  Dublin cache schema 2 replaces the earlier winner/shortlist-only cache.
+  Translators are not treated as authors.
+
 - Diagram Prize for Oddest Title of the Year: 42 reviewed annual winners
   (1979–2025), offline lookup, complete credited-author matching, Preferences
   and source-specific Refresh.

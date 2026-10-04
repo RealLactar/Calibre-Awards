@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from urllib.parse import urlparse
 
 from .sources import (
+    dublin,
     diagram,
     bad_sex_fiction,
     balrog,
@@ -596,5 +597,15 @@ SOURCE_INFOS: tuple[SourceInfo, ...] = (
         limitation=(
             'Current plugin coverage begins in 1930 and ends in 2023.'
         ),
+    ),
+    SourceInfo(
+        key='dublin', display_name=dublin.AWARD_NAME, categories=dublin.CATEGORIES,
+        identity_scopes=('work',), homepage_url=dublin.SOURCE_HOME_URL,
+        description='Official Dublin Literary Award winners, shortlisted, longlisted and nominated novels, including English translations.',
+        limitation=('Coverage begins in 1996, including the former International IMPAC Dublin naming. '
+                    'Award years and credited English titles/authors follow the official archive. '
+                    'Nominated, Longlisted and Shortlisted results are shown for REVIEW, unchecked by default. The official 2013 longlist is empty, so that year covers finalists only. Translators are not treated '
+                    'as authors. No ordinal rank is inferred. First download fetches annual pages and complete candidate lists; '
+                    'subsequent lookups use saved data. Failed refresh retains validated fallback.'),
     ),
 )

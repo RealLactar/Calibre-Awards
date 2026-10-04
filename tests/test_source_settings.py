@@ -34,6 +34,7 @@ _CURRENT = (
     'bad_sex_fiction',
     'diagram',
     'newbery',
+    'dublin',
 )
 
 
@@ -109,7 +110,7 @@ class ComputeEnabledSourceKeysTests(unittest.TestCase):
     def test_one_disabled(self):
         self.assertEqual(
             compute_enabled_source_keys(_CURRENT, ('pulitzer',)),
-            ('nebula', 'hugo', 'locus', 'world_fantasy', 'balrog', 'bram_stoker', 'edgar', 'romantic_novel_awards', 'nobel', 'booker', 'international_booker', 'wolfson_history', 'german_book_prize', 'prix_goncourt', 'miles_franklin', 'womens_prize_fiction', 'national_book_critics_circle', 'pen_faulkner', 'pen_hemingway', 'ipaf', 'bad_sex_fiction', 'diagram', 'newbery'),
+            ('nebula', 'hugo', 'locus', 'world_fantasy', 'balrog', 'bram_stoker', 'edgar', 'romantic_novel_awards', 'nobel', 'booker', 'international_booker', 'wolfson_history', 'german_book_prize', 'prix_goncourt', 'miles_franklin', 'womens_prize_fiction', 'national_book_critics_circle', 'pen_faulkner', 'pen_hemingway', 'ipaf', 'bad_sex_fiction', 'diagram', 'newbery', 'dublin'),
         )
 
     def test_several_disabled(self):
@@ -137,7 +138,7 @@ class ComputeEnabledSourceKeysTests(unittest.TestCase):
         self.assertEqual(disabled, ('pulitzer', 'removed_old_source'))
         self.assertEqual(
             compute_enabled_source_keys(_CURRENT, disabled),
-            ('nebula', 'hugo', 'locus', 'world_fantasy', 'balrog', 'bram_stoker', 'edgar', 'romantic_novel_awards', 'nobel', 'booker', 'international_booker', 'wolfson_history', 'german_book_prize', 'prix_goncourt', 'miles_franklin', 'womens_prize_fiction', 'national_book_critics_circle', 'pen_faulkner', 'pen_hemingway', 'ipaf', 'bad_sex_fiction', 'diagram', 'newbery'),
+            ('nebula', 'hugo', 'locus', 'world_fantasy', 'balrog', 'bram_stoker', 'edgar', 'romantic_novel_awards', 'nobel', 'booker', 'international_booker', 'wolfson_history', 'german_book_prize', 'prix_goncourt', 'miles_franklin', 'womens_prize_fiction', 'national_book_critics_circle', 'pen_faulkner', 'pen_hemingway', 'ipaf', 'bad_sex_fiction', 'diagram', 'newbery', 'dublin'),
         )
 
     def test_future_source_defaults_enabled(self):
@@ -170,6 +171,7 @@ class ComputeEnabledSourceKeysTests(unittest.TestCase):
                 'bad_sex_fiction',
                 'diagram',
                 'newbery',
+                'dublin',
                 'future_source',
             ),
         )
@@ -197,9 +199,9 @@ class SourceInfosPreferenceCompositionTests(unittest.TestCase):
             all_keys,
         )
         self.assertEqual(all_keys[0], 'pulitzer')
-        self.assertEqual(all_keys[-1], 'newbery')
+        self.assertEqual(all_keys[-1], 'dublin')
         self.assertIn('newbery', all_keys)
-        self.assertEqual(len(all_keys), 24)
+        self.assertEqual(len(all_keys), 25)
         self.assertIn('wolfson_history', all_keys)
         self.assertIn('national_book_critics_circle', all_keys)
         self.assertIn('pen_faulkner', all_keys)
