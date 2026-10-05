@@ -12,6 +12,7 @@ from .source_info import SOURCE_INFOS
 from .sources import (
     akutagawa,
     naoki,
+    mao_dun,
     dublin,
     diagram,
     bad_sex_fiction,
@@ -53,6 +54,7 @@ SOURCES_GROUP_HINT = (
 _SOURCE_RUNTIME_RESETS = {
     'akutagawa': akutagawa._reset_runtime_state,
     'naoki': naoki._reset_runtime_state,
+    'mao_dun': mao_dun._reset_runtime_state,
     'dublin': dublin._reset_runtime_state,
     'diagram': diagram._reset_runtime_state,
     'bad_sex_fiction': bad_sex_fiction._reset_runtime_state,

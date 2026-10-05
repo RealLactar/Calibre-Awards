@@ -27,7 +27,7 @@ Book lookup happens only from **Check Awards** in Edit Metadata.
 
 ## Supported awards
 
-The plugin currently has **27 executable award sources**. Category coverage
+The plugin currently has **28 executable award sources**. Category coverage
 is limited to the literary work awards each source currently advertises in
 the plugin. Anthology, editor, artist, publisher, and similar non-work
 honors are omitted where they fall outside those categories.
@@ -65,6 +65,7 @@ scope catalog.
 | Dublin Literary Award | Official annual archive from 1996, including former International IMPAC Dublin years | Winner; Shortlisted; Longlisted; Nominated; no inferred rank; non-winners shown unchecked for REVIEW |
 | Akutagawa Prize | Official winner history from 1935; nominations for rounds 162 and 175; reviewed English mappings | Winner; Nominated (unchecked REVIEW); original award year and half-year retained |
 | Naoki Prize | Official winner history from 1935; round 175 nominations; two reviewed English mappings | Winner; Nominated (unchecked REVIEW) |
+| Mao Dun Literature Prize | Reviewed editions 1–11 (1982–2023); edition 11 nominees; two English mappings | Winner; Honorary award; Nominated; scope confirmation for awarded volumes/revisions |
 
 **National Book Awards** is not an executable source. Preferences shows it
 as unavailable (**Transport blocked**) because the current website presents
@@ -402,3 +403,5 @@ Dublin includes the official archive's Nominated, Longlisted and Shortlisted boo
 Akutagawa Prize uses the official Japanese winner archive. Initial reviewed coverage is 189 winning works across 175 rounds (1935–2026); 33 rounds explicitly have no award. Complete nomination announcements are included only for round 162 (2019 second half) and round 175 (2026 first half). Eight winning works and one nominee have reviewed English title/name mappings; other entries require the original Japanese identity. No machine-generated title translations or automatic name romanization are used. Winners remain distinct from other books by the same author. Collections and expanded editions are not automatically credited with an included or earlier work's award. The official award year is retained even when a second-half result was announced the following January. Source details show the round, half-year, original identity and mapping evidence. Refresh updates the official archive and documented nomination pages; additional nomination rounds and English mappings require a plugin update. See awards/data/akutagawa_provenance.md.
 
 Naoki Prize covers the official Japanese winner archive from 1935, with nominations currently limited to round 175 (2026 first half). Two reviewed English winning-work mappings are included: The Devotion of Suspect X and Honeybees and Distant Thunder. Nominees appear unchecked for REVIEW. Historical multi-story citations are preserved intact; translated collections and individual component stories are not automatically inferred. The separate High School Students’ Naoki Prize is excluded. See awards/data/naoki_provenance.md.
+
+Mao Dun Literature Prize uses the official Chinese Writers Association archive: 51 regular winning works, two honorary awards and five non-winning nominees from edition 11 after deduplication. Award years (1982–2023) are distinct from eligibility periods and article publication dates. English mappings currently cover The Last Quarter of the Moon / Chi Zijian and Frog / Mo Yan. Honorary awards and nominees appear unchecked for REVIEW. Volume-specific and revised-edition records retain their complete scope and require confirmation; component volumes and unverified translations are not inferred. All eleven edition dates are reviewed metadata; new editions and nomination/mapping coverage require a plugin update. See awards/data/mao_dun_provenance.md.

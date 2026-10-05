@@ -13,6 +13,7 @@ from urllib.parse import urlparse
 from .sources import (
     akutagawa,
     naoki,
+    mao_dun,
     dublin,
     diagram,
     bad_sex_fiction,
@@ -632,5 +633,17 @@ SOURCE_INFOS: tuple[SourceInfo, ...] = (
                     'No automatic translation or author-wide awards. Nominations appear unchecked for REVIEW. '
                     'Official year and half are retained. Refresh keeps validated fallback on failure. '
                     'The separate High School Students’ Naoki Prize is excluded.'),
+    ),
+    SourceInfo(
+        key='mao_dun', display_name=mao_dun.AWARD_NAME, categories=mao_dun.CATEGORIES,
+        identity_scopes=('work',), homepage_url=mao_dun.SOURCE_HOME_URL,
+        description='Official Mao Dun Literature Prize novels, honorary awards and documented nominees.',
+        limitation=('Reviewed editions 1–11 (award years 1982–2023); actual award years are distinct from eligibility periods. '
+                    'Nominations are limited to edition 11 (2023). Two English winning-work mappings are reviewed; '
+                    'other entries require original Chinese identities. No automatic translation or author-wide awards. '
+                    'Honorary awards remain distinct and unchecked for REVIEW; nominees also start unchecked. '
+                    'Explicit awarded volumes, trilogies and revised editions require identity confirmation. '
+                    'New editions, nomination coverage and English mappings require a reviewed plugin update. '
+                    'Refresh downloads official records and retains validated fallback on failure.'),
     ),
 )

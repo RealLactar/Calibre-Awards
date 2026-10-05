@@ -1,0 +1,1 @@
+Official public HTML captured 2026-10-05. winners.html: https://www.chinawriter.com.cn/n1/2019/0816/c405645-31300293.html ; nominees-11.html: https://www.chinawriter.com.cn/404087/404988/457894/index.html . Indentation/trailing whitespace normalized. These are offline fixtures, separate from live verification.

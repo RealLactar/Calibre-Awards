@@ -133,7 +133,7 @@ class SourceInfoRegistryConsistencyTests(unittest.TestCase):
             tuple(source.display_name for source in AWARD_SOURCES),
         )
         self.assertEqual(len(SOURCE_INFOS), len(AWARD_SOURCES))
-        self.assertEqual(len(SOURCE_INFOS), 27)
+        self.assertEqual(len(SOURCE_INFOS), 28)
         self.assertNotIn(
             'national_book_awards',
             [info.key for info in SOURCE_INFOS],
@@ -348,6 +348,7 @@ class SourceInfoScopeAndHomepageTests(unittest.TestCase):
             'dublin': ('work',),
             'akutagawa': ('work',),
             'naoki': ('work',),
+            'mao_dun': ('work',),
         }
         self.assertEqual(
             {info.key: info.identity_scopes for info in SOURCE_INFOS},
@@ -454,6 +455,7 @@ class SourceInfoScopeAndHomepageTests(unittest.TestCase):
                 'dublin',
                 'akutagawa',
                 'naoki',
+                'mao_dun',
                 'bram_stoker',
                 'edgar',
                 'romantic_novel_awards',
@@ -713,9 +715,9 @@ class SourceInfoImportAndFormatTests(unittest.TestCase):
         with patch.object(urllib.request, 'urlopen') as mocked_open:
             reloaded = importlib.reload(source_info)
             infos = reloaded.SOURCE_INFOS
-            self.assertEqual(len(infos), 27)
+            self.assertEqual(len(infos), 28)
             self.assertEqual(infos[0].key, 'pulitzer')
-            self.assertEqual(infos[-1].key, 'naoki')
+            self.assertEqual(infos[-1].key, 'mao_dun')
             mocked_open.assert_not_called()
 
     def test_format_identity_scopes_uses_user_facing_labels(self):

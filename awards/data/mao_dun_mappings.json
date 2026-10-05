@@ -1,0 +1,102 @@
+{
+  "editions": {
+    "1": {
+      "year": 1982,
+      "period": "1977–1981",
+      "winners": 6,
+      "honorary": 0
+    },
+    "2": {
+      "year": 1985,
+      "period": "1982–1984",
+      "winners": 3,
+      "honorary": 0
+    },
+    "3": {
+      "year": 1991,
+      "period": "1985–1988",
+      "winners": 5,
+      "honorary": 2
+    },
+    "4": {
+      "year": 1997,
+      "period": "1989–1994",
+      "winners": 4,
+      "honorary": 0
+    },
+    "5": {
+      "year": 2000,
+      "period": "1995–1998",
+      "winners": 4,
+      "honorary": 0
+    },
+    "6": {
+      "year": 2005,
+      "period": "1999–2002",
+      "winners": 5,
+      "honorary": 0
+    },
+    "7": {
+      "year": 2008,
+      "period": "2003–2006",
+      "winners": 4,
+      "honorary": 0
+    },
+    "8": {
+      "year": 2011,
+      "period": "2007–2010",
+      "winners": 5,
+      "honorary": 0
+    },
+    "9": {
+      "year": 2015,
+      "period": "2011–2014",
+      "winners": 5,
+      "honorary": 0
+    },
+    "10": {
+      "year": 2019,
+      "period": "2015–2018",
+      "winners": 5,
+      "honorary": 0
+    },
+    "11": {
+      "year": 2023,
+      "period": "2019–2022",
+      "winners": 5,
+      "honorary": 0
+    }
+  },
+  "mappings": [
+    {
+      "edition": 7,
+      "title_zh": "额尔古纳河右岸",
+      "author_zh": "迟子建",
+      "titles": [
+        "The Last Quarter of the Moon"
+      ],
+      "authors": [
+        "Chi Zijian"
+      ],
+      "evidence": [
+        "https://www.penguin.co.uk/books/410850/the-last-quarter-of-the-moon-by-zijian-chi/9780099555650",
+        "https://paper-republic.org/pers/bruce-humes/"
+      ]
+    },
+    {
+      "edition": 8,
+      "title_zh": "蛙",
+      "author_zh": "莫言",
+      "titles": [
+        "Frog"
+      ],
+      "authors": [
+        "Mo Yan"
+      ],
+      "evidence": [
+        "https://www.penguinrandomhouse.com/books/317277/frog-by-mo-yan/9780698182660/",
+        "https://paper-republic.org/works/frog/"
+      ]
+    }
+  ]
+}

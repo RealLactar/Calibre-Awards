@@ -3,6 +3,8 @@
 ## Unreleased
 
 ### Added
+- Add Mao Dun Literature Prize official winners and honorary awards for editions 1–11, edition 11 nominees and two reviewed English mappings; preserve award dates, eligibility periods and edition/volume identity.
+
 - Add Naoki Prize official winner history, round 175 nominations and two reviewed English title/author mappings; preserve half-year dates, multi-story citations and unchecked nominee review.
 
 
