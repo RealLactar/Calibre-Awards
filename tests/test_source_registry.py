@@ -54,6 +54,7 @@ class AwardSourceRegistryTests(unittest.TestCase):
                 'diagram',
                 'newbery',
                 'dublin',
+                'akutagawa',
             ),
         )
 
@@ -86,12 +87,13 @@ class AwardSourceRegistryTests(unittest.TestCase):
                 'Diagram Prize for Oddest Title of the Year',
                 'John Newbery Medal',
                 'Dublin Literary Award',
+                'Akutagawa Prize',
             ),
         )
 
     def test_executable_registry_count_excludes_national_book_awards(self):
         keys = [source.key for source in AWARD_SOURCES]
-        self.assertEqual(len(AWARD_SOURCES), 25)
+        self.assertEqual(len(AWARD_SOURCES), 26)
         self.assertNotIn('national_book_awards', keys)
         self.assertNotIn(
             'National Book Awards',

@@ -1,0 +1,1008 @@
+{
+  "reviewed_rounds": {
+    "1": {
+      "year": 1935,
+      "half": "first half",
+      "minimum_rows": 1
+    },
+    "2": {
+      "year": 1935,
+      "half": "second half",
+      "minimum_rows": 1
+    },
+    "3": {
+      "year": 1936,
+      "half": "first half",
+      "minimum_rows": 2
+    },
+    "4": {
+      "year": 1936,
+      "half": "second half",
+      "minimum_rows": 2
+    },
+    "5": {
+      "year": 1937,
+      "half": "first half",
+      "minimum_rows": 1
+    },
+    "6": {
+      "year": 1937,
+      "half": "second half",
+      "minimum_rows": 1
+    },
+    "7": {
+      "year": 1938,
+      "half": "first half",
+      "minimum_rows": 1
+    },
+    "8": {
+      "year": 1938,
+      "half": "second half",
+      "minimum_rows": 1
+    },
+    "9": {
+      "year": 1939,
+      "half": "first half",
+      "minimum_rows": 2
+    },
+    "10": {
+      "year": 1939,
+      "half": "second half",
+      "minimum_rows": 1
+    },
+    "11": {
+      "year": 1940,
+      "half": "first half",
+      "minimum_rows": 1
+    },
+    "12": {
+      "year": 1940,
+      "half": "second half",
+      "minimum_rows": 1
+    },
+    "13": {
+      "year": 1941,
+      "half": "first half",
+      "minimum_rows": 1
+    },
+    "14": {
+      "year": 1941,
+      "half": "second half",
+      "minimum_rows": 1
+    },
+    "15": {
+      "year": 1942,
+      "half": "first half",
+      "minimum_rows": 1
+    },
+    "16": {
+      "year": 1942,
+      "half": "second half",
+      "minimum_rows": 1
+    },
+    "17": {
+      "year": 1943,
+      "half": "first half",
+      "minimum_rows": 1
+    },
+    "18": {
+      "year": 1943,
+      "half": "second half",
+      "minimum_rows": 1
+    },
+    "19": {
+      "year": 1944,
+      "half": "first half",
+      "minimum_rows": 2
+    },
+    "20": {
+      "year": 1944,
+      "half": "second half",
+      "minimum_rows": 1
+    },
+    "21": {
+      "year": 1949,
+      "half": "first half",
+      "minimum_rows": 2
+    },
+    "22": {
+      "year": 1949,
+      "half": "second half",
+      "minimum_rows": 1
+    },
+    "23": {
+      "year": 1950,
+      "half": "first half",
+      "minimum_rows": 1
+    },
+    "24": {
+      "year": 1950,
+      "half": "second half",
+      "minimum_rows": 1
+    },
+    "25": {
+      "year": 1951,
+      "half": "first half",
+      "minimum_rows": 2
+    },
+    "26": {
+      "year": 1951,
+      "half": "second half",
+      "minimum_rows": 1
+    },
+    "27": {
+      "year": 1952,
+      "half": "first half",
+      "minimum_rows": 1
+    },
+    "28": {
+      "year": 1952,
+      "half": "second half",
+      "minimum_rows": 2
+    },
+    "29": {
+      "year": 1953,
+      "half": "first half",
+      "minimum_rows": 1
+    },
+    "30": {
+      "year": 1953,
+      "half": "second half",
+      "minimum_rows": 1
+    },
+    "31": {
+      "year": 1954,
+      "half": "first half",
+      "minimum_rows": 1
+    },
+    "32": {
+      "year": 1954,
+      "half": "second half",
+      "minimum_rows": 2
+    },
+    "33": {
+      "year": 1955,
+      "half": "first half",
+      "minimum_rows": 1
+    },
+    "34": {
+      "year": 1955,
+      "half": "second half",
+      "minimum_rows": 1
+    },
+    "35": {
+      "year": 1956,
+      "half": "first half",
+      "minimum_rows": 1
+    },
+    "36": {
+      "year": 1956,
+      "half": "second half",
+      "minimum_rows": 1
+    },
+    "37": {
+      "year": 1957,
+      "half": "first half",
+      "minimum_rows": 1
+    },
+    "38": {
+      "year": 1957,
+      "half": "second half",
+      "minimum_rows": 1
+    },
+    "39": {
+      "year": 1958,
+      "half": "first half",
+      "minimum_rows": 1
+    },
+    "40": {
+      "year": 1958,
+      "half": "second half",
+      "minimum_rows": 1
+    },
+    "41": {
+      "year": 1959,
+      "half": "first half",
+      "minimum_rows": 1
+    },
+    "42": {
+      "year": 1959,
+      "half": "second half",
+      "minimum_rows": 1
+    },
+    "43": {
+      "year": 1960,
+      "half": "first half",
+      "minimum_rows": 1
+    },
+    "44": {
+      "year": 1960,
+      "half": "second half",
+      "minimum_rows": 1
+    },
+    "45": {
+      "year": 1961,
+      "half": "first half",
+      "minimum_rows": 1
+    },
+    "46": {
+      "year": 1961,
+      "half": "second half",
+      "minimum_rows": 1
+    },
+    "47": {
+      "year": 1962,
+      "half": "first half",
+      "minimum_rows": 1
+    },
+    "48": {
+      "year": 1962,
+      "half": "second half",
+      "minimum_rows": 1
+    },
+    "49": {
+      "year": 1963,
+      "half": "first half",
+      "minimum_rows": 2
+    },
+    "50": {
+      "year": 1963,
+      "half": "second half",
+      "minimum_rows": 1
+    },
+    "51": {
+      "year": 1964,
+      "half": "first half",
+      "minimum_rows": 1
+    },
+    "52": {
+      "year": 1964,
+      "half": "second half",
+      "minimum_rows": 1
+    },
+    "53": {
+      "year": 1965,
+      "half": "first half",
+      "minimum_rows": 1
+    },
+    "54": {
+      "year": 1965,
+      "half": "second half",
+      "minimum_rows": 1
+    },
+    "55": {
+      "year": 1966,
+      "half": "first half",
+      "minimum_rows": 1
+    },
+    "56": {
+      "year": 1966,
+      "half": "second half",
+      "minimum_rows": 1
+    },
+    "57": {
+      "year": 1967,
+      "half": "first half",
+      "minimum_rows": 1
+    },
+    "58": {
+      "year": 1967,
+      "half": "second half",
+      "minimum_rows": 1
+    },
+    "59": {
+      "year": 1968,
+      "half": "first half",
+      "minimum_rows": 2
+    },
+    "60": {
+      "year": 1968,
+      "half": "second half",
+      "minimum_rows": 1
+    },
+    "61": {
+      "year": 1969,
+      "half": "first half",
+      "minimum_rows": 2
+    },
+    "62": {
+      "year": 1969,
+      "half": "second half",
+      "minimum_rows": 1
+    },
+    "63": {
+      "year": 1970,
+      "half": "first half",
+      "minimum_rows": 2
+    },
+    "64": {
+      "year": 1970,
+      "half": "second half",
+      "minimum_rows": 1
+    },
+    "65": {
+      "year": 1971,
+      "half": "first half",
+      "minimum_rows": 1
+    },
+    "66": {
+      "year": 1971,
+      "half": "second half",
+      "minimum_rows": 2
+    },
+    "67": {
+      "year": 1972,
+      "half": "first half",
+      "minimum_rows": 2
+    },
+    "68": {
+      "year": 1972,
+      "half": "second half",
+      "minimum_rows": 2
+    },
+    "69": {
+      "year": 1973,
+      "half": "first half",
+      "minimum_rows": 1
+    },
+    "70": {
+      "year": 1973,
+      "half": "second half",
+      "minimum_rows": 2
+    },
+    "71": {
+      "year": 1974,
+      "half": "first half",
+      "minimum_rows": 1
+    },
+    "72": {
+      "year": 1974,
+      "half": "second half",
+      "minimum_rows": 2
+    },
+    "73": {
+      "year": 1975,
+      "half": "first half",
+      "minimum_rows": 1
+    },
+    "74": {
+      "year": 1975,
+      "half": "second half",
+      "minimum_rows": 2
+    },
+    "75": {
+      "year": 1976,
+      "half": "first half",
+      "minimum_rows": 1
+    },
+    "76": {
+      "year": 1976,
+      "half": "second half",
+      "minimum_rows": 1
+    },
+    "77": {
+      "year": 1977,
+      "half": "first half",
+      "minimum_rows": 2
+    },
+    "78": {
+      "year": 1977,
+      "half": "second half",
+      "minimum_rows": 2
+    },
+    "79": {
+      "year": 1978,
+      "half": "first half",
+      "minimum_rows": 2
+    },
+    "80": {
+      "year": 1978,
+      "half": "second half",
+      "minimum_rows": 1
+    },
+    "81": {
+      "year": 1979,
+      "half": "first half",
+      "minimum_rows": 2
+    },
+    "82": {
+      "year": 1979,
+      "half": "second half",
+      "minimum_rows": 1
+    },
+    "83": {
+      "year": 1980,
+      "half": "first half",
+      "minimum_rows": 1
+    },
+    "84": {
+      "year": 1980,
+      "half": "second half",
+      "minimum_rows": 1
+    },
+    "85": {
+      "year": 1981,
+      "half": "first half",
+      "minimum_rows": 1
+    },
+    "86": {
+      "year": 1981,
+      "half": "second half",
+      "minimum_rows": 1
+    },
+    "87": {
+      "year": 1982,
+      "half": "first half",
+      "minimum_rows": 1
+    },
+    "88": {
+      "year": 1982,
+      "half": "second half",
+      "minimum_rows": 2
+    },
+    "89": {
+      "year": 1983,
+      "half": "first half",
+      "minimum_rows": 1
+    },
+    "90": {
+      "year": 1983,
+      "half": "second half",
+      "minimum_rows": 2
+    },
+    "91": {
+      "year": 1984,
+      "half": "first half",
+      "minimum_rows": 1
+    },
+    "92": {
+      "year": 1984,
+      "half": "second half",
+      "minimum_rows": 1
+    },
+    "93": {
+      "year": 1985,
+      "half": "first half",
+      "minimum_rows": 1
+    },
+    "94": {
+      "year": 1985,
+      "half": "second half",
+      "minimum_rows": 1
+    },
+    "95": {
+      "year": 1986,
+      "half": "first half",
+      "minimum_rows": 1
+    },
+    "96": {
+      "year": 1986,
+      "half": "second half",
+      "minimum_rows": 1
+    },
+    "97": {
+      "year": 1987,
+      "half": "first half",
+      "minimum_rows": 1
+    },
+    "98": {
+      "year": 1987,
+      "half": "second half",
+      "minimum_rows": 2
+    },
+    "99": {
+      "year": 1988,
+      "half": "first half",
+      "minimum_rows": 1
+    },
+    "100": {
+      "year": 1988,
+      "half": "second half",
+      "minimum_rows": 2
+    },
+    "101": {
+      "year": 1989,
+      "half": "first half",
+      "minimum_rows": 1
+    },
+    "102": {
+      "year": 1989,
+      "half": "second half",
+      "minimum_rows": 2
+    },
+    "103": {
+      "year": 1990,
+      "half": "first half",
+      "minimum_rows": 1
+    },
+    "104": {
+      "year": 1990,
+      "half": "second half",
+      "minimum_rows": 1
+    },
+    "105": {
+      "year": 1991,
+      "half": "first half",
+      "minimum_rows": 2
+    },
+    "106": {
+      "year": 1991,
+      "half": "second half",
+      "minimum_rows": 1
+    },
+    "107": {
+      "year": 1992,
+      "half": "first half",
+      "minimum_rows": 1
+    },
+    "108": {
+      "year": 1992,
+      "half": "second half",
+      "minimum_rows": 1
+    },
+    "109": {
+      "year": 1993,
+      "half": "first half",
+      "minimum_rows": 1
+    },
+    "110": {
+      "year": 1993,
+      "half": "second half",
+      "minimum_rows": 1
+    },
+    "111": {
+      "year": 1994,
+      "half": "first half",
+      "minimum_rows": 2
+    },
+    "112": {
+      "year": 1994,
+      "half": "second half",
+      "minimum_rows": 1
+    },
+    "113": {
+      "year": 1995,
+      "half": "first half",
+      "minimum_rows": 1
+    },
+    "114": {
+      "year": 1995,
+      "half": "second half",
+      "minimum_rows": 1
+    },
+    "115": {
+      "year": 1996,
+      "half": "first half",
+      "minimum_rows": 1
+    },
+    "116": {
+      "year": 1996,
+      "half": "second half",
+      "minimum_rows": 2
+    },
+    "117": {
+      "year": 1997,
+      "half": "first half",
+      "minimum_rows": 1
+    },
+    "118": {
+      "year": 1997,
+      "half": "second half",
+      "minimum_rows": 1
+    },
+    "119": {
+      "year": 1998,
+      "half": "first half",
+      "minimum_rows": 2
+    },
+    "120": {
+      "year": 1998,
+      "half": "second half",
+      "minimum_rows": 1
+    },
+    "121": {
+      "year": 1999,
+      "half": "first half",
+      "minimum_rows": 1
+    },
+    "122": {
+      "year": 1999,
+      "half": "second half",
+      "minimum_rows": 2
+    },
+    "123": {
+      "year": 2000,
+      "half": "first half",
+      "minimum_rows": 2
+    },
+    "124": {
+      "year": 2000,
+      "half": "second half",
+      "minimum_rows": 2
+    },
+    "125": {
+      "year": 2001,
+      "half": "first half",
+      "minimum_rows": 1
+    },
+    "126": {
+      "year": 2001,
+      "half": "second half",
+      "minimum_rows": 1
+    },
+    "127": {
+      "year": 2002,
+      "half": "first half",
+      "minimum_rows": 1
+    },
+    "128": {
+      "year": 2002,
+      "half": "second half",
+      "minimum_rows": 1
+    },
+    "129": {
+      "year": 2003,
+      "half": "first half",
+      "minimum_rows": 1
+    },
+    "130": {
+      "year": 2003,
+      "half": "second half",
+      "minimum_rows": 2
+    },
+    "131": {
+      "year": 2004,
+      "half": "first half",
+      "minimum_rows": 1
+    },
+    "132": {
+      "year": 2004,
+      "half": "second half",
+      "minimum_rows": 1
+    },
+    "133": {
+      "year": 2005,
+      "half": "first half",
+      "minimum_rows": 1
+    },
+    "134": {
+      "year": 2005,
+      "half": "second half",
+      "minimum_rows": 1
+    },
+    "135": {
+      "year": 2006,
+      "half": "first half",
+      "minimum_rows": 1
+    },
+    "136": {
+      "year": 2006,
+      "half": "second half",
+      "minimum_rows": 1
+    },
+    "137": {
+      "year": 2007,
+      "half": "first half",
+      "minimum_rows": 1
+    },
+    "138": {
+      "year": 2007,
+      "half": "second half",
+      "minimum_rows": 1
+    },
+    "139": {
+      "year": 2008,
+      "half": "first half",
+      "minimum_rows": 1
+    },
+    "140": {
+      "year": 2008,
+      "half": "second half",
+      "minimum_rows": 1
+    },
+    "141": {
+      "year": 2009,
+      "half": "first half",
+      "minimum_rows": 1
+    },
+    "142": {
+      "year": 2009,
+      "half": "second half",
+      "minimum_rows": 1
+    },
+    "143": {
+      "year": 2010,
+      "half": "first half",
+      "minimum_rows": 1
+    },
+    "144": {
+      "year": 2010,
+      "half": "second half",
+      "minimum_rows": 2
+    },
+    "145": {
+      "year": 2011,
+      "half": "first half",
+      "minimum_rows": 1
+    },
+    "146": {
+      "year": 2011,
+      "half": "second half",
+      "minimum_rows": 2
+    },
+    "147": {
+      "year": 2012,
+      "half": "first half",
+      "minimum_rows": 1
+    },
+    "148": {
+      "year": 2012,
+      "half": "second half",
+      "minimum_rows": 1
+    },
+    "149": {
+      "year": 2013,
+      "half": "first half",
+      "minimum_rows": 1
+    },
+    "150": {
+      "year": 2013,
+      "half": "second half",
+      "minimum_rows": 1
+    },
+    "151": {
+      "year": 2014,
+      "half": "first half",
+      "minimum_rows": 1
+    },
+    "152": {
+      "year": 2014,
+      "half": "second half",
+      "minimum_rows": 1
+    },
+    "153": {
+      "year": 2015,
+      "half": "first half",
+      "minimum_rows": 2
+    },
+    "154": {
+      "year": 2015,
+      "half": "second half",
+      "minimum_rows": 2
+    },
+    "155": {
+      "year": 2016,
+      "half": "first half",
+      "minimum_rows": 1
+    },
+    "156": {
+      "year": 2016,
+      "half": "second half",
+      "minimum_rows": 1
+    },
+    "157": {
+      "year": 2017,
+      "half": "first half",
+      "minimum_rows": 1
+    },
+    "158": {
+      "year": 2017,
+      "half": "second half",
+      "minimum_rows": 2
+    },
+    "159": {
+      "year": 2018,
+      "half": "first half",
+      "minimum_rows": 1
+    },
+    "160": {
+      "year": 2018,
+      "half": "second half",
+      "minimum_rows": 2
+    },
+    "161": {
+      "year": 2019,
+      "half": "first half",
+      "minimum_rows": 1
+    },
+    "162": {
+      "year": 2019,
+      "half": "second half",
+      "minimum_rows": 1
+    },
+    "163": {
+      "year": 2020,
+      "half": "first half",
+      "minimum_rows": 2
+    },
+    "164": {
+      "year": 2020,
+      "half": "second half",
+      "minimum_rows": 1
+    },
+    "165": {
+      "year": 2021,
+      "half": "first half",
+      "minimum_rows": 2
+    },
+    "166": {
+      "year": 2021,
+      "half": "second half",
+      "minimum_rows": 1
+    },
+    "167": {
+      "year": 2022,
+      "half": "first half",
+      "minimum_rows": 1
+    },
+    "168": {
+      "year": 2022,
+      "half": "second half",
+      "minimum_rows": 2
+    },
+    "169": {
+      "year": 2023,
+      "half": "first half",
+      "minimum_rows": 1
+    },
+    "170": {
+      "year": 2023,
+      "half": "second half",
+      "minimum_rows": 1
+    },
+    "171": {
+      "year": 2024,
+      "half": "first half",
+      "minimum_rows": 2
+    },
+    "172": {
+      "year": 2024,
+      "half": "second half",
+      "minimum_rows": 2
+    },
+    "173": {
+      "year": 2025,
+      "half": "first half",
+      "minimum_rows": 1
+    },
+    "174": {
+      "year": 2025,
+      "half": "second half",
+      "minimum_rows": 2
+    },
+    "175": {
+      "year": 2026,
+      "half": "first half",
+      "minimum_rows": 1
+    }
+  },
+  "mappings": [
+    {
+      "round": 155,
+      "title_ja": "コンビニ人間",
+      "author_ja": "村田沙耶香",
+      "titles": [
+        "Convenience Store Woman"
+      ],
+      "authors": [
+        "Sayaka Murata"
+      ],
+      "evidence": [
+        "https://groveatlantic.com/book/convenience-store-woman/"
+      ]
+    },
+    {
+      "round": 150,
+      "title_ja": "穴",
+      "author_ja": "小山田浩子",
+      "titles": [
+        "The Hole"
+      ],
+      "authors": [
+        "Hiroko Oyamada"
+      ],
+      "evidence": [
+        "https://www.ndbooks.com/book/the-hole-1/"
+      ]
+    },
+    {
+      "round": 161,
+      "title_ja": "むらさきのスカートの女",
+      "author_ja": "今村夏子",
+      "titles": [
+        "The Woman in the Purple Skirt"
+      ],
+      "authors": [
+        "Natsuko Imamura"
+      ],
+      "evidence": [
+        "https://www.waseda.jp/inst/wihl-annex/interviews-en/1240"
+      ]
+    },
+    {
+      "round": 169,
+      "title_ja": "ハンチバック",
+      "author_ja": "市川沙央",
+      "titles": [
+        "Hunchback"
+      ],
+      "authors": [
+        "Saou Ichikawa"
+      ],
+      "evidence": [
+        "https://www.penguinrandomhouse.com/books/768583/hunchback-by-saou-ichikawa-translated-by-polly-barton/"
+      ]
+    },
+    {
+      "round": 164,
+      "title_ja": "推し、燃ゆ",
+      "author_ja": "宇佐見りん",
+      "titles": [
+        "Idol, Burning"
+      ],
+      "authors": [
+        "Rin Usami"
+      ],
+      "evidence": [
+        "https://www.harperlibrarybookclub.com/9780063213289/idol-burning/"
+      ]
+    },
+    {
+      "round": 151,
+      "title_ja": "春の庭",
+      "author_ja": "柴崎友香",
+      "titles": [
+        "Spring Garden"
+      ],
+      "authors": [
+        "Tomoka Shibasaki"
+      ],
+      "evidence": [
+        "https://pushkinpress.com/book/spring-garden/"
+      ]
+    },
+    {
+      "round": 130,
+      "title_ja": "蛇にピアス",
+      "author_ja": "金原ひとみ",
+      "titles": [
+        "Snakes and Earrings"
+      ],
+      "authors": [
+        "Hitomi Kanehara"
+      ],
+      "evidence": [
+        "https://www.penguin.co.uk/authors/202788/hitomi-kanehara"
+      ]
+    },
+    {
+      "round": 153,
+      "title_ja": "火花",
+      "author_ja": "又吉直樹",
+      "titles": [
+        "Spark"
+      ],
+      "authors": [
+        "Naoki Matayoshi"
+      ],
+      "evidence": [
+        "https://pushkinpress.com/book/spark/",
+        "https://prtimes.jp/main/html/rd/p/000000013.000043732.html"
+      ]
+    },
+    {
+      "round": 162,
+      "title_ja": "デッドライン",
+      "author_ja": "千葉雅也",
+      "titles": [
+        "Deadline"
+      ],
+      "authors": [
+        "Masaya Chiba"
+      ],
+      "evidence": [
+        "https://masayachiba.jp/masaya-chiba/biography/"
+      ]
+    }
+  ]
+}

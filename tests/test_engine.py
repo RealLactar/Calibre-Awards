@@ -718,7 +718,7 @@ class EngineNewberyParticipationTests(unittest.TestCase):
             )
             for source in AWARD_SOURCES
         )
-        self.assertEqual(stubs[-2].key, 'newbery')
+        self.assertEqual(stubs[-3].key, 'newbery')
         with patch('awards.engine.AWARD_SOURCES', stubs):
             report = lookup_awards('Beloved', 'Toni Morrison')
         self.assertEqual(

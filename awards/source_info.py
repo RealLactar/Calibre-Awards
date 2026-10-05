@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from urllib.parse import urlparse
 
 from .sources import (
+    akutagawa,
     dublin,
     diagram,
     bad_sex_fiction,
@@ -607,5 +608,17 @@ SOURCE_INFOS: tuple[SourceInfo, ...] = (
                     'Nominated, Longlisted and Shortlisted results are shown for REVIEW, unchecked by default. The official 2013 longlist is empty, so that year covers finalists only. Translators are not treated '
                     'as authors. No ordinal rank is inferred. First download fetches annual pages and complete candidate lists; '
                     'subsequent lookups use saved data. Failed refresh retains validated fallback.'),
+    ),
+    SourceInfo(
+        key='akutagawa', display_name=akutagawa.AWARD_NAME, categories=akutagawa.CATEGORIES,
+        identity_scopes=('work',), homepage_url=akutagawa.SOURCE_HOME_URL,
+        description='Official Akutagawa Prize winners and documented nominations for Japanese literary fiction.',
+        limitation=('Winner history begins in 1935. Nomination coverage is limited to rounds 162 (2019 second half) '
+                    'and 175 (2026 first half), from complete Bungeishunju announcements. '
+                    'Eight winning works and one nominee have reviewed English title/name mappings; other titles match '
+                    'the original Japanese records only. No automatic translation, author-wide award attribution, '
+                    'collection or expanded-edition matching. Nominations appear unchecked for REVIEW. '
+                    'Official half-year and round are retained; January announcements use the preceding award year. '
+                    'Refresh downloads the official winner archive and documented nomination pages, retaining validated fallback.'),
     ),
 )

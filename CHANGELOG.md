@@ -4,6 +4,12 @@
 
 ### Added
 
+- Akutagawa Prize: official Japanese winner history from 1935, joint winners and
+  explicit no-award rounds, complete nominations for rounds 162 and 175,
+  eight reviewed English winning-work mappings and one nominee mapping.
+  Nominations appear unchecked for REVIEW. Original award year, half-year,
+  round and work identity remain intact; persistent caching and safe Refresh.
+
 - Dublin Literary Award: official winners, shortlists, longlists and nominations
   from 1996, including complete candidate lists beyond annual-page previews.
   Non-winners appear unchecked for REVIEW; each work/year keeps its strongest
