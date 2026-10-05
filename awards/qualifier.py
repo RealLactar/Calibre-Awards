@@ -23,6 +23,7 @@ _WINNER_STATUSES = frozenset({
 })
 
 _REVIEW_STATUSES = frozenset({
+    'selected',
     'finalist',
     'shortlist',
     'shortlisted',

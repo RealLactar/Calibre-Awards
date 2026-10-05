@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Added
+- Add Prix Médicis official French, foreign and essay winner history, including joint winners; all 35 novels in the 2026 first selection appear unchecked for REVIEW. Preserve French identities and category labels, add a verified The Mars Room mapping, and integrate background cache refresh with validated fallback retention.
 - Add Mao Dun Literature Prize official winners and honorary awards for editions 1–11, edition 11 nominees and two reviewed English mappings; preserve award dates, eligibility periods and edition/volume identity.
 
 - Add Naoki Prize official winner history, round 175 nominations and two reviewed English title/author mappings; preserve half-year dates, multi-story citations and unchecked nominee review.

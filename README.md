@@ -27,7 +27,7 @@ Book lookup happens only from **Check Awards** in Edit Metadata.
 
 ## Supported awards
 
-The plugin currently has **28 executable award sources**. Category coverage
+The plugin currently has **29 executable award sources**. Category coverage
 is limited to the literary work awards each source currently advertises in
 the plugin. Anthology, editor, artist, publisher, and similar non-work
 honors are omitted where they fall outside those categories.
@@ -66,6 +66,7 @@ scope catalog.
 | Akutagawa Prize | Official winner history from 1935; nominations for rounds 162 and 175; reviewed English mappings | Winner; Nominated (unchecked REVIEW); original award year and half-year retained |
 | Naoki Prize | Official winner history from 1935; round 175 nominations; two reviewed English mappings | Winner; Nominated (unchecked REVIEW) |
 | Mao Dun Literature Prize | Reviewed editions 1–11 (1982–2023); edition 11 nominees; two English mappings | Winner; Honorary award; Nominated; scope confirmation for awarded volumes/revisions |
+| Prix Médicis | Official French, foreign and essay winner history; 2026 first selection; one English mapping | Winner; Selected (REVIEW); specific-volume confirmation |
 
 **National Book Awards** is not an executable source. Preferences shows it
 as unavailable (**Transport blocked**) because the current website presents
@@ -405,3 +406,5 @@ Akutagawa Prize uses the official Japanese winner archive. Initial reviewed cove
 Naoki Prize covers the official Japanese winner archive from 1935, with nominations currently limited to round 175 (2026 first half). Two reviewed English winning-work mappings are included: The Devotion of Suspect X and Honeybees and Distant Thunder. Nominees appear unchecked for REVIEW. Historical multi-story citations are preserved intact; translated collections and individual component stories are not automatically inferred. The separate High School Students’ Naoki Prize is excluded. See awards/data/naoki_provenance.md.
 
 Mao Dun Literature Prize uses the official Chinese Writers Association archive: 51 regular winning works, two honorary awards and five non-winning nominees from edition 11 after deduplication. Award years (1982–2023) are distinct from eligibility periods and article publication dates. English mappings currently cover The Last Quarter of the Moon / Chi Zijian and Frog / Mo Yan. Honorary awards and nominees appear unchecked for REVIEW. Volume-specific and revised-edition records retain their complete scope and require confirmation; component volumes and unverified translations are not inferred. All eleven edition dates are reviewed metadata; new editions and nomination/mapping coverage require a plugin update. See awards/data/mao_dun_provenance.md.
+
+Prix Médicis uses the official live winner table: French literature from 1958, foreign literature from 1970, and essay from 1985 (the archive omits essay winners for 1988 and 1993). Joint winners are preserved. Initial candidate coverage is the complete 2026 first selection (18 French and 17 foreign novels); Selected records retain the French selection terminology in their details and start unchecked for REVIEW. The Mars Room / Rachel Kushner has a verified English mapping; other entries require French source titles. No automatic translation or author-wide attribution. Specific volumes require identity confirmation. Refresh retains validated disk fallback on failure. Additional selection rounds and mappings require a reviewed update. See awards/data/medicis_provenance.md.

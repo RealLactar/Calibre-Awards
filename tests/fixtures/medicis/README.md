@@ -1,0 +1,3 @@
+# Médicis primary HTML fixtures
+
+Retrieved 2026-10-05 using public HTTPS GET requests. winners.html retains the official graduates-table from https://prixmedicis.com/palmares/. selection-2026.html retains the official announcement heading and complete candidate paragraphs from https://prixmedicis.com/premiere-selection-du-prix-medicis-2026/. Only navigation, scripts and unrelated page assets were cropped; parser-facing markup was not synthesized. 168 winner records and 35 first-selection candidates. Original organizer terminology and credits are retained. These files are for offline regression tests and are not shipped in the plugin ZIP.

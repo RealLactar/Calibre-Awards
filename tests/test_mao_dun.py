@@ -124,7 +124,7 @@ class MaoDunTests(unittest.TestCase):
             self.assertEqual(len(m._reference_data()['mappings']),2);resource.assert_called_once_with('awards/data/mao_dun_mappings.json')
         from awards.source_registry import AWARD_SOURCES
         from awards.source_settings import compute_enabled_source_keys
-        self.assertIs(AWARD_SOURCES[-1].lookup,m.lookup)
+        self.assertIs(next(s for s in AWARD_SOURCES if s.key == 'mao_dun').lookup,m.lookup)
         self.assertIn('mao_dun',compute_enabled_source_keys(tuple(s.key for s in AWARD_SOURCES),['pulitzer']))
         self.assertNotIn('mao_dun',cache_control.BUNDLED_SOURCE_KEYS)
     def test_blank_identity_rejected(self):

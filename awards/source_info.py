@@ -14,6 +14,7 @@ from .sources import (
     akutagawa,
     naoki,
     mao_dun,
+    medicis,
     dublin,
     diagram,
     bad_sex_fiction,
@@ -645,5 +646,18 @@ SOURCE_INFOS: tuple[SourceInfo, ...] = (
                     'Explicit awarded volumes, trilogies and revised editions require identity confirmation. '
                     'New editions, nomination coverage and English mappings require a reviewed plugin update. '
                     'Refresh downloads official records and retains validated fallback on failure.'),
+    ),
+    SourceInfo(
+        key='medicis', display_name=medicis.AWARD_NAME, categories=medicis.CATEGORIES,
+        identity_scopes=('work',), homepage_url=medicis.SOURCE_HOME_URL,
+        description='Official Médicis French, foreign and essay winners and documented selected novels.',
+        limitation=('Winner history begins in 1958 (French), 1970 (foreign), and 1985 (essay); '
+                    'the official archive omits essay results for 1988 and 1993. Joint winners are retained. '
+                    'Candidate coverage is limited to the 2026 first selection: 18 French and 17 foreign novels, '
+                    'shown unchecked for REVIEW as Selected, with the actual selection round retained. '
+                    'One English title mapping is verified: The Mars Room / Rachel Kushner; other works require '
+                    'French source titles. No automatic translation, ordinal rank or author-wide awards. '
+                    'Specific volumes require confirmation. Refresh retains validated fallback; new selection rounds '
+                    'and mappings require a reviewed plugin update.'),
     ),
 )
