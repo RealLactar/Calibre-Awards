@@ -11,6 +11,7 @@ from . import cache
 from .source_info import SOURCE_INFOS
 from .sources import (
     akutagawa,
+    naoki,
     dublin,
     diagram,
     bad_sex_fiction,
@@ -51,6 +52,7 @@ SOURCES_GROUP_HINT = (
 # AWARD_SOURCES without a mapping here is caught by tests.
 _SOURCE_RUNTIME_RESETS = {
     'akutagawa': akutagawa._reset_runtime_state,
+    'naoki': naoki._reset_runtime_state,
     'dublin': dublin._reset_runtime_state,
     'diagram': diagram._reset_runtime_state,
     'bad_sex_fiction': bad_sex_fiction._reset_runtime_state,

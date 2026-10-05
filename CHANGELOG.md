@@ -3,6 +3,8 @@
 ## Unreleased
 
 ### Added
+- Add Naoki Prize official winner history, round 175 nominations and two reviewed English title/author mappings; preserve half-year dates, multi-story citations and unchecked nominee review.
+
 
 - Akutagawa Prize: official Japanese winner history from 1935, joint winners and
   explicit no-award rounds, complete nominations for rounds 162 and 175,

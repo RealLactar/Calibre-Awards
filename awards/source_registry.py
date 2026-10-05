@@ -14,6 +14,7 @@ from typing import Protocol
 from .model import AwardResult
 from .sources.dublin import lookup as dublin_lookup
 from .sources.akutagawa import lookup as akutagawa_lookup
+from .sources.naoki import lookup as naoki_lookup
 from .sources.diagram import lookup as diagram_lookup
 from .sources.bad_sex_fiction import lookup as bad_sex_fiction_lookup
 from .sources.balrog import lookup as balrog_lookup
@@ -179,4 +180,5 @@ AWARD_SOURCES: tuple[AwardSource, ...] = (
     ),
     AwardSource(key='dublin', display_name='Dublin Literary Award', lookup=dublin_lookup),
     AwardSource(key='akutagawa', display_name='Akutagawa Prize', lookup=akutagawa_lookup),
+    AwardSource(key='naoki', display_name='Naoki Prize', lookup=naoki_lookup),
 )

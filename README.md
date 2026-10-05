@@ -27,7 +27,7 @@ Book lookup happens only from **Check Awards** in Edit Metadata.
 
 ## Supported awards
 
-The plugin currently has **26 executable award sources**. Category coverage
+The plugin currently has **27 executable award sources**. Category coverage
 is limited to the literary work awards each source currently advertises in
 the plugin. Anthology, editor, artist, publisher, and similar non-work
 honors are omitted where they fall outside those categories.
@@ -64,6 +64,7 @@ scope catalog.
 | John Newbery Medal | 1930–2023 | Winner; Honor |
 | Dublin Literary Award | Official annual archive from 1996, including former International IMPAC Dublin years | Winner; Shortlisted; Longlisted; Nominated; no inferred rank; non-winners shown unchecked for REVIEW |
 | Akutagawa Prize | Official winner history from 1935; nominations for rounds 162 and 175; reviewed English mappings | Winner; Nominated (unchecked REVIEW); original award year and half-year retained |
+| Naoki Prize | Official winner history from 1935; round 175 nominations; two reviewed English mappings | Winner; Nominated (unchecked REVIEW) |
 
 **National Book Awards** is not an executable source. Preferences shows it
 as unavailable (**Transport blocked**) because the current website presents
@@ -399,3 +400,5 @@ Diagram Prize uses a reviewed historical archive with secondary-source attributi
 Dublin includes the official archive's Nominated, Longlisted and Shortlisted books as REVIEW results, unchecked by default. The strongest status is shown once per work/year. A longlist is a larger candidate list narrowed down before the shortlist; Dublin's 2026 judging panel reduced 69 library nominations to a longlist of 20, then a shortlist of 6. Historical archive labels are retained. The official 2013 longlist is empty, so coverage for that year remains its winner and shortlist. Complete lists are retrieved through the same public GET endpoint used by the website, beyond annual-page previews. Dublin cache schema 2 refetches earlier winner/shortlist-only caches.
 
 Akutagawa Prize uses the official Japanese winner archive. Initial reviewed coverage is 189 winning works across 175 rounds (1935–2026); 33 rounds explicitly have no award. Complete nomination announcements are included only for round 162 (2019 second half) and round 175 (2026 first half). Eight winning works and one nominee have reviewed English title/name mappings; other entries require the original Japanese identity. No machine-generated title translations or automatic name romanization are used. Winners remain distinct from other books by the same author. Collections and expanded editions are not automatically credited with an included or earlier work's award. The official award year is retained even when a second-half result was announced the following January. Source details show the round, half-year, original identity and mapping evidence. Refresh updates the official archive and documented nomination pages; additional nomination rounds and English mappings require a plugin update. See awards/data/akutagawa_provenance.md.
+
+Naoki Prize covers the official Japanese winner archive from 1935, with nominations currently limited to round 175 (2026 first half). Two reviewed English winning-work mappings are included: The Devotion of Suspect X and Honeybees and Distant Thunder. Nominees appear unchecked for REVIEW. Historical multi-story citations are preserved intact; translated collections and individual component stories are not automatically inferred. The separate High School Students’ Naoki Prize is excluded. See awards/data/naoki_provenance.md.

@@ -12,6 +12,7 @@ from urllib.parse import urlparse
 
 from .sources import (
     akutagawa,
+    naoki,
     dublin,
     diagram,
     bad_sex_fiction,
@@ -620,5 +621,16 @@ SOURCE_INFOS: tuple[SourceInfo, ...] = (
                     'collection or expanded-edition matching. Nominations appear unchecked for REVIEW. '
                     'Official half-year and round are retained; January announcements use the preceding award year. '
                     'Refresh downloads the official winner archive and documented nomination pages, retaining validated fallback.'),
+    ),
+    SourceInfo(
+        key='naoki', display_name=naoki.AWARD_NAME, categories=naoki.CATEGORIES,
+        identity_scopes=('work',), homepage_url=naoki.SOURCE_HOME_URL,
+        description='Official Naoki Prize winners and documented nominations for Japanese entertainment fiction.',
+        limitation=('Winner history begins in 1935. Nomination coverage is limited to round 175 (2026 first half). '
+                    'Two winning works have reviewed English title/name mappings; other entries require original Japanese identities. '
+                    'Multi-story citations remain intact; individual stories and translated collections are not inferred. '
+                    'No automatic translation or author-wide awards. Nominations appear unchecked for REVIEW. '
+                    'Official year and half are retained. Refresh keeps validated fallback on failure. '
+                    'The separate High School Students’ Naoki Prize is excluded.'),
     ),
 )

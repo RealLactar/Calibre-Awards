@@ -214,7 +214,7 @@ class AkutagawaTests(unittest.TestCase):
         from awards.cache_control import runtime_reset_source_keys, BUNDLED_SOURCE_KEYS
         source = next(s for s in AWARD_SOURCES if s.key == 'akutagawa')
         self.assertIs(source.lookup, a.lookup)
-        self.assertEqual(AWARD_SOURCES[-1], source)
+        self.assertEqual(AWARD_SOURCES[-2], source)
         self.assertIn('akutagawa', compute_enabled_source_keys(tuple(s.key for s in AWARD_SOURCES), ['pulitzer']))
         self.assertIn('akutagawa', runtime_reset_source_keys())
         self.assertNotIn('akutagawa', BUNDLED_SOURCE_KEYS)

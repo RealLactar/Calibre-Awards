@@ -1,0 +1,1 @@
+Official live HTML captured 2026-10-04 from the URLs in awards/data/naoki_provenance.md. Only trailing whitespace was normalized. Tests use these saved captures offline; fixture tests are not live verification.
