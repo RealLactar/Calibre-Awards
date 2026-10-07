@@ -27,6 +27,10 @@ import re
 import tempfile
 import threading
 from contextlib import contextmanager
+from contextvars import ContextVar
+from functools import wraps
+import time
+import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -52,7 +56,12 @@ _KEYED_ENVELOPE_FIELDS = _ENVELOPE_FIELDS | frozenset({
 _config_lock = threading.Lock()
 _cache_directory: Path | None = None
 _budget_lock = threading.Lock()
-_active_budget: _LookupRefreshBudget | None = None
+_active_budget = ContextVar('award_lookup_budget', default=None)
+_operation = ContextVar('award_source_operation', default=None)
+_runtime_states = {}
+_active_operations = {}
+_source_gates = {}
+_runtime_lock = threading.RLock()
 
 
 class _LookupRefreshBudget:
@@ -105,11 +114,13 @@ def _reset_runtime_state() -> None:
 
     Tests only; not public plugin API.
     """
-    global _active_budget
     _memory_refresh_requests.clear()
+    _memory_refresh_generations.clear()
     set_cache_directory(None)
     with _budget_lock:
-        _active_budget = None
+        _active_budget.set(None)
+        _runtime_states.clear()
+        _active_operations.clear()
 
 
 @contextmanager
@@ -121,17 +132,21 @@ def lookup_refresh_budget():
     Nested contexts restore the previous budget on exit. Standalone source
     lookups with no active budget are unrestricted.
     """
-    global _active_budget
     budget = _LookupRefreshBudget()
-    with _budget_lock:
-        previous = _active_budget
-        _active_budget = budget
+    token = _active_budget.set(budget)
+    try:
+        yield budget
+    finally:
+        _active_budget.reset(token)
+
+
+@contextmanager
+def bind_lookup_budget(budget):
+    token = _active_budget.set(budget)
     try:
         yield
     finally:
-        with _budget_lock:
-            if _active_budget is budget:
-                _active_budget = previous
+        _active_budget.reset(token)
 
 
 def try_claim_stale_refresh(source_key=None) -> bool:
@@ -147,11 +162,14 @@ def try_claim_stale_refresh(source_key=None) -> bool:
     """
     if source_key is not None and source_refresh_pending(source_key):
         return True
-    with _budget_lock:
-        budget = _active_budget
-    if budget is None:
-        return True
-    return budget.try_claim()
+    operation = _operation_for(source_key) if source_key is not None else _operation.get()
+    budget = _active_budget.get()
+    if budget is None and operation is not None:
+        budget = operation['budget']
+    allowed = True if budget is None else budget.try_claim()
+    if allowed and operation is not None:
+        operation['attempted'] = True
+    return allowed
 
 
 def load_source_cache(
@@ -179,7 +197,7 @@ def load_source_cache(
         payload = json.loads(raw)
     except json.JSONDecodeError:
         return None
-    return _validated_payload(payload, source_key, source_cache_version)
+    return _observe_payload(_validated_payload(payload, source_key, source_cache_version))
 
 
 def save_source_cache(
@@ -216,6 +234,9 @@ def save_source_cache(
         'source_urls': urls,
         'ttl_seconds': ttl,
     }
+    if not _publication_allowed(key):
+        return
+    _observe_payload(payload)
     encoded = _encode_cache_json(payload)
     directory = _configured_directory()
     if directory is None:
@@ -260,13 +281,13 @@ def load_cache_entry(
         payload = json.loads(raw)
     except json.JSONDecodeError:
         return None
-    return _validated_keyed_payload(
+    return _observe_payload(_validated_keyed_payload(
         payload,
         source_key,
         entry_kind,
         entry_key,
         source_cache_version,
-    )
+    ))
 
 
 def save_cache_entry(
@@ -308,6 +329,9 @@ def save_cache_entry(
         'source_urls': urls,
         'ttl_seconds': ttl,
     }
+    if not _publication_allowed(key):
+        return
+    _observe_payload(payload)
     encoded = _encode_cache_json(payload)
     directory = _configured_directory()
     if directory is None:
@@ -805,6 +829,7 @@ def _validated_keyed_payload(
 # pending across restarts. Repeated Refresh is idempotent while pending.
 _refresh_lock = threading.RLock()
 _memory_refresh_requests = {}
+_memory_refresh_generations = {}
 
 
 def _refresh_path(directory, source_key):
@@ -829,10 +854,12 @@ def _read_refresh_targets(source_key):
         return set()
 
 
-def _write_refresh_targets(source_key, targets):
+def _write_refresh_targets(source_key, targets, generation=None):
     directory = _configured_directory()
     if directory is None:
         _memory_refresh_requests[source_key] = set(targets)
+        if generation is not None:
+            _memory_refresh_generations[source_key] = generation
         return True
     path = _refresh_path(directory, source_key)
     if not targets:
@@ -843,6 +870,7 @@ def _write_refresh_targets(source_key, targets):
             return False
     return _atomic_write_json(directory, path, _encode_cache_json({
         'version': 1, 'source_key': source_key, 'targets': sorted(targets),
+        'generation': generation or _refresh_generation(source_key),
     }), tmp_prefix=source_key + '.refresh.')
 
 
@@ -856,7 +884,7 @@ def request_source_refresh(source_key):
     key = _require_safe_source_key(source_key)
     with _refresh_lock:
         if _read_refresh_targets(key):
-            return True
+            return _write_refresh_targets(key, _read_refresh_targets(key), uuid.uuid4().hex)
         directory = _configured_directory()
         targets = set()
         if directory is not None:
@@ -870,7 +898,7 @@ def request_source_refresh(source_key):
                         for path in kind.iterdir():
                             if path.is_file() and _is_managed_entry_filename(path.name):
                                 targets.add(path.relative_to(directory).as_posix())
-        return _write_refresh_targets(key, targets or {'*'})
+        return _write_refresh_targets(key, targets or {'*'}, uuid.uuid4().hex)
 
 
 def source_refresh_pending(source_key):
@@ -902,9 +930,129 @@ def payload_refresh_requested(payload):
 def _complete_refresh_target(source_key, target):
     # Called only after a validated source record was successfully published.
     with _refresh_lock:
+        if not _publication_allowed(source_key):
+            return
         pending = _read_refresh_targets(source_key)
         if not pending:
             return
         pending.discard('*')
         pending.discard(target)
         _write_refresh_targets(source_key, pending)
+
+def _refresh_generation(source_key):
+    directory = _configured_directory()
+    if directory is None:
+        return _memory_refresh_generations.get(source_key)
+    try:
+        return json.loads(_refresh_path(directory, source_key).read_text(encoding='utf-8')).get('generation')
+    except (OSError, ValueError, AttributeError):
+        return None
+
+
+def _operation_for(source_key):
+    operation = _operation.get()
+    if operation is not None and operation['key'] == source_key:
+        return operation
+    # A source's own annual-page executor runs on child threads. Its outer
+    # guard serializes this source, so publication/freshness still belong to
+    # that same operation even across the child executor boundary.
+    with _runtime_lock:
+        return _active_operations.get(source_key)
+
+
+def _publication_allowed(source_key):
+    operation = _operation_for(source_key)
+    return operation is None or operation['key'] != source_key or _refresh_generation(source_key) in (None, operation['generation'])
+
+
+def _observe_payload(payload):
+    operation = _operation_for(payload.get('source_key')) if isinstance(payload, dict) else None
+    if isinstance(payload, dict) and operation is not None and payload.get('source_key') == operation['key']:
+        target = (payload.get('entry_kind'), payload.get('entry_key'))
+        operation['payloads'][target] = payload
+    return payload
+
+
+def source_runtime_guard(module, function):
+    """Reconsider RAM on retrieval workers; Preferences never enters this guard.
+
+    Reuse nested operations. Existing source locks protect record publication.
+    Deferred optional refresh retries next invocation; failed attempts cool down
+    for 60 seconds. Explicit requests bypass this cooldown and the budget.
+    """
+    gate = _source_gates.setdefault(module.SOURCE_KEY, threading.RLock())
+    def run(*args, **kwargs):
+        key = module.SOURCE_KEY
+        active = _operation.get()
+        if active is not None and active['key'] == key:
+            return function(*args, **kwargs)
+        generation = _refresh_generation(key)
+        with _runtime_lock:
+            state = _runtime_states.get(key)
+        pending = source_refresh_pending(key)
+        stale = state is not None and any(not cache_is_fresh(p) for p in state['payloads'].values())
+        eligible = stale and time.monotonic() >= state['retry_after']
+        if pending or eligible or (state is not None and state['generation'] != generation):
+            module._reset_runtime_state()
+            if key == 'pulitzer' and pending:
+                module.mark_official_refresh_requested()
+        operation = {'key': key, 'generation': generation, 'payloads': {}, 'attempted': False, 'budget': _active_budget.get()}
+        token = _operation.set(operation)
+        with _runtime_lock:
+            _active_operations[key] = operation
+        try:
+            return function(*args, **kwargs)
+        finally:
+            _operation.reset(token)
+            with _runtime_lock:
+                _active_operations.pop(key, None)
+            if _refresh_generation(key) not in (None, generation):
+                module._reset_runtime_state()
+                with _runtime_lock:
+                    _runtime_states.pop(key, None)
+            elif operation['payloads']:
+                remains_stale = any(not cache_is_fresh(p) for p in operation['payloads'].values())
+                retry_after = time.monotonic() + 60 if remains_stale and operation['attempted'] else 0
+                with _runtime_lock:
+                    _runtime_states[key] = dict(operation, generation=_refresh_generation(key), retry_after=retry_after)
+    @wraps(function)
+    def guarded(*args, **kwargs):
+        active = _operation.get()
+        if active is not None and active['key'] == module.SOURCE_KEY:
+            return function(*args, **kwargs)
+        with gate:
+            return run(*args, **kwargs)
+    return guarded
+
+
+def _coordinated_publication(function):
+    @wraps(function)
+    def publish(*args, **kwargs):
+        # Only JSON publication is locked, never retrieval or source parsing.
+        with _refresh_lock:
+            return function(*args, **kwargs)
+    return publish
+
+
+save_source_cache = _coordinated_publication(save_source_cache)
+save_cache_entry = _coordinated_publication(save_cache_entry)
+
+
+def try_reset_source_runtime(module, reset):
+    """Clear idle RAM immediately, but defer if any retrieval lock is held."""
+    gate = _source_gates.setdefault(module.SOURCE_KEY, threading.RLock())
+    locks = [gate] + [value for name, value in vars(module).items()
+                      if name.endswith('lock') and hasattr(value, 'acquire')]
+    acquired = []
+    try:
+        for lock in locks:
+            if not lock.acquire(blocking=False):
+                return False
+            acquired.append(lock)
+        reset()
+        with _runtime_lock:
+            _runtime_states.pop(module.SOURCE_KEY, None)
+        return True
+    finally:
+        for lock in reversed(acquired):
+            lock.release()

@@ -83,10 +83,11 @@ def format_possible_author_match_warning(result, lookup_author: str) -> str | No
         return None
     source_author = (getattr(result, 'work_author', '') or '').strip()
     calibre_author = lookup_author.strip()
-    return (
-        f'POSSIBLE AUTHOR MATCH - Source lists "{source_author}"; '
-        f'Calibre lists "{calibre_author}". Confirm this result before including it.'
-    )
+    note = (getattr(result, 'source_identity_note', '') or '').strip()
+    warning = 'IDENTITY CONFIRMATION REQUIRED - ' + (note or 'Confirm this result before including it.')
+    if source_author != calibre_author:
+        warning += f' Source lists "{source_author}"; Calibre lists "{calibre_author}".'
+    return warning
 
 
 def default_award_row_checked(

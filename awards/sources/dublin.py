@@ -39,8 +39,9 @@ _MIN_YEAR_CANDIDATES = dict(zip(range(1996, 2027), (
     144, 10, 152, 141, 159, 147, 150, 141, 157, 49, 79, 70, 70, 71, 69,
 )))
 _STATUS_PRIORITY = {'Winner': 4, 'Shortlisted': 3, 'Longlisted': 2, 'Nominated': 1}
+REVIEWED_MIN_YEAR = 2026
 _records = None
-_lock = threading.Lock()
+_lock = threading.RLock()
 _VOID = frozenset('area base br col embed hr img input link meta param source track wbr'.split())
 
 
@@ -277,7 +278,7 @@ def _parse_years(xml):
             if year in years and years[year] != url:
                 raise DublinSourceError(f'Conflicting Dublin {year} sitemap URLs')
             years[year] = url
-    if not years or set(years) != set(range(1996, max(years) + 1)):
+    if not years or max(years) < REVIEWED_MIN_YEAR or set(years) != set(range(1996, max(years) + 1)):
         raise DublinSourceError('Incomplete Dublin prize-year sitemap')
     return dict(sorted(years.items()))
 
@@ -302,7 +303,7 @@ def _fetch_html(url):
 
 
 def _validate(records, years):
-    if (not years or list(years) != list(range(1996, max(years) + 1))
+    if (not years or max(years) < REVIEWED_MIN_YEAR or list(years) != list(range(1996, max(years) + 1))
             or max(years) > datetime.now(timezone.utc).year):
         raise DublinSourceError('Invalid Dublin cache coverage')
     identities = set()
@@ -352,6 +353,8 @@ def _get_records():
         try:
             year_urls = _discover_years()
             years = tuple(year_urls)
+            if disk and max(years) < max(disk[1]['coverage']['years']):
+                raise DublinSourceError('Dublin discovered coverage regressed below saved archive')
             def load_year(year):
                 return _parse_year(_fetch_html(year_urls[year]), year, year_urls[year], fetch_list=_fetch_html)
             with ThreadPoolExecutor(max_workers=3) as pool:
@@ -379,3 +382,10 @@ def lookup(title, author, series=None):
     if not title.strip() or not author.strip():
         raise ValueError('title and author must be non-empty')
     return [r for r in _get_records() if _key(title) == _key(r.work_title) and _key(author) == _key(r.work_author)]
+
+
+# Coordinate RAM freshness and explicit refresh on retrieval workers.
+import sys as _runtime_sys
+from ..cache import source_runtime_guard as _runtime_guard
+lookup = _runtime_guard(_runtime_sys.modules[__name__], lookup)
+_get_records = _runtime_guard(_runtime_sys.modules[__name__], _get_records)

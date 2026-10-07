@@ -35,7 +35,7 @@ CACHE_VERSION = 1
 CACHE_TTL_SECONDS = 180 * 24 * 60 * 60
 _MIN_YEAR_RECORDS = {1979: 12, 1980: 39, 1981: 38, 1982: 20, 1983: 18, 1984: 3, 1985: 3}
 _records = None
-_lock = threading.Lock()
+_lock = threading.RLock()
 
 
 class BalrogSourceError(RuntimeError):
@@ -226,3 +226,10 @@ def lookup(title, author, series=None):
     if not title.strip() or not author.strip():
         raise ValueError('title and author must be non-empty')
     return [r for r in _get_records() if _key(r.work_title) == _key(title) and _key(r.work_author) == _key(author)]
+
+
+# Coordinate RAM freshness and explicit refresh on retrieval workers.
+import sys as _runtime_sys
+from ..cache import source_runtime_guard as _runtime_guard
+lookup = _runtime_guard(_runtime_sys.modules[__name__], lookup)
+_get_records = _runtime_guard(_runtime_sys.modules[__name__], _get_records)

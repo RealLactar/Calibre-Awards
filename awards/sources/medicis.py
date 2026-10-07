@@ -25,7 +25,7 @@ CACHE_TTL_SECONDS = 7 * 86400 + 23 * 3600
 TIMEOUT_SECONDS = 20
 _VOID = frozenset('area base br col embed hr img input link meta param source track wbr'.split())
 _records = None
-_lock = threading.Lock()
+_lock = threading.RLock()
 
 class MedicisSourceError(RuntimeError):
     """The official archive is unavailable or no longer structurally complete."""
@@ -281,3 +281,10 @@ def _fetch_html(url):
         raise MedicisSourceError(f'Médicis request failed with HTTP {exc.code}: {url}') from exc
     except (urllib.error.URLError, TimeoutError, OSError, UnicodeError) as exc:
         raise MedicisSourceError(f'Médicis source unavailable: {url}: {exc}') from exc
+
+
+# Coordinate RAM freshness and explicit refresh on retrieval workers.
+import sys as _runtime_sys
+from ..cache import source_runtime_guard as _runtime_guard
+lookup = _runtime_guard(_runtime_sys.modules[__name__], lookup)
+_get_records = _runtime_guard(_runtime_sys.modules[__name__], _get_records)

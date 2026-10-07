@@ -303,7 +303,7 @@ def _fetch_source_pages(opener: urllib.request.OpenerDirector) -> _FetchedPages:
 
 
 _records_cache: tuple[_ParsedRecord, ...] | None = None
-_cache_lock = threading.Lock()
+_cache_lock = threading.RLock()
 
 
 def _reset_runtime_state() -> None:
@@ -1763,3 +1763,10 @@ def lookup(title: str, author: str, series: str | None = None) -> list[AwardResu
         seen.add(key)
         matches.append(_to_award_result(record))
     return matches
+
+
+# Coordinate RAM freshness and explicit refresh on retrieval workers.
+import sys as _runtime_sys
+from ..cache import source_runtime_guard as _runtime_guard
+lookup = _runtime_guard(_runtime_sys.modules[__name__], lookup)
+_get_records = _runtime_guard(_runtime_sys.modules[__name__], _get_records)

@@ -188,18 +188,16 @@ def refresh_award_source_cache(source_key: str) -> bool:
     if key in BUNDLED_SOURCE_KEYS:
         reset()
         return True
+    # Clear idle RAM only; in-flight retrieval defers invalidation to its guard.
     try:
         return cache.request_source_refresh(key)
     finally:
-        if key == 'pulitzer':
-            pulitzer.mark_official_refresh_requested()
-        else:
-            reset()
+        module = globals()[key]
+        reset = pulitzer.mark_official_refresh_requested if key == 'pulitzer' else reset
+        cache.try_reset_source_runtime(module, reset)
 
 
 def prepare_source_lookup(source_key):
     """Retry pending entries in the background even if RAM contains fallback."""
-    if cache.source_refresh_pending(source_key):
-        reset = _SOURCE_RUNTIME_RESETS.get(source_key)
-        if reset is not None:
-            reset()
+    # Retrieval guards reconsider pending requests on background workers.
+    return None

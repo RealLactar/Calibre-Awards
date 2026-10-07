@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Reliability fixes (A1–A6)
+- Keep single/bulk Preferences Refresh nonblocking during surviving retrieval; generation-scoped publication preserves newer requests and valid fallback.
+- Require Dublin coverage through the reviewed 2026 floor and prevent regression below previously saved additional years.
+- Scope optional refresh budgets to each overlapping lookup and propagate them to source and child-executor workers.
+- Reconsider mutable-source RAM after TTL expiry or deferred refresh; cool down failed optional attempts for 60 seconds, while explicit requests retry.
+- Report incomplete requested updates independently of award matches, without duplicating row warnings.
+- Display factual edition/volume identity notes with a general confirmation caption; retain differing author evidence and unchecked defaults.
+
 ### Added
 - Add Prix Médicis official French, foreign and essay winner history, including joint winners; all 35 novels in the 2026 first selection appear unchecked for REVIEW. Preserve French identities and category labels, add a verified The Mars Room mapping, and integrate background cache refresh with validated fallback retention.
 - Add Mao Dun Literature Prize official winners and honorary awards for editions 1–11, edition 11 nominees and two reviewed English mappings; preserve award dates, eligibility periods and edition/volume identity.

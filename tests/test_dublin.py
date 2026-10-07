@@ -26,6 +26,44 @@ def fetch_fixture(url):
 
 
 class DublinTests(unittest.TestCase):
+    def test_previous_contiguous_only_rule_reproduces_missing_gliff(self):
+        # Relax only the reviewed floor to reproduce the old acceptance rule.
+        import xml.etree.ElementTree as ET
+        root = ET.fromstring(SITEMAP)
+        for node in list(root):
+            if any(d._url_year(url) == 2026 for url in node.itertext()):
+                root.remove(node)
+        truncated = ET.tostring(root, encoding='unicode')
+        with patch.object(d, 'REVIEWED_MIN_YEAR', 1996):
+            years = d._parse_years(truncated)
+            rows = tuple(r for r in RECORDS if r.award_year in years)
+            d._validate(rows, tuple(years))
+            cache.save_source_cache(
+                d.SOURCE_KEY, d.CACHE_VERSION,
+                records=[asdict(r) for r in rows],
+                source_urls=[d.SITEMAP_URL] + list(years.values()),
+                coverage={'years': list(years)}, ttl_seconds=d.CACHE_TTL_SECONDS)
+            with patch.object(d, '_fetch_html', side_effect=AssertionError('offline')):
+                self.assertEqual(d.lookup('Gliff', 'Ali Smith'), [])
+        with self.assertRaises(d.DublinSourceError):
+            d._parse_years(truncated)
+        self.assertIsNone(d._load_disk())
+
+    def test_parsed_records_must_cover_every_declared_year(self):
+        for missing in (1996, 2010, 2026):
+            with self.subTest(missing=missing), self.assertRaises(d.DublinSourceError):
+                d._validate(tuple(r for r in RECORDS if r.award_year != missing), tuple(YEARS))
+
+    def test_january_next_year_accepts_reviewed_coverage_without_new_results(self):
+        with patch.object(d, 'datetime') as clock:
+            clock.now.return_value = datetime(2027, 1, 1, tzinfo=timezone.utc)
+            self.assertEqual(d._parse_years(SITEMAP), YEARS)
+            d._validate(RECORDS, tuple(YEARS))
+            self.save()
+            self.assertIsNotNone(d._load_disk())
+            with patch.object(d, '_fetch_html', side_effect=fetch_fixture):
+                self.assertEqual(d.lookup('Gliff', 'Ali Smith')[0].award_year, 2026)
+
     def setUp(self):
         self.directory = TemporaryDirectory()
         cache.set_cache_directory(self.directory.name)

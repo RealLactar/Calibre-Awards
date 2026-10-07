@@ -35,9 +35,16 @@ class SourceFailure:
 
 
 @dataclass(frozen=True, slots=True)
+class SourceDiagnostic:
+    source_name: str
+    message: str
+
+
+@dataclass(frozen=True, slots=True)
 class AwardLookupReport:
     assessments: tuple[AwardAssessment, ...]
     failures: tuple[SourceFailure, ...]
+    diagnostics: tuple[SourceDiagnostic, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -117,17 +124,15 @@ def _lookup_one_source(
     title: str,
     author: str,
     series: str | None,
+    budget=None,
 ) -> list[AwardResult] | SourceFailure:
+    if budget is not None:
+        with cache.bind_lookup_budget(budget):
+            return _lookup_one_source(source, title, author, series)
     try:
         from .cache_control import prepare_source_lookup
         prepare_source_lookup(source.key)
         results = source.lookup(title, author, series=series)
-        if cache.source_refresh_pending(source.key):
-            from dataclasses import replace
-            results = [replace(result, source_details=result.source_details + (
-                'Refresh pending: some requested source updates have not completed; '
-                'saved fallback data is retained.',
-            )) for result in results]
         return results
     except Exception as exc:
         # Isolate the source: other scheduled lookups still complete.
@@ -157,7 +162,7 @@ def _lookup_awards_from_sources(
     """
     source_list = tuple(sources)
     total = len(source_list)
-    with cache.lookup_refresh_budget():
+    with cache.lookup_refresh_budget() as budget:
         if on_progress is not None:
             on_progress(
                 LookupProgress(
@@ -174,7 +179,7 @@ def _lookup_awards_from_sources(
             with ThreadPoolExecutor(max_workers=max_workers) as pool:
                 future_map = {
                     pool.submit(
-                        _lookup_one_source, source, title, author, series
+                        _lookup_one_source, source, title, author, series, budget
                     ): index
                     for index, source in enumerate(source_list)
                 }
@@ -211,4 +216,9 @@ def _lookup_awards_from_sources(
         return AwardLookupReport(
             assessments=tuple(assessments),
             failures=tuple(failures),
+            diagnostics=tuple(SourceDiagnostic(source.display_name,
+                'Requested refresh did not complete for all source data; retained data was used. '
+                'The update remains pending and will be retried.')
+                for source, slot in zip(source_list, slots)
+                if not isinstance(slot, SourceFailure) and cache.source_refresh_pending(source.key)),
         )

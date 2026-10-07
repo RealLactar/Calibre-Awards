@@ -545,14 +545,15 @@ class LookupRefreshBudgetTests(CacheTestCase):
 
     def test_concurrent_workers_only_one_wins(self):
         worker_count = 8
-        with cache.lookup_refresh_budget():
+        with cache.lookup_refresh_budget() as budget:
             barrier = threading.Barrier(worker_count)
             results: list[bool] = []
             lock = threading.Lock()
 
             def _worker():
                 barrier.wait()
-                won = cache.try_claim_stale_refresh()
+                with cache.bind_lookup_budget(budget):
+                    won = cache.try_claim_stale_refresh()
                 with lock:
                     results.append(won)
 

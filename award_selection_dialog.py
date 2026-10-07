@@ -117,6 +117,14 @@ class AwardSelectionDialog(QDialog):
             failures.setTextFormat(Qt.PlainText)
             body_layout.addWidget(failures)
 
+        diagnostics = getattr(report, 'diagnostics', ())
+        if diagnostics:
+            lines = ['Source update status:'] + [f'{d.source_name} — {d.message}' for d in diagnostics]
+            updates = QLabel('\n'.join(lines), body)
+            updates.setWordWrap(True)
+            updates.setTextFormat(Qt.PlainText)
+            body_layout.addWidget(updates)
+
         body_layout.addStretch(1)
         scroll.setWidget(body)
         layout.addWidget(scroll, 1)
@@ -187,10 +195,12 @@ class _AwardMatchRow(QWidget):
         tooltip = f'Source: {result.source_name}'
         if result.source_url:
             tooltip += f'\n{result.source_url}'
+        warning = format_possible_author_match_warning(result, lookup_author)
+        if warning is not None:
+            tooltip += f'\n{warning}'
         self.checkbox.setToolTip(tooltip)
         layout.addWidget(self.checkbox)
 
-        warning = format_possible_author_match_warning(result, lookup_author)
         if confirmation_required:
             _apply_possible_author_match_style(self)
         if warning is not None:

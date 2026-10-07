@@ -513,7 +513,9 @@ class PossibleAuthorMatchPresentationTests(unittest.TestCase):
         self.assertIsNotNone(warning)
         self.assertIn('Allen Steele', warning)
         self.assertIn('Allen M. Steele', warning)
-        self.assertNotIn('unrelated note text must not drive the warning', warning)
+        # The structured flag controls whether a warning appears; its factual
+        # note is displayed without being used as a behavior switch.
+        self.assertIn('unrelated note text must not drive the warning', warning)
         lines = match_row_scope_lines(
             result,
             'Clarke County, Space',

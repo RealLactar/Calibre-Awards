@@ -415,7 +415,9 @@ class PulitzerSeedFallbackTests(unittest.TestCase):
             first = pulitzer.lookup('Angel Down', 'Daniel Kraus')
             self.assertEqual(live.call_count, 1)
             second = pulitzer.lookup('Audition', 'Katie Kitamura')
-            self.assertEqual(live.call_count, 1)
+            self.assertEqual(live.call_count, 2)
+            # Explicit pending updates retry next lookup; ordinary blocked
+            # optional requests retain their separate suppression policy.
         self.assertEqual(first[0].status, 'Winner')
         self.assertEqual(second[0].status, 'Finalist')
 

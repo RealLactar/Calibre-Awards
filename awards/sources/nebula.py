@@ -278,8 +278,8 @@ def _fetch_category_pages(
 _pages_cache: dict[str, tuple[tuple[str, str], ...]] = {}
 _records_cache: dict[str, tuple[_ParsedRecord, ...]] = {}
 _category_locks: dict[str, threading.Lock] = {}
-_category_locks_guard = threading.Lock()
-_archive_lock = threading.Lock()
+_category_locks_guard = threading.RLock()
+_archive_lock = threading.RLock()
 # Intra-source bound: avoid opening every category archive at once.
 _MAX_CATEGORY_WORKERS = 2
 
@@ -299,7 +299,7 @@ def _lock_for_category(key: str) -> threading.Lock:
     with _category_locks_guard:
         lock = _category_locks.get(key)
         if lock is None:
-            lock = threading.Lock()
+            lock = threading.RLock()
             _category_locks[key] = lock
         return lock
 
@@ -1231,3 +1231,10 @@ def lookup(title: str, author: str, series: str | None = None) -> list[AwardResu
             seen_results.add(key)
             matches.append(_to_award_result(record))
     return matches
+
+
+# Coordinate RAM freshness and explicit refresh on retrieval workers.
+import sys as _runtime_sys
+from ..cache import source_runtime_guard as _runtime_guard
+lookup = _runtime_guard(_runtime_sys.modules[__name__], lookup)
+_get_archive_records = _runtime_guard(_runtime_sys.modules[__name__], _get_archive_records)

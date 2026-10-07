@@ -187,7 +187,7 @@ _AUTHOR_PAGE_CACHE_FIELDS = (
 )
 
 
-_cache_lock = threading.Lock()
+_cache_lock = threading.RLock()
 _author_page_cache: dict[str, _AuthorPage] = {}
 _annual_page_cache: dict[str, tuple[_AnnualRecord, ...]] = {}
 _lookup_refresh_state = threading.local()
@@ -1936,3 +1936,9 @@ def lookup(title: str, author: str, series: str | None = None) -> list[AwardResu
         )
     )
     return matches
+
+
+# Coordinate RAM freshness and explicit refresh on retrieval workers.
+import sys as _runtime_sys
+from ..cache import source_runtime_guard as _runtime_guard
+lookup = _runtime_guard(_runtime_sys.modules[__name__], lookup)

@@ -95,8 +95,10 @@ class RefreshRequestsTests(unittest.TestCase):
         source = next(s for s in AWARD_SOURCES if s.key == 'balrog')
         with patch.object(balrog, '_fetch_html', side_effect=OSError('offline')) as fetch:
             for _ in range(2):
-                results = engine._lookup_one_source(source, 'Blind Voices', 'Tom Reamy', None)
-                self.assertTrue(any('Refresh pending' in d for d in results[0].source_details))
+                report = engine._lookup_awards_from_sources('Blind Voices', 'Tom Reamy', (source,))
+                self.assertTrue(report.assessments)
+                self.assertEqual(len(report.diagnostics), 1)
+                self.assertIn('remains pending', report.diagnostics[0].message)
         self.assertEqual(fetch.call_count, 2)
 
     def test_publication_failure_does_not_complete_or_overwrite(self):

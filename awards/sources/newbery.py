@@ -546,7 +546,7 @@ def _fetch_html(opener: urllib.request.OpenerDirector, url: str) -> str:
 
 _listing_records_cache: tuple[_ListingRecord, ...] | None = None
 _detail_author_cache: dict[str, str] = {}
-_cache_lock = threading.Lock()
+_cache_lock = threading.RLock()
 
 
 def _reset_runtime_state() -> None:
@@ -937,3 +937,9 @@ def lookup(
         seen.add(key)
         matches.append(_to_award_result(record, official_author))
     return matches
+
+# Coordinate RAM freshness and explicit refresh on retrieval workers.
+import sys as _runtime_sys
+from ..cache import source_runtime_guard as _runtime_guard
+lookup = _runtime_guard(_runtime_sys.modules[__name__], lookup)
+_get_listing_records = _runtime_guard(_runtime_sys.modules[__name__], _get_listing_records)

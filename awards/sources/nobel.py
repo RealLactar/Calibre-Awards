@@ -165,7 +165,7 @@ _PRIZE_CACHE_FIELDS = (
 )
 
 
-_cache_lock = threading.Lock()
+_cache_lock = threading.RLock()
 _laureates_cache: tuple[_Laureate, ...] | None = None
 
 
@@ -1032,3 +1032,10 @@ def lookup(
         )
     )
     return matches
+
+
+# Coordinate RAM freshness and explicit refresh on retrieval workers.
+import sys as _runtime_sys
+from ..cache import source_runtime_guard as _runtime_guard
+lookup = _runtime_guard(_runtime_sys.modules[__name__], lookup)
+_get_laureates = _runtime_guard(_runtime_sys.modules[__name__], _get_laureates)

@@ -32,7 +32,7 @@ SOURCE_URLS = [WINNERS_URL] + [p[3] for p in NOMINATION_PAGES]
 _VOID = frozenset('area base br col embed hr img input link meta param source track wbr'.split())
 _records = None
 _reference = None
-_lock = threading.Lock()
+_lock = threading.RLock()
 
 class NaokiSourceError(RuntimeError):
     """The official source is unavailable, incomplete, or changed structure."""
@@ -357,3 +357,10 @@ def lookup(title, author, series=None):
                                    award_year=row.year, category=None, status=row.status, rank=None,
                                    source_name=SOURCE_NAME, source_url=row.source_url, source_details=tuple(details)))
     return results
+
+
+# Coordinate RAM freshness and explicit refresh on retrieval workers.
+import sys as _runtime_sys
+from ..cache import source_runtime_guard as _runtime_guard
+lookup = _runtime_guard(_runtime_sys.modules[__name__], lookup)
+_get_records = _runtime_guard(_runtime_sys.modules[__name__], _get_records)

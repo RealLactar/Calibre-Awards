@@ -26,7 +26,7 @@ TIMEOUT_SECONDS = 20
 _VOID = frozenset('area base br col embed hr img input link meta param source track wbr'.split())
 _records = None
 _reference = None
-_lock = threading.Lock()
+_lock = threading.RLock()
 _NUMBERS = {'一':1,'二':2,'三':3,'四':4,'五':5,'六':6,'七':7,'八':8,'九':9,'十':10,'十一':11}
 
 class MaoDunSourceError(RuntimeError):
@@ -298,3 +298,10 @@ def _fetch_html(url):
         raise MaoDunSourceError(f'Mao Dun request failed with HTTP {exc.code}: {url}') from exc
     except (urllib.error.URLError, TimeoutError, OSError, UnicodeError) as exc:
         raise MaoDunSourceError(f'Mao Dun source unavailable: {url}: {exc}') from exc
+
+
+# Coordinate RAM freshness and explicit refresh on retrieval workers.
+import sys as _runtime_sys
+from ..cache import source_runtime_guard as _runtime_guard
+lookup = _runtime_guard(_runtime_sys.modules[__name__], lookup)
+_get_records = _runtime_guard(_runtime_sys.modules[__name__], _get_records)
