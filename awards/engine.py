@@ -56,6 +56,21 @@ class LookupProgress:
     source_name: str | None
 
 
+def _source_update_diagnostic(source, slot):
+    if isinstance(slot, SourceFailure):
+        return None
+    messages = []
+    coverage = getattr(source.lookup, 'coverage_diagnostic', None)
+    if coverage is not None:
+        note = coverage()
+        if note:
+            messages.append(note)
+    if cache.source_refresh_pending(source.key):
+        messages.append('Requested refresh did not complete for all source data; retained data was used. '
+                        'The update remains pending and will be retried.')
+    return SourceDiagnostic(source.display_name, ' '.join(messages)) if messages else None
+
+
 ProgressCallback = Callable[[LookupProgress], None]
 
 
@@ -216,9 +231,6 @@ def _lookup_awards_from_sources(
         return AwardLookupReport(
             assessments=tuple(assessments),
             failures=tuple(failures),
-            diagnostics=tuple(SourceDiagnostic(source.display_name,
-                'Requested refresh did not complete for all source data; retained data was used. '
-                'The update remains pending and will be retried.')
-                for source, slot in zip(source_list, slots)
-                if not isinstance(slot, SourceFailure) and cache.source_refresh_pending(source.key)),
+            diagnostics=tuple(diagnostic for source, slot in zip(source_list, slots)
+                              if (diagnostic := _source_update_diagnostic(source, slot)) is not None),
         )

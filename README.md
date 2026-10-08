@@ -61,7 +61,7 @@ scope catalog.
 | International Prize for Arabic Fiction | Official English prize-year pages from 2020 | Winner; Shortlisted |
 | Bad Sex in Fiction Award | Bundled reviewed book winners, 1993–2019; no network required | Winner |
 | Diagram Prize for Oddest Title of the Year | 42 bundled annual winners with credited identities, 1979–2025 | Winner |
-| John Newbery Medal | 1930–2023 | Winner; Honor |
+| John Newbery Medal | 1930–2026 | Winner; Honor |
 | Dublin Literary Award | Official annual archive from 1996, including former International IMPAC Dublin years | Winner; Shortlisted; Longlisted; Nominated; no inferred rank; non-winners shown unchecked for REVIEW |
 | Akutagawa Prize | Official winner history from 1935; nominations for rounds 162 and 175; reviewed English mappings | Winner; Nominated (unchecked REVIEW); original award year and half-year retained |
 | Naoki Prize | Official winner history from 1935; round 175 nominations; two reviewed English mappings | Winner; Nominated (unchecked REVIEW) |
@@ -277,7 +277,12 @@ remain available offline.
   mixed shortlist/longlist page is not treated as a verified finalist list.
 - **Women's Prize for Fiction.** Winner history from 1996. Shortlist
   coverage from 2017.
-- **Newbery.** Current plugin coverage is 1930–2023.
+- **Newbery.** Current plugin coverage is 1930–2026.
+  Historical ALA listing pages cover 1930–2023; official annual HTML announcements
+  add all 2024–2026 Medal winners and Honor Books, cross-checked against ALA's
+  March 2026 PDF. Cache schema 2 requires all six pages; old 1930–2023 caches
+  remain usable historical fallback with an incomplete-coverage diagnostic.
+  See awards/data/newbery_provenance.md. Years 1922–1929 remain excluded.
 - **Longlists.** Several sources intentionally ignore longlist-only works.
 - **Hugo.** Explicit ordinal ranks are available only for specifically
   transcribed official-statistics years, and only for Best Novel. List order

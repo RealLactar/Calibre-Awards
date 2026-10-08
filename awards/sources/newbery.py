@@ -1,7 +1,9 @@
 """Official ALA John Newbery Medal HTML archive source.
 
-Listing pages cover 1930-2023. Author confirmation is lazy: only title
-candidates fetch a /winner/... page. 1922-1929 and 2024+ are out of scope.
+Listing pages cover 1930-2023; annual ALA announcements supply 2024-2026.
+Historical author confirmation is lazy: only title candidates fetch a
+/winner/... page. Announcement authors are separately credited in HTML.
+1922-1929 remains out of scope.
 A validated listing archive may also be loaded from the injected persistent
 cache. Winner-page authors stay RAM-only.
 """
@@ -45,18 +47,27 @@ ARCHIVE_URLS = (
     ARCHIVE_URL_1992_2003,
     ARCHIVE_URL_1930_1991,
 )
-# Drupal listing pages currently cover these years. Earlier and later years
-# are out of scope and are not a structural failure.
+# Drupal pages supply historical coverage; annual HTML supplies recent years.
 ARCHIVE_MIN_YEAR = 1930
-ARCHIVE_MAX_YEAR = 2023
+ARCHIVE_MAX_YEAR = 2026
 _ARCHIVE_PAGE_SPECS: tuple[tuple[str, int, int], ...] = (
     (ARCHIVE_URL_1930_1991, 1930, 1991),
     (ARCHIVE_URL_1992_2003, 1992, 2003),
     (ARCHIVE_URL_2004_2023, 2004, 2023),
 )
+_HISTORICAL_PAGE_SPECS = _ARCHIVE_PAGE_SPECS
+ANNUAL_URLS = {
+    year: (
+        f'https://www.ala.org/news/{year}/01/'
+        f'american-library-association-announces-{year}-youth-media-award-winners'
+    )
+    for year in (2024, 2025, 2026)
+}
+_ARCHIVE_PAGE_SPECS += tuple((url, year, year) for year, url in ANNUAL_URLS.items())
+_REVIEWED_HONOR_COUNTS = {2024: 5, 2025: 4, 2026: 4}
 
 SOURCE_KEY = 'newbery'
-CACHE_VERSION = 1
+CACHE_VERSION = 2
 # 7-day base plus an explicit stagger. Do not derive from AWARD_SOURCES order.
 CACHE_BASE_TTL_SECONDS = 7 * 24 * 60 * 60
 CACHE_REFRESH_OFFSET_SECONDS = 3 * 60 * 60
@@ -110,13 +121,14 @@ class NewberySourceError(RuntimeError):
 
 @dataclass(frozen=True, slots=True)
 class _ListingRecord:
-    """One ALA listing-table row. Author is not present on listing pages."""
+    """Historical listing row or annual announcement with an explicit author."""
 
     work_title: str
     award_year: int
     status: str
     detail_url: str
     source_url: str
+    work_author: str | None = None
 
 
 _PARSED_STATUSES = frozenset({'Winner', 'Honor'})
@@ -126,7 +138,71 @@ _RECORD_CACHE_FIELDS = (
     'source_url',
     'status',
     'work_title',
+    'work_author',
 )
+
+
+class _AnnouncementText(HTMLParser):
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.parts = []
+        self.heading = []
+        self.in_heading = False
+
+    def handle_starttag(self, tag, attrs):
+        if tag == 'h1':
+            self.in_heading = True
+
+    def handle_endtag(self, tag):
+        if tag == 'h1':
+            self.in_heading = False
+
+    def handle_data(self, data):
+        self.parts.append(data)
+        if self.in_heading:
+            self.heading.append(data)
+
+
+def _parse_annual_html(
+    html: str, year: int, source_url: str,
+) -> list[_ListingRecord]:
+    """Read writing credits only within the identified Medal/Honor section."""
+    parser = _AnnouncementText()
+    parser.feed(html)
+    parser.close()
+    heading = _collapse_ws(' '.join(parser.heading))
+    expected_heading = (
+        f'American Library Association announces {year} Youth Media Award winners'
+    )
+    if heading != expected_heading or source_url != ANNUAL_URLS.get(year):
+        raise NewberySourceError('Wrong Newbery annual announcement identity')
+    text = _collapse_ws(' '.join(parser.parts))
+    sections = re.findall(
+        r"John Newbery Medal for the most outstanding contribution to children's "
+        r'literature:\s*(.*?)Randolph Caldecott Medal for', text,
+    )
+    if len(sections) != 1 or 'Newbery Honor Books' not in sections[0]:
+        raise NewberySourceError('Missing or ambiguous Newbery announcement section')
+    section = sections[0]
+    citations = list(re.finditer(
+        r'[“"]([^”"]+)[”"],?\s+written(?: and illustrated)? by\s+'
+        r'([^,;]+?)(?=,|\s+and published\b|\s+is the\b)', section,
+    ))
+    records = []
+    for index, citation in enumerate(citations):
+        title = citation[1].rstrip(',').strip()
+        author = _collapse_ws(citation[2])
+        if not title or not author or len(author) > _MAX_AUTHOR_LENGTH:
+            raise NewberySourceError('Missing Newbery announcement work identity')
+        follows_honor_heading = 'Newbery Honor Books' in section[:citation.start()]
+        if follows_honor_heading != (index > 0):
+            raise NewberySourceError('Ambiguous Newbery Medal/Honor boundary')
+        records.append(_ListingRecord(
+            title, year, 'Winner' if index == 0 else 'Honor',
+            source_url, source_url, author,
+        ))
+    _validate_page_records(records, source_url, year, year)
+    return records
 
 
 def _collapse_ws(text: str) -> str:
@@ -567,7 +643,7 @@ def _validate_page_records(
     start_year: int,
     end_year: int,
 ) -> None:
-    """Require this page's year range; ignore years outside 1930-2023."""
+    """Require this page's year range; ignore years outside reviewed coverage."""
     by_year: dict[int, list[_ListingRecord]] = {}
     for record in records:
         year = record.award_year
@@ -604,6 +680,14 @@ def _validate_page_records(
                 f'Newbery archive page {url} has {len(winners)} Winners '
                 f'for {year}'
             )
+        if year in _REVIEWED_HONOR_COUNTS:
+            group = by_year[year]
+            identities = {(_normalize_text(r.work_title), r.status) for r in group}
+            if (
+                sum(r.status == 'Honor' for r in group) != _REVIEWED_HONOR_COUNTS[year]
+                or len(identities) != len(group)
+            ):
+                raise NewberySourceError(f'Incomplete or duplicate Newbery {year} results')
 
 
 def _usable_listing_records(
@@ -617,7 +701,7 @@ def _usable_listing_records(
 def _validate_combined_archive(records: tuple[_ListingRecord, ...]) -> None:
     if not records:
         raise NewberySourceError(
-            'Newbery archive pages were retrieved but no 1930-2023 records '
+            'Newbery archive pages were retrieved but no 1930-2026 records '
             'could be parsed'
         )
     by_year: dict[int, list[_ListingRecord]] = {}
@@ -645,12 +729,15 @@ def _validate_combined_archive(records: tuple[_ListingRecord, ...]) -> None:
 
 
 def _load_listing_records() -> tuple[_ListingRecord, ...]:
-    """Fetch all three archive pages, validate, and keep 1930-2023 rows."""
+    """Fetch historical listings and reviewed annual announcements through 2026."""
     opener = _build_opener()
     combined: list[_ListingRecord] = []
     for url, start_year, end_year in _ARCHIVE_PAGE_SPECS:
         html = _fetch_html(opener, url)
-        records = _parse_listing_html(html, url)
+        records = (
+            _parse_annual_html(html, start_year, url)
+            if start_year in ANNUAL_URLS else _parse_listing_html(html, url)
+        )
         _validate_page_records(records, url, start_year, end_year)
         combined.extend(records)
     usable = _usable_listing_records(combined)
@@ -673,6 +760,7 @@ def _record_to_cache_dict(record: _ListingRecord) -> dict:
         'source_url': record.source_url,
         'status': record.status,
         'work_title': record.work_title,
+        'work_author': record.work_author,
     }
 
 
@@ -696,10 +784,23 @@ def _record_from_cache_dict(data) -> _ListingRecord | None:
         return None
     if (
         not isinstance(detail_url, str)
-        or _safe_detail_url(detail_url) != detail_url
+        or (
+            _safe_detail_url(detail_url) != detail_url
+            and detail_url != ANNUAL_URLS.get(award_year)
+        )
     ):
         return None
     if source_url not in _listing_source_url_set():
+        return None
+    author = data.get('work_author')
+    if award_year in ANNUAL_URLS:
+        if (
+            source_url != ANNUAL_URLS[award_year] or detail_url != source_url
+            or not isinstance(author, str) or not author.strip()
+            or author != author.strip() or len(author) > _MAX_AUTHOR_LENGTH
+        ):
+            return None
+    elif author is not None:
         return None
     return _ListingRecord(
         work_title=work_title,
@@ -707,6 +808,7 @@ def _record_from_cache_dict(data) -> _ListingRecord | None:
         status=status,
         detail_url=detail_url,
         source_url=source_url,
+        work_author=author,
     )
 
 
@@ -718,9 +820,12 @@ def _archive_source_urls() -> tuple[str, ...]:
     return tuple(url for url, _start, _end in _ARCHIVE_PAGE_SPECS)
 
 
-def _coverage_from_records(records: tuple[_ListingRecord, ...]) -> dict:
+def _coverage_from_records(
+    records: tuple[_ListingRecord, ...], *,
+    specs=_ARCHIVE_PAGE_SPECS, max_year=ARCHIVE_MAX_YEAR,
+) -> dict:
     pages = []
-    for url, start_year, end_year in _ARCHIVE_PAGE_SPECS:
+    for url, start_year, end_year in specs:
         subset = [record for record in records if record.source_url == url]
         pages.append(
             {
@@ -732,7 +837,7 @@ def _coverage_from_records(records: tuple[_ListingRecord, ...]) -> dict:
         )
     return {
         'honor_count': sum(1 for record in records if record.status == 'Honor'),
-        'max_year': ARCHIVE_MAX_YEAR,
+        'max_year': max_year,
         'min_year': ARCHIVE_MIN_YEAR,
         'pages': pages,
         'record_count': len(records),
@@ -741,7 +846,7 @@ def _coverage_from_records(records: tuple[_ListingRecord, ...]) -> dict:
 
 
 def _validate_cached_archive(records: tuple[_ListingRecord, ...]) -> None:
-    """Fail closed if reconstructed listings are not a usable 1930-2023 archive."""
+    """Fail closed if reconstructed listings are not a complete 1930-2026 archive."""
     if not records:
         raise NewberySourceError(
             'Newbery persistent cache contained no listing records'
@@ -760,7 +865,10 @@ def _validate_cached_archive(records: tuple[_ListingRecord, ...]) -> None:
                 f'Newbery archive year {record.award_year} is outside '
                 f'{ARCHIVE_MIN_YEAR}-{ARCHIVE_MAX_YEAR}'
             )
-        if _safe_detail_url(record.detail_url) != record.detail_url:
+        if (
+            _safe_detail_url(record.detail_url) != record.detail_url
+            and record.detail_url != ANNUAL_URLS.get(record.award_year)
+        ):
             raise NewberySourceError(
                 'Newbery archive produced an unexpected detail URL: '
                 f'{record.detail_url!r}'
@@ -796,6 +904,8 @@ def _records_from_cache_payload(
         _validate_cached_archive(restored)
     except NewberySourceError:
         return None
+    if payload.get('coverage') != _coverage_from_records(restored):
+        return None
     return restored
 
 
@@ -804,11 +914,60 @@ def _load_persistent_archive() -> (
 ):
     payload = cache.load_source_cache(SOURCE_KEY, CACHE_VERSION)
     if payload is None:
-        return None
+        return _load_historical_fallback()
     records = _records_from_cache_payload(payload)
     if records is None:
         return None
     return records, payload
+
+
+def _load_historical_fallback():
+    """Validate schema-1 coverage explicitly; never label it complete through 2026."""
+    payload = cache.load_source_cache(SOURCE_KEY, 1)
+    if (
+        payload is None
+        or payload.get('source_urls') != [spec[0] for spec in _HISTORICAL_PAGE_SPECS]
+    ):
+        return None
+    rows = []
+    for raw in payload['records']:
+        if (
+            not isinstance(raw, dict)
+            or set(raw) != set(_RECORD_CACHE_FIELDS) - {'work_author'}
+        ):
+            return None
+        row = _record_from_cache_dict(dict(raw, work_author=None))
+        if row is None or not 1930 <= row.award_year <= 2023:
+            return None
+        rows.append(row)
+    try:
+        for url, start, end in _HISTORICAL_PAGE_SPECS:
+            _validate_page_records(
+                [r for r in rows if r.source_url == url], url, start, end,
+            )
+    except NewberySourceError:
+        return None
+    coverage = _coverage_from_records(
+        tuple(rows), specs=_HISTORICAL_PAGE_SPECS, max_year=2023,
+    )
+    if payload.get('coverage') != coverage:
+        return None
+    # Coverage expansion is logically stale even if the old timestamp is fresh.
+    # The observed payload remains in RAM freshness state, enabling later retry.
+    payload['ttl_seconds'] = 0
+    return tuple(rows), payload
+
+
+def _coverage_diagnostic():
+    if (
+        _listing_records_cache is not None
+        and max(r.award_year for r in _listing_records_cache) < ARCHIVE_MAX_YEAR
+    ):
+        return (
+            'Incomplete Newbery coverage: retained historical 1930–2023 fallback; '
+            'the 2024–2026 update did not complete.'
+        )
+    return None
 
 
 def _save_persistent_archive(records: tuple[_ListingRecord, ...]) -> None:
@@ -826,7 +985,7 @@ def _save_persistent_archive(records: tuple[_ListingRecord, ...]) -> None:
 
 
 def _get_listing_records() -> tuple[_ListingRecord, ...]:
-    """Return listing records: RAM, then disk, then live three-page fetch.
+    """Return records: RAM, then disk, then live historical/annual HTML.
 
     A fresh disk cache is used immediately. A stale-but-valid disk cache
     live-refreshes only if this lookup still has a stale-refresh slot;
@@ -851,6 +1010,7 @@ def _get_listing_records() -> tuple[_ListingRecord, ...]:
             records = None
         try:
             live = _load_live_archive()
+            _validate_cached_archive(live)
         except Exception:
             if records is not None:
                 _listing_records_cache = records
@@ -902,7 +1062,7 @@ def lookup(
     author: str,
     series: str | None = None,
 ) -> list[AwardResult]:
-    """Look up Newbery Medal results for a title and author (1930-2023)."""
+    """Look up Newbery Medal results for a title and author (1930-2026)."""
     cleaned_title = title.strip()
     cleaned_author = author.strip()
     if not cleaned_title:
@@ -922,7 +1082,9 @@ def lookup(
     matches: list[AwardResult] = []
     seen: set[tuple[int, str, str, str, str]] = set()
     for record in candidates:
-        official_author = _get_detail_author(opener, record.detail_url)
+        official_author = record.work_author or _get_detail_author(
+            opener, record.detail_url,
+        )
         if not _authors_match(cleaned_author, official_author):
             continue
         key = (
@@ -942,4 +1104,5 @@ def lookup(
 import sys as _runtime_sys
 from ..cache import source_runtime_guard as _runtime_guard
 lookup = _runtime_guard(_runtime_sys.modules[__name__], lookup)
+lookup.coverage_diagnostic = _coverage_diagnostic
 _get_listing_records = _runtime_guard(_runtime_sys.modules[__name__], _get_listing_records)

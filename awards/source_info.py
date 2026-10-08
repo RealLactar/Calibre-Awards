@@ -599,7 +599,7 @@ SOURCE_INFOS: tuple[SourceInfo, ...] = (
             'HTML archive.'
         ),
         limitation=(
-            'Current plugin coverage begins in 1930 and ends in 2023.'
+            'Current plugin coverage begins in 1930 and ends in 2026.'
         ),
     ),
     SourceInfo(

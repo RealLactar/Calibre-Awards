@@ -49,7 +49,7 @@ def _listing_record(year, status, title, slug, source_url=None):
 
 def _complete_archive(*, crispin=True):
     records: list[newbery._ListingRecord] = []
-    for year in range(newbery.ARCHIVE_MIN_YEAR, newbery.ARCHIVE_MAX_YEAR + 1):
+    for year in range(newbery.ARCHIVE_MIN_YEAR, 2024):
         if year == 1963:
             records.append(
                 _listing_record(
@@ -80,6 +80,9 @@ def _complete_archive(*, crispin=True):
                     year, 'Honor', 'The Tombs of Atuan', 'tombs-atuan'
                 )
             )
+    for year, url in newbery.ANNUAL_URLS.items():
+        html = (_TESTS_DIR / f'fixtures/newbery/annual-{year}.html').read_text(encoding='utf-8')
+        records.extend(newbery._parse_annual_html(html, year, url))
     return tuple(records)
 
 
@@ -148,7 +151,7 @@ class NewberyPersistentCacheTests(unittest.TestCase):
 
     def test_cache_identity_constants(self):
         self.assertEqual(newbery.SOURCE_KEY, 'newbery')
-        self.assertEqual(newbery.CACHE_VERSION, 1)
+        self.assertEqual(newbery.CACHE_VERSION, 2)
         self.assertEqual(newbery.CACHE_BASE_TTL_SECONDS, 7 * 24 * 60 * 60)
         self.assertEqual(newbery.CACHE_REFRESH_OFFSET_SECONDS, 3 * 60 * 60)
         self.assertEqual(
@@ -181,6 +184,7 @@ class NewberyPersistentCacheTests(unittest.TestCase):
                     newbery._record_to_cache_dict(record) for record in archive
                 ],
                 'source_urls': list(newbery._archive_source_urls()),
+                'coverage': newbery._coverage_from_records(archive),
             }
         )
         self.assertEqual(restored, archive)
@@ -487,7 +491,7 @@ class NewberyPersistentCacheTests(unittest.TestCase):
 
     def test_version_mismatch_uses_live_path(self):
         archive = _complete_archive()
-        _save_disk(archive, generated_at=datetime.now(_UTC), version=2)
+        _save_disk(archive, generated_at=datetime.now(_UTC), version=99)
         live = _complete_archive()
         with patch.object(
             newbery, '_load_live_archive', return_value=live

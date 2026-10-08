@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+from pathlib import Path
 import unittest
 from unittest.mock import Mock, patch
 from urllib.error import HTTPError
@@ -133,8 +134,9 @@ def _valid_archives(*, extra_2024: bool = False) -> dict[str, str]:
     }
     extra = ''
     if extra_2024:
-        extra = _year_html(2024, 'Future Book', 'future-book')
+        extra = _year_html(2027, 'Future Book', 'future-book')
     return {
+        **{url: (Path(__file__).parent / f'fixtures/newbery/annual-{year}.html').read_text(encoding='utf-8') for year, url in newbery.ANNUAL_URLS.items()},
         ARCHIVE_URL_1930_1991: _page_html(
             1930, 1991, replacements=replacements_1930
         ),
@@ -373,13 +375,13 @@ class NewberyLookupTests(unittest.TestCase):
         self.assertNotIn(ARCHIVE_URL_2004_2023, extra)
         self.assertEqual(extra, [ATUAN_URL])
 
-    def test_future_2024_row_does_not_break_or_return(self):
+    def test_future_2027_row_does_not_break_or_return(self):
         self.pages = _valid_archives(extra_2024=True)
         results = self._lookup('Future Book', 'Future Author')
         self.assertEqual(results, [])
         self.assertIsNotNone(newbery._listing_records_cache)
         years = {record.award_year for record in newbery._listing_records_cache}
-        self.assertNotIn(2024, years)
+        self.assertNotIn(2027, years)
         self.assertIn(2023, years)
         self.assertNotIn(FUTURE_URL, self.fetched)
 
@@ -392,6 +394,7 @@ class NewberyLookupTests(unittest.TestCase):
                 ARCHIVE_URL_1930_1991,
                 ARCHIVE_URL_1992_2003,
                 ARCHIVE_URL_2004_2023,
+                *newbery.ANNUAL_URLS.values(),
             ],
         )
 

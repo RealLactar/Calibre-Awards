@@ -690,7 +690,7 @@ class SourceInfoScopeAndHomepageTests(unittest.TestCase):
         self.assertIn('work', text)
         self.assertNotIn('sholokhov', text)
 
-    def test_newbery_description_and_limitation_cover_1930_2023(self):
+    def test_newbery_description_and_limitation_cover_1930_2026(self):
         info = _info('newbery')
         description = info.description.casefold()
         self.assertIn('newbery medal', description)
@@ -701,10 +701,10 @@ class SourceInfoScopeAndHomepageTests(unittest.TestCase):
         self.assertNotIn('2026', description)
         limitation = info.limitation.casefold()
         self.assertIn('1930', limitation)
-        self.assertIn('2023', limitation)
+        self.assertIn('2026', limitation)
         self.assertNotIn('1922', limitation)
         self.assertNotIn('2024', limitation)
-        self.assertNotIn('2026', limitation)
+        self.assertNotIn('2027', limitation)
 
 
 class SourceInfoImportAndFormatTests(unittest.TestCase):

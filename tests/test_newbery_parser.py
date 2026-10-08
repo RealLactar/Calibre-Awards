@@ -74,7 +74,7 @@ class NewberyConstantsTests(unittest.TestCase):
         self.assertEqual(AWARD_NAME, 'Newbery Medal')
         self.assertEqual(CATEGORY, "Children's Literature")
         self.assertEqual(ARCHIVE_MIN_YEAR, 1930)
-        self.assertEqual(ARCHIVE_MAX_YEAR, 2023)
+        self.assertEqual(ARCHIVE_MAX_YEAR, 2026)
         self.assertEqual(len(ARCHIVE_URLS), 3)
         self.assertTrue(
             all(url.startswith('https://www.ala.org/') for url in ARCHIVE_URLS)
