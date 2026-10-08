@@ -138,7 +138,7 @@ class MedicisTests(unittest.TestCase):
     def test_zip_resource_loader_and_registry(self):
         raw = (Path(m.__file__).parents[1] / 'data/medicis_mappings.json').read_bytes()
         with patch.object(m, 'get_resources', return_value=raw, create=True) as resource:
-            self.assertEqual(len(m._mappings()), 1)
+            self.assertEqual(len(m._mappings()), 4)
             resource.assert_called_once_with('awards/data/medicis_mappings.json')
         from awards.source_registry import AWARD_SOURCES
         self.assertIn('medicis', {s.key for s in AWARD_SOURCES})

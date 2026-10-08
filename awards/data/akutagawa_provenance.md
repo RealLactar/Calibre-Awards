@@ -38,3 +38,43 @@ Earthlings is not awarded simply because Sayaka Murata won for Convenience Store
 ## Dates, UI and maintenance
 
 Award year and half-year follow the official archive, not the January announcement or English translation publication year. The Hole returns the 2013 second-half award and Snakes and Earrings the 2003 second-half award. No ordinal rank is inferred. Winners qualify under the common qualifier; nominees are REVIEW and are unchecked by the existing dialog. Cache schema 1 is isolated to Akutagawa. Failed refresh keeps validated saved data and its pending request. The winner list can grow live; additional nominee announcements and English mappings require reviewed plugin updates.
+
+## Reviewed mapping expansion — 7 October 2026
+
+### Bullfight / Yasushi Inoue
+
+Award identity: 闘牛 / 井上靖; Winner 1949, reviewed round 22.
+
+Pushkin Press Classics, 9 April 2026, paperback, ISBN 9781805332022; standalone novella.
+
+Publisher identifies this novella as the Akutagawa-winning work; official round 22 supplies the Japanese identity.
+
+Translators (not author aliases): Michael Emmerich.
+
+[primary evidence 1](https://pushkinpress.com/book/bullfight-2/).
+
+### Eclipse / Keiichiro Hirano
+
+Award identity: 日蝕 / 平野啓一郎; Winner 1998, reviewed round 120.
+
+Columbia University Press, November 2024, paperback, ISBN 9780231214919; complete standalone novel.
+
+Publisher explicitly identifies Eclipse as the 1998 Akutagawa-winning novel, matching official round 120.
+
+Translators (not author aliases): Brent de Chene, Charles De Wolf.
+
+[primary evidence 1](https://cup.columbia.edu/book/eclipse/9780231214919/).
+
+### The Boy in the Earth / Fuminori Nakamura
+
+Award identity: 土の中の子供 / 中村文則; Winner 2005, reviewed round 133.
+
+Soho Press, April 2017, ISBN 9781616955946; standalone English translation.
+
+Publisher and distributor identify this novel as the Akutagawa-winning work; official round 133 supplies the original identity.
+
+Translators (not author aliases): Allison Markin Powell.
+
+[primary evidence 1](https://sohopress.com/books/the-boy-in-the-earth/); [primary evidence 2](https://www.penguinrandomhouse.com/books/547086/the-boy-in-the-earth-by-fuminori-nakamura/).
+
+See [English-title mapping review](english_title_mapping_review_2026-10-07.md) for the prior inventory, exclusions and regression evidence.

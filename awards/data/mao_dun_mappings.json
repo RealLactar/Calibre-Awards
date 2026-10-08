@@ -97,6 +97,35 @@
         "https://www.penguinrandomhouse.com/books/317277/frog-by-mo-yan/9780698182660/",
         "https://paper-republic.org/works/frog/"
       ]
+    },
+    {
+      "edition": 8,
+      "title_zh": "一句顶一万句",
+      "author_zh": "刘震云",
+      "titles": [
+        "Someone to Talk To"
+      ],
+      "authors": [
+        "Liu Zhenyun"
+      ],
+      "evidence": [
+        "https://www.dukeupress.edu/someone-to-talk-to",
+        "https://assets-us-01.kc-usercontent.com/f7ca9afb-82c2-002a-a423-84e111d5b498/0ed2fad5-0835-41fe-9df9-a6d39f102802/978-0-8223-7083-3_601.pdf"
+      ]
+    },
+    {
+      "edition": 9,
+      "title_zh": "黄雀记",
+      "author_zh": "苏 童",
+      "titles": [
+        "Shadow of the Hunter"
+      ],
+      "authors": [
+        "Su Tong"
+      ],
+      "evidence": [
+        "https://sinoistbooks.com/product/shadow-of-the-hunter/"
+      ]
     }
   ]
 }

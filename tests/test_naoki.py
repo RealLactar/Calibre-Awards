@@ -103,6 +103,6 @@ class NaokiTests(unittest.TestCase):
         n._reset_runtime_state()
         raw=(Path(n.__file__).parents[1]/'data/naoki_mappings.json').read_bytes()
         with patch.object(n,'get_resources',create=True,return_value=raw) as resource:
-            self.assertEqual(len(n._mappings()),2); resource.assert_called_once_with('awards/data/naoki_mappings.json')
+            self.assertEqual(len(n._mappings()),5); resource.assert_called_once_with('awards/data/naoki_mappings.json')
         self.assertIn('naoki',cache_control.runtime_reset_source_keys())
         self.assertNotIn('naoki',cache_control.BUNDLED_SOURCE_KEYS)

@@ -40,3 +40,31 @@ These two mappings are a reviewed initial subset, not complete English coverage.
 ## Cache and updates
 
 Isolated source cache schema 1 validates all eleven edition counts, regular/honorary classifications, nomination counts, dates, periods, provenance and title qualifiers before accepting saved data. Refresh downloads the archive and nomination section while retaining validated fallback and pending request if a fetch fails. No unrelated source cache changes. New editions, nomination pages and English mappings require a reviewed plugin update: unknown edition dates are not inferred from a four-year cycle. Cached HTML-derived records are separate from bundled date/mapping metadata.
+
+## Reviewed mapping expansion — 7 October 2026
+
+### Someone to Talk To / Liu Zhenyun
+
+Award identity: 一句顶一万句 / 刘震云; Winner 2011, reviewed edition 8.
+
+Duke University Press, April 2018, paperback ISBN 9780822370833; complete novel, originally Wuhan: Changjiang Literature and Art Press, 2009.
+
+Publisher sample title and copyright pages identify the English novel as the translation of Yi ju ding yi wan ju, 2009; cover identifies the Mao Dun award.
+
+Translators (not author aliases): Howard Goldblatt, Sylvia Li-chun Lin.
+
+[primary evidence 1](https://www.dukeupress.edu/someone-to-talk-to); [primary evidence 2](https://assets-us-01.kc-usercontent.com/f7ca9afb-82c2-002a-a423-84e111d5b498/0ed2fad5-0835-41fe-9df9-a6d39f102802/978-0-8223-7083-3_601.pdf).
+
+### Shadow of the Hunter / Su Tong
+
+Award identity: 黄雀记 / 苏 童; Winner 2015, reviewed edition 9.
+
+Sinoist Books, 28 May 2020, 484 pages; complete novel. Catalog ISBN field is PN_73 and is not treated as an ISBN.
+
+Publisher explicitly supplies Original Chinese Name 黄雀记 alongside the English title, author, translator and publication date.
+
+Translators (not author aliases): James Trapp.
+
+[primary evidence 1](https://sinoistbooks.com/product/shadow-of-the-hunter/).
+
+See [English-title mapping review](english_title_mapping_review_2026-10-07.md) for the prior inventory, exclusions and regression evidence.

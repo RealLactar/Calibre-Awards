@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add eleven primary-evidence English-title mappings across existing Akutagawa, Naoki, Mao Dun and Prix Médicis sources. Preserve exact original work identities, translator separation, source provenance and volume/revision confirmation; document excluded candidates and add offline production-lookup regressions.
+
 - Extend Newbery Medal and Honor coverage through 2026 using the official annual ALA HTML announcements, cross-checked against the March 2026 cumulative PDF. Schema 2 requires complete 1930–2026 coverage; schema-1 caches remain explicitly incomplete historical fallback on update failure, with source-level diagnostics and preserved refresh state. Medal/Honor qualification and author/illustrator distinctions are unchanged; 1922–1929 remains out of scope.
 
 ### Reliability fixes (A1–A6)

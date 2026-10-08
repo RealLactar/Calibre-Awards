@@ -1003,6 +1003,49 @@
       "evidence": [
         "https://masayachiba.jp/masaya-chiba/biography/"
       ]
+    },
+    {
+      "round": 22,
+      "title_ja": "闘牛",
+      "author_ja": "井上靖",
+      "titles": [
+        "Bullfight"
+      ],
+      "authors": [
+        "Yasushi Inoue"
+      ],
+      "evidence": [
+        "https://pushkinpress.com/book/bullfight-2/"
+      ]
+    },
+    {
+      "round": 120,
+      "title_ja": "日蝕",
+      "author_ja": "平野啓一郎",
+      "titles": [
+        "Eclipse"
+      ],
+      "authors": [
+        "Keiichiro Hirano"
+      ],
+      "evidence": [
+        "https://cup.columbia.edu/book/eclipse/9780231214919/"
+      ]
+    },
+    {
+      "round": 133,
+      "title_ja": "土の中の子供",
+      "author_ja": "中村文則",
+      "titles": [
+        "The Boy in the Earth"
+      ],
+      "authors": [
+        "Fuminori Nakamura"
+      ],
+      "evidence": [
+        "https://sohopress.com/books/the-boy-in-the-earth/",
+        "https://www.penguinrandomhouse.com/books/547086/the-boy-in-the-earth-by-fuminori-nakamura/"
+      ]
     }
   ]
 }

@@ -121,7 +121,7 @@ class MaoDunTests(unittest.TestCase):
     def test_zip_reference_and_registration(self):
         raw=(Path(m.__file__).parents[1]/'data/mao_dun_mappings.json').read_bytes()
         with patch.object(m,'get_resources',create=True,return_value=raw) as resource:
-            self.assertEqual(len(m._reference_data()['mappings']),2);resource.assert_called_once_with('awards/data/mao_dun_mappings.json')
+            self.assertEqual(len(m._reference_data()['mappings']),4);resource.assert_called_once_with('awards/data/mao_dun_mappings.json')
         from awards.source_registry import AWARD_SOURCES
         from awards.source_settings import compute_enabled_source_keys
         self.assertIs(next(s for s in AWARD_SOURCES if s.key == 'mao_dun').lookup,m.lookup)

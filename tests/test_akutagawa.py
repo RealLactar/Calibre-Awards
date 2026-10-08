@@ -55,7 +55,7 @@ class AkutagawaTests(unittest.TestCase):
         self.assertEqual(len([r for r in RECORDS if r.round_number == 130]), 2)
 
     def test_english_mapping_set_is_grounded_in_source_identity(self):
-        self.assertEqual(len(a._mappings()), 9)
+        self.assertEqual(len(a._mappings()), 12)
         for mapping in a._mappings():
             row = next(r for r in RECORDS if r.round_number == mapping['round']
                        and r.title == mapping['title_ja'] and r.author == mapping['author_ja'])
@@ -205,7 +205,7 @@ class AkutagawaTests(unittest.TestCase):
     def test_zip_resource_loader_uses_one_positional_argument(self):
         raw = (Path(__file__).parents[1] / 'awards/data/akutagawa_mappings.json').read_bytes()
         with patch.dict(a.__dict__, {'get_resources': lambda path: raw}):
-            self.assertEqual(len(a._mappings()), 9)
+            self.assertEqual(len(a._mappings()), 12)
 
     def test_registration_default_enabled_refresh_and_scope(self):
         from awards.source_registry import AWARD_SOURCES

@@ -904,6 +904,48 @@
       "evidence": [
         "https://www.simonandschuster.com/books/Honeybees-and-Distant-Thunder/Riku-Onda/9781639364039"
       ]
+    },
+    {
+      "round": 132,
+      "title_ja": "対岸の彼女",
+      "author_ja": "角田光代",
+      "titles": [
+        "Woman on the Other Shore"
+      ],
+      "authors": [
+        "Mitsuyo Kakuta"
+      ],
+      "evidence": [
+        "https://www.redcircleauthors.com/pdf/full_publications_list_mitsuyo_kakuta.pdf"
+      ]
+    },
+    {
+      "round": 143,
+      "title_ja": "小さいおうち",
+      "author_ja": "中島京子",
+      "titles": [
+        "The Little House"
+      ],
+      "authors": [
+        "Kyoko Nakajima"
+      ],
+      "evidence": [
+        "https://darfpublishers.co.uk/product/the-little-house/"
+      ]
+    },
+    {
+      "round": 159,
+      "title_ja": "ファーストラヴ",
+      "author_ja": "島本理生",
+      "titles": [
+        "First Love"
+      ],
+      "authors": [
+        "Rio Shimamoto"
+      ],
+      "evidence": [
+        "https://honfordstar.com/products/first-love-pre-order"
+      ]
     }
   ]
 }

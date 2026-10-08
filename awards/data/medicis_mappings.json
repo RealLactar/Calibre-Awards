@@ -8,5 +8,35 @@
       "The Mars Room"
     ],
     "evidence": "https://www.lagardere.com/fichiers/fckeditor/File/actionnaires%20individuels/assemblee_generale/2019/RA_2018/2018_reference_document_en.pdf"
+  },
+  {
+    "year": 2017,
+    "category": "Littérature étrangère",
+    "title": "Les Huit Montagnes",
+    "author": "Paolo Cognetti",
+    "titles": [
+      "The Eight Mountains"
+    ],
+    "evidence": "https://www.simonandschuster.com/books/The-Eight-Mountains/Paolo-Cognetti/9781501169892"
+  },
+  {
+    "year": 2000,
+    "category": "Littérature étrangère",
+    "title": "Le Fantôme d'Anil",
+    "author": "Michael Ondaatje",
+    "titles": [
+      "Anil's Ghost"
+    ],
+    "evidence": "https://www.penguin.co.uk/books/411824/anils-ghost-by-ondaatje-michael/9781529909746"
+  },
+  {
+    "year": 2023,
+    "category": "Littérature étrangère",
+    "title": "Impossibles Adieux",
+    "author": "Han Kang",
+    "titles": [
+      "We Do Not Part"
+    ],
+    "evidence": "https://www.penguinrandomhouse.com/books/797456/imposible-decir-adios--we-do-not-part-by-han-kang/9788439745006/"
   }
 ]
