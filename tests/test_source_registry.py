@@ -58,6 +58,7 @@ class AwardSourceRegistryTests(unittest.TestCase):
                 'naoki',
                 'mao_dun',
     'medicis',
+    'cwa_gold_dagger',
             ),
         )
 
@@ -94,12 +95,13 @@ class AwardSourceRegistryTests(unittest.TestCase):
                 'Naoki Prize',
                 'Mao Dun Literature Prize',
                 'Prix Médicis',
+                'CWA Gold Dagger',
             ),
         )
 
     def test_executable_registry_count_excludes_national_book_awards(self):
         keys = [source.key for source in AWARD_SOURCES]
-        self.assertEqual(len(AWARD_SOURCES), 29)
+        self.assertEqual(len(AWARD_SOURCES), 30)
         self.assertNotIn('national_book_awards', keys)
         self.assertNotIn(
             'National Book Awards',

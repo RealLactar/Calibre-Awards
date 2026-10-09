@@ -15,6 +15,7 @@ import unittest
 from awards.model import AwardResult
 from awards.registry import (
     AWARD_POLICIES,
+    CWA_GOLD_DAGGER_POLICY,
     BOOKER_POLICY,
     BRAM_STOKER_FINALIST_POLICY,
     EDGAR_NOMINEE_POLICY,
@@ -140,6 +141,7 @@ class AwardPolicyRegistryTests(unittest.TestCase):
                 BRAM_STOKER_FINALIST_POLICY,
                 EDGAR_NOMINEE_POLICY,
                 RONA_SHORTLIST_POLICY,
+                CWA_GOLD_DAGGER_POLICY,
             ),
         )
 

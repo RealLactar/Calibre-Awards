@@ -222,6 +222,15 @@ WOMENS_PRIZE_FICTION_POLICY = AwardPolicy(
     ),
 )
 
+CWA_GOLD_DAGGER_POLICY = AwardPolicy(
+    award_name='CWA Gold Dagger',
+    start_year=1955,
+    notes=('The main Gold Dagger continues the Crossed Red Herrings Award. '
+           'Winners qualify through the common winner rule. Explicit Shortlisted, '
+           'Longlisted and Highly Commended distinctions require REVIEW; none '
+           'implies an ordinal rank. Other CWA Daggers are excluded.'),
+)
+
 AWARD_POLICIES: tuple[AwardPolicy, ...] = (
     PULITZER_FICTION_POLICY,
     NEWBERY_POLICY,
@@ -239,6 +248,7 @@ AWARD_POLICIES: tuple[AwardPolicy, ...] = (
     BRAM_STOKER_FINALIST_POLICY,
     EDGAR_NOMINEE_POLICY,
     RONA_SHORTLIST_POLICY,
+    CWA_GOLD_DAGGER_POLICY,
 )
 
 

@@ -192,12 +192,18 @@ class _AwardMatchRow(QWidget):
             )
         )
         self.checkbox.setEnabled(selectable)
-        tooltip = f'Source: {result.source_name}'
-        if result.source_url:
-            tooltip += f'\n{result.source_url}'
         warning = format_possible_author_match_warning(result, lookup_author)
-        if warning is not None:
-            tooltip += f'\n{warning}'
+        details = [f'Source: {result.source_name}']
+        if result.source_url:
+            details.append(result.source_url)
+        details.extend(match_row_scope_lines(result, lookup_title, lookup_author, lookup_series))
+        details.extend(detail for detail in (getattr(result, 'source_details', ()) or ())
+                       if isinstance(detail, str) and detail.strip())
+        decision_name = assessment.qualification.decision.name
+        reason = (assessment.qualification.reason or '').strip()
+        details.append(f'{decision_name} - {reason}' if reason else decision_name)
+        tooltip = '\n'.join(dict.fromkeys(details))
+        self.setToolTip(tooltip)
         self.checkbox.setToolTip(tooltip)
         layout.addWidget(self.checkbox)
 
@@ -210,37 +216,12 @@ class _AwardMatchRow(QWidget):
             _apply_possible_author_match_style(warn)
             layout.addWidget(warn)
 
-        for line in match_row_scope_lines(
-            result,
-            lookup_title,
-            lookup_author,
-            lookup_series,
-        ):
-            if warning is not None and line == warning:
-                continue
-            # Presentation helpers mark author- and series-level awards.
-            scope = QLabel(line, self)
-            scope.setWordWrap(True)
-            scope.setTextFormat(Qt.PlainText)
-            layout.addWidget(scope)
-
-        for detail in getattr(result, 'source_details', ()) or ():
-            if not isinstance(detail, str) or not detail.strip():
-                continue
-            extra = QLabel(detail, self)
-            extra.setWordWrap(True)
-            extra.setTextFormat(Qt.PlainText)
-            layout.addWidget(extra)
-
-        decision_name = assessment.qualification.decision.name
-        reason = (assessment.qualification.reason or '').strip()
-        qualification_text = (
-            f'{decision_name} - {reason}' if reason else decision_name
-        )
-        qualification = QLabel(qualification_text, self)
-        qualification.setWordWrap(True)
-        qualification.setTextFormat(Qt.PlainText)
-        layout.addWidget(qualification)
+        # Keep the actionable review state visible, but routine provenance,
+        # scope captions and qualification prose belong in the row tooltip.
+        if assessment.qualification.decision is not QualificationDecision.QUALIFIES:
+            decision = QLabel(decision_name.replace('_', ' '), self)
+            decision.setTextFormat(Qt.PlainText)
+            layout.addWidget(decision)
 
     def is_checked(self):
         return self.checkbox.isChecked()

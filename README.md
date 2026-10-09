@@ -27,7 +27,7 @@ Book lookup happens only from **Check Awards** in Edit Metadata.
 
 ## Supported awards
 
-The plugin currently has **29 executable award sources**. Category coverage
+The plugin currently has **30 executable award sources**. Category coverage
 is limited to the literary work awards each source currently advertises in
 the plugin. Anthology, editor, artist, publisher, and similar non-work
 honors are omitted where they fall outside those categories.
@@ -67,6 +67,8 @@ scope catalog.
 | Naoki Prize | Official winner history from 1935; round 175 nominations; five reviewed English mappings | Winner; Nominated (unchecked REVIEW) |
 | Mao Dun Literature Prize | Reviewed editions 1–11 (1982–2023); edition 11 nominees; four English mappings | Winner; Honorary award; Nominated; scope confirmation for awarded volumes/revisions |
 | Prix Médicis | Official French, foreign and essay winner history; 2026 first selection; four English mappings | Winner; Selected (REVIEW); specific-volume confirmation |
+
+| CWA Gold Dagger | Main award winners 1955–2026, including the Crossed Red Herrings predecessor; partial candidate coverage 2004–2026 | Winner (checked); Shortlisted, Longlisted, Highly Commended (unchecked REVIEW); other Daggers excluded |
 
 **National Book Awards** is not an executable source. Preferences shows it
 as unavailable (**Transport blocked**) because the current website presents
@@ -418,3 +420,59 @@ Prix Médicis uses the official live winner table: French literature from 1958, 
 Reliability: Preferences Refresh clears idle RAM immediately and defers busy-source invalidation without waiting on network-held locks. Each lookup owns one optional stale-refresh budget, shared only with its source workers (including annual-page executors). Mutable network-backed sources reconsider observed RAM cache timestamps and pending requests. Failed optional attempts cool down for 60 seconds; budget-deferred attempts remain eligible next lookup, and explicit requests bypass the cooldown/budget. Bundled Diagram and Bad Sex archives have no network TTL and keep their reload-only behavior; Pulitzer retains its seed-first cold-start policy. Dublin requires reviewed coverage through 2026 and cannot replace a fuller saved archive with fewer years. Incomplete requested updates appear under Source update status even with no matching award rows. Edition/volume and author uncertainties display the factual identity note, with author evidence where different, and remain unchecked.
 
 Reviewed English edition evidence and unresolved candidates for these four sources: [mapping review](awards/data/english_title_mapping_review_2026-10-07.md).
+
+### CWA Gold Dagger coverage
+
+The official CWA filtered archive, predecessor archive, 2021 individual result
+and current award page supply 194 distinct records: 72 winners, 90 shortlisted,
+29 longlisted and three Highly Commended entries. Winners cover every year
+1955–2026; historical candidate lists are partial. The official award page
+establishes continuity from the Crossed Red Herrings Award (1955–1959) to
+Gold Dagger (1960 onward). Other Daggers are excluded. An undated Bluebird,
+Bluebird entry is omitted, and the CWA's truncated 1963 author credit is
+preserved, with a verified record-specific John le Carré alias. See awards/data/cwa_gold_dagger_provenance.md.
+
+Official pagination can shift records between page boundaries. Missing reviewed
+or previously cached entries are recovered from their live individual result
+pages, with identity and distinction verified; the manifest supplies validation
+evidence, not offline lookup results.
+
+Coverage checks reject truncated retrieval and updates losing previously
+accepted records. Valid fallback survives failed refreshes with source-level
+diagnostics; fresh RAM/disk lookups avoid network requests. Unpublished future
+cycles do not automatically become required when the calendar year changes.
+
+Ordinary result rows show their checkbox and formatted award value. Hover over
+the row or checkbox for source, scope, alias evidence and qualification details.
+REVIEW labels remain visible and unchecked; actionable identity warnings and
+source retrieval/coverage diagnostics remain visible. Tooltips and warnings
+are never appended to the award-only metadata value.
+
+### Build 019 desktop acceptance checkpoint (2026-10-09)
+
+User-confirmed on Calibre 9.16.0: simplified winner and REVIEW rows,
+checked winner defaults, unchecked REVIEW defaults, row/checkbox tooltips,
+and these three successful desktop lookups:
+
+| Title / Author | Confirmed result |
+| --- | --- |
+| The Death of Us / Abigail Dean | Checked 2026 winner; routine explanations in tooltip |
+| Not Quite Dead Yet / Holly Jackson | Unchecked 2026 shortlist; visible REVIEW |
+| The Spy Who Came in from the Cold / John le Carré | Checked 1963 winner; original CWA credit and scoped alias evidence in tooltip |
+
+Previously confirmed Build 017 checks remain recorded: The Little Walls /
+Winston Graham, The Death of Us / Abigail Dean, Not Quite Dead Yet / Holly
+Jackson, and The Death of Us / Other Author (no match); award-only writeback,
+including outer Edit Metadata Cancel. Build 018's The Invited no-error lookup
+was also confirmed. No additional desktop confirmations are inferred, including
+Preferences Refresh, the optional Mao Dun identity-warning case, or separate
+OK/repeated-write checks.
+
+Build 019 archive SHA-256:
+`4b64759934bec6c75b0de86f01f4aa198e4c2353255bc3cffb465358b2dfd52f`.
+All 73 allowlisted production files were reverified byte for byte against that
+archive at finalization. Implementation files are unchanged from the reported
+2,532-test passing suite; finalization adds this acceptance record and normalizes whitespace in the
+non-production bibliography fixture, with unchanged parsed evidence.
+Automated fixture, packaged Qt and live-source checks remain separate from
+user desktop confirmations. The public release remains unchanged.

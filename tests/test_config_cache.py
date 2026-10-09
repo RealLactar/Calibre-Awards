@@ -70,6 +70,7 @@ _EXPECTED_SOURCE_ORDER = (
     'naoki',
     'mao_dun',
     'medicis',
+    'cwa_gold_dagger',
 )
 
 
@@ -443,8 +444,8 @@ class AwardSourcesUnavailableRowTests(unittest.TestCase):
 
     def test_executable_rows_retain_checkbox_and_refresh(self):
         panel = FakeAwardSourcesPanel()
-        self.assertEqual(len(panel.source_checkboxes), 29)
-        self.assertEqual(len(panel.source_refresh_buttons), 29)
+        self.assertEqual(len(panel.source_checkboxes), 30)
+        self.assertEqual(len(panel.source_refresh_buttons), 30)
         for source_key, display_name in cache_refresh_source_rows():
             self.assertIn(source_key, panel.source_checkboxes)
             self.assertIn(source_key, panel.source_refresh_buttons)

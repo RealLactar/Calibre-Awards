@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Simplify shared selection rows: move routine provenance, scope and qualification prose to row/checkbox tooltips; retain visible REVIEW, identity warnings and source diagnostics, selection defaults and award-only writeback. Add a primary-evidence John le Carré alias limited to the exact 1963 CWA winning record, preserving the original source credit and URL.
+
+- CWA Gold Dagger: recover reviewed and previously cached records omitted by unstable official pagination from their individually verified live result pages. Require reviewed identities as well as coverage counts; keep valid Build 017 fallback and pending refresh state when recovery fails.
+
+- Add the main CWA Gold Dagger and its documented Crossed Red Herrings predecessor: verified winners 1955–2026 and partial explicit candidate distinctions. Exclude other Daggers, retain historical naming and official result provenance, validate paginated coverage, and preserve reliable refresh/fallback behavior.
+
 - Add eleven primary-evidence English-title mappings across existing Akutagawa, Naoki, Mao Dun and Prix Médicis sources. Preserve exact original work identities, translator separation, source provenance and volume/revision confirmation; document excluded candidates and add offline production-lookup regressions.
 
 - Extend Newbery Medal and Honor coverage through 2026 using the official annual ALA HTML announcements, cross-checked against the March 2026 cumulative PDF. Schema 2 requires complete 1930–2026 coverage; schema-1 caches remain explicitly incomplete historical fallback on update failure, with source-level diagnostics and preserved refresh state. Medal/Honor qualification and author/illustrator distinctions are unchanged; 1922–1929 remains out of scope.

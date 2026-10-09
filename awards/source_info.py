@@ -15,6 +15,7 @@ from .sources import (
     naoki,
     mao_dun,
     medicis,
+    cwa_gold_dagger,
     dublin,
     diagram,
     bad_sex_fiction,
@@ -659,5 +660,18 @@ SOURCE_INFOS: tuple[SourceInfo, ...] = (
                     'French source titles. No automatic translation, ordinal rank or author-wide awards. '
                     'Specific volumes require confirmation. Refresh retains validated fallback; new selection rounds '
                     'and mappings require a reviewed plugin update.'),
+    ),
+    SourceInfo(
+        key='cwa_gold_dagger', display_name=cwa_gold_dagger.AWARD_NAME,
+        categories=cwa_gold_dagger.CATEGORIES, identity_scopes=('work',),
+        homepage_url=cwa_gold_dagger.SOURCE_HOME_URL,
+        description='Official main CWA Gold Dagger crime novels and its continuous Crossed Red Herrings predecessor.',
+        limitation=('Verified winner coverage is 1955–2026, combining the Gold archive, predecessor filter '
+                    'and the individual 2021 winner page omitted from the archive. Explicit Shortlisted, '
+                    'Longlisted and Highly Commended distinctions are REVIEW, unchecked; candidate history is partial. '
+                    'The undated Bluebird, Bluebird shortlist record is excluded; no year is guessed. '
+                    'Original credits are retained; the 1963 winner has a verified record-specific John le Carré alias. Other Daggers '
+                    '(including non-fiction and translation-specific awards) are excluded. '
+                    'Unpublished future-year results are not inferred. Refresh retains validated fallback on failure.'),
     ),
 )
