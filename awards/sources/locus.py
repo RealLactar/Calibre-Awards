@@ -131,6 +131,10 @@ class LocusSourceError(RuntimeError):
     """Raised when SFADB Locus pages cannot be retrieved or validated."""
 
 
+class _EmptyAuthorResponse(LocusSourceError):
+    """Indeterminate individual response: debug-only, never negative-cached."""
+
+
 @dataclass(frozen=True, slots=True)
 class _DiscoveryEntry:
     award_year: int
@@ -976,8 +980,8 @@ def _resolve_author_page(
     immediately unless this lookup still has its one optional refresh and no
     stale current-year annual disk needs that slot. Optional author refresh
     fetches only the already-resolved canonical URL, not the full slug
-    sequence. 404s, wrong-person pages, and malformed Locus sections are not
-    stored.
+    sequence. 404s, explicit absence, indeterminate empty responses,
+    wrong-person pages, and malformed Locus sections are not stored.
     """
     candidate_urls = _candidate_author_urls(author)
     if not candidate_urls:
@@ -1014,7 +1018,12 @@ def _resolve_author_page(
             cached = _author_page_cache.get(canonical_url)
         if cached is not None:
             continue
-        page = _load_live_author_page(opener, canonical_url)
+        try:
+            page = _load_live_author_page(opener, canonical_url)
+        except _EmptyAuthorResponse:
+            # One author/slug says nothing about source availability. The
+            # loader logged it; try remaining slugs without publishing a cache.
+            continue
         if page is None:
             continue
         if not _author_page_matches_query(page, author):
@@ -1099,10 +1108,14 @@ def _load_live_author_page(
             f'{canonical_url}'
         )
     if not body.strip():
-        raise LocusSourceError(
+        message = (
             f'SFADB author page returned an empty response (HTTP 200): '
-            f'{canonical_url}; author absence could not be established'
+            f'{canonical_url}; author absence could not be established; not cached'
         )
+        # Calibre's debug log captures plugin stdout. Do not promote this
+        # individual indeterminate lookup to a main-dialog source problem.
+        print(f'[Calibre Awards] {message}')
+        raise _EmptyAuthorResponse(message)
     page = _parse_author_page(body, canonical_url)
     if page.page_name:
         return page

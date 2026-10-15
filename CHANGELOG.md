@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Locus: keep empty HTTP-200 responses from individual SFADB author lookups out of the main results dialog while retaining a URL-specific diagnostic in Calibre's debug log. Empty responses remain indeterminate and uncached; validated fallback and other-source awards survive. Explicit author absence stays silent. Network, access, nonempty parsing/content and annual-page failures remain visible when no validated fallback applies.
+
 - Locus: report empty HTTP-200 author/annual responses as content problems, not failed HTTP requests. Reject unrecognized author HTML without caching it; accept explicit SFADB author-absence messages as no records. Preserve valid author discovery and cache fallback. Live Anne Carson inspection on 2026-10-15 returned HTTP 200 with a zero-byte body, which does not establish author absence.
 
 - Simplify shared selection rows: move routine provenance, scope and qualification prose to row/checkbox tooltips; retain visible REVIEW, identity warnings and source diagnostics, selection defaults and award-only writeback. Add a primary-evidence John le Carré alias limited to the exact 1963 CWA winning record, preserving the original source credit and URL.

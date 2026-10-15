@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import unittest
+import io
+from contextlib import redirect_stdout
 from unittest.mock import patch
 
 from awards.engine import _lookup_awards_from_sources, lookup_awards
@@ -1822,8 +1824,57 @@ class AuthorResponseValidationTests(LocusTestCase):
                 self.assertFalse(locus._author_page_cache)
                 save.assert_not_called()
 
-    def test_empty_and_unexpected_200_are_failures_and_not_cached(self):
-        bodies = ('', '  ', '<html><title>Maintenance</title><p>Try again later</p></html>',
+    def test_empty_author_is_silent_logged_uncached_and_retried(self):
+        for body in ('', '  \n'):
+            with self.subTest(body=body), patch.object(locus, '_request_html', return_value=(200, body)) as request, \
+                    patch.object(locus, '_save_persistent_author') as save:
+                output = io.StringIO()
+                with redirect_stdout(output):
+                    for _ in range(2):
+                        report = lookup_awards('Autobiography of Red', 'Anne Carson', enabled_source_keys=['locus'])
+                        self.assertFalse(report.assessments or report.failures or report.diagnostics)
+                    with self.assertRaises(locus._EmptyAuthorResponse):
+                        locus._load_live_author_page(None, 'https://www.sfadb.com/Anne_Carson')
+                self.assertGreaterEqual(request.call_count, 3)
+                self.assertFalse(locus._author_page_cache)
+                save.assert_not_called()
+                for text in ('[Calibre Awards]', 'HTTP 200', 'https://www.sfadb.com/Anne_Carson',
+                             'author absence could not be established', 'not cached'):
+                    self.assertIn(text, output.getvalue())
+
+    def test_empty_author_does_not_hide_other_awards_or_failures(self):
+        from awards.model import AwardResult
+        other_result = AwardResult(work_title='Autobiography of Red', work_author='Anne Carson',
+                                   award_name='Other Award', award_year=2026, category=None,
+                                   status='Winner', rank=None, source_name='Other source', source_url='https://example.org/')
+        def failed(title, author, series=None):
+            raise RuntimeError('Other source network failure')
+        with patch.object(locus, '_request_html', return_value=(200, '')), redirect_stdout(io.StringIO()):
+            report = _lookup_awards_from_sources('Autobiography of Red', 'Anne Carson', (
+                AwardSource('locus', 'Locus Awards', locus.lookup),
+                AwardSource('other', 'Other source', lambda *a, **k: [other_result]),
+                AwardSource('failed', 'Failed source', failed),
+            ))
+        self.assertEqual([a.result for a in report.assessments], [other_result])
+        self.assertEqual([f.message for f in report.failures], ['Other source network failure'])
+
+    def test_both_silent_cases_have_no_source_problem_caption_in_dialog(self):
+        from tests.test_six_issue_reliability import render_actual_dialog
+        for body in ('', self.ABSENT):
+            with self.subTest(body=body), patch.object(locus, '_request_html', return_value=(200, body)), \
+                    redirect_stdout(io.StringIO()):
+                report = lookup_awards('Autobiography of Red', 'Anne Carson', enabled_source_keys=['locus'])
+            labels, _ = render_actual_dialog(report)
+            self.assertFalse(any('Source problems' in text or 'LocusSourceError' in text for text in labels))
+
+    def test_network_failure_stays_visible(self):
+        with patch.object(locus, '_request_html', side_effect=locus.LocusSourceError('Network timed out')):
+            report = lookup_awards('Autobiography of Red', 'Anne Carson', enabled_source_keys=['locus'])
+        self.assertEqual(len(report.failures), 1)
+        self.assertIn('Network timed out', report.failures[0].message)
+
+    def test_unexpected_nonempty_200_is_failure_and_not_cached(self):
+        bodies = ('<html><title>Maintenance</title><p>Try again later</p></html>',
                   '<html><title>Just a moment...</title><p>Verify you are human</p></html>',
                   '<title>sfadb : Internal Server Error</title><h1>Author not found</h1>',
                   '<title>Other site</title><p>Author not found</p>',
@@ -1838,7 +1889,7 @@ class AuthorResponseValidationTests(LocusTestCase):
                 self.assertFalse(report.assessments)
                 with self.assertRaises(locus.LocusSourceError) as ctx:
                     locus._load_live_author_page(None, 'https://www.sfadb.com/Anne_Carson')
-                self.assertIn('empty response' if not body.strip() else 'unrecognized HTML', str(ctx.exception))
+                self.assertIn('unrecognized HTML', str(ctx.exception))
                 self.assertNotIn('request failed with HTTP 200', str(ctx.exception))
                 self.assertFalse(locus._author_page_cache)
                 save.assert_not_called()

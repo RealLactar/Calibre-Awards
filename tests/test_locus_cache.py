@@ -828,6 +828,29 @@ class LocusAnnualCacheTests(unittest.TestCase):
         if authors_dir.exists():
             self.assertEqual(list(authors_dir.glob('*.json')), [])
 
+    def test_empty_author_refresh_retains_valid_disk_and_does_not_publish_empty(self):
+        page = locus._parse_author_page(_FX.HTML_SIMMONS, _AUTHOR_SIMMONS)
+        _save_author_disk(page, _AUTHOR_SIMMONS,
+                          generated_at=datetime(2020, 1, 1, tzinfo=_UTC), ttl_seconds=60)
+        records = locus._parse_annual_page(_FX.HTML_1990, 1990, _CANONICAL_1990)
+        _save_annual_disk(records, _CANONICAL_1990,
+                          generated_at=datetime(2020, 1, 1, tzinfo=_UTC), ttl_seconds=60)
+        author_path = _author_path(self.cache_dir, _AUTHOR_SIMMONS)
+        before = author_path.read_bytes()
+        with cache.lookup_refresh_budget(), \
+                patch.object(locus, '_request_html', return_value=(200, '')) as request, \
+                patch.object(locus, '_save_persistent_author') as save, \
+                patch('builtins.print') as log:
+            report = lookup_awards('Hyperion', 'Dan Simmons', enabled_source_keys=['locus'])
+        self.assertEqual(len(report.assessments), 1)
+        self.assertEqual(report.assessments[0].result.rank, 1)
+        self.assertFalse(report.failures or report.diagnostics)
+        self.assertEqual(author_path.read_bytes(), before)
+        self.assertEqual(locus._author_page_cache[_AUTHOR_SIMMONS], page)
+        request.assert_called_once()
+        save.assert_not_called()
+        self.assertIn('author absence could not be established', log.call_args.args[0])
+
     def test_stale_author_optional_refresh_failure_uses_stale(self):
         page = locus._parse_author_page(_FX.HTML_SIMMONS, _AUTHOR_SIMMONS)
         _save_author_disk(
