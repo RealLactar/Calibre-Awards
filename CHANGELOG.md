@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Locus: report empty HTTP-200 author/annual responses as content problems, not failed HTTP requests. Reject unrecognized author HTML without caching it; accept explicit SFADB author-absence messages as no records. Preserve valid author discovery and cache fallback. Live Anne Carson inspection on 2026-10-15 returned HTTP 200 with a zero-byte body, which does not establish author absence.
+
 - Simplify shared selection rows: move routine provenance, scope and qualification prose to row/checkbox tooltips; retain visible REVIEW, identity warnings and source diagnostics, selection defaults and award-only writeback. Add a primary-evidence John le Carré alias limited to the exact 1963 CWA winning record, preserving the original source credit and URL.
 
 - CWA Gold Dagger: recover reviewed and previously cached records omitted by unstable official pagination from their individually verified live result pages. Require reviewed identities as well as coverage counts; keep valid Build 017 fallback and pending refresh state when recovery fails.

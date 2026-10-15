@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import patch
 
-from awards.engine import _lookup_awards_from_sources
+from awards.engine import _lookup_awards_from_sources, lookup_awards
 from awards.qualifier import QualificationDecision, qualify_award_result
 from awards.source_registry import AwardSource
 from awards.sources import locus
@@ -1805,6 +1805,63 @@ class LookupAndQualificationTests(LocusTestCase):
         self.assertEqual(by_category['Novelette'].status, '3rd place')
         self.assertEqual(by_category['Short Story'].rank, 1)
         self.assertEqual(by_category['Short Story'].status, 'Winner')
+
+
+class AuthorResponseValidationTests(LocusTestCase):
+    # Synthetic explicit-message cases specify the recognition contract. The
+    # live Anne Carson response on 2026-10-15 was empty, not an absence message.
+    ABSENT = ('<html><title>sfadb : Author search</title>'
+              '<p>This author is not listed in the Science Fiction Awards Database.</p></html>')
+
+    def test_explicit_absence_is_successful_empty_without_caching(self):
+        for message in (self.ABSENT, '<title>sfadb : Author search</title><h1>Author not found</h1>'):
+            with self.subTest(message=message), patch.object(locus, '_request_html', return_value=(200, message)), \
+                    patch.object(locus, '_save_persistent_author') as save:
+                report = lookup_awards('Autobiography of Red', 'Anne Carson', enabled_source_keys=['locus'])
+                self.assertFalse(report.assessments or report.failures or report.diagnostics)
+                self.assertFalse(locus._author_page_cache)
+                save.assert_not_called()
+
+    def test_empty_and_unexpected_200_are_failures_and_not_cached(self):
+        bodies = ('', '  ', '<html><title>Maintenance</title><p>Try again later</p></html>',
+                  '<html><title>Just a moment...</title><p>Verify you are human</p></html>',
+                  '<title>sfadb : Internal Server Error</title><h1>Author not found</h1>',
+                  '<title>Other site</title><p>Author not found</p>',
+                  '<title>sfadb : Search</title><script>Author not found</script>',
+                  '<title>sfadb : Search</title><!-- Author not found -->',
+                  '<title>sfadb : Search</title><p>No award rows</p>')
+        for body in bodies:
+            with self.subTest(body=body), patch.object(locus, '_request_html', return_value=(200, body)), \
+                    patch.object(locus, '_save_persistent_author') as save:
+                report = lookup_awards('Autobiography of Red', 'Anne Carson', enabled_source_keys=['locus'])
+                self.assertEqual(len(report.failures), 1)
+                self.assertFalse(report.assessments)
+                with self.assertRaises(locus.LocusSourceError) as ctx:
+                    locus._load_live_author_page(None, 'https://www.sfadb.com/Anne_Carson')
+                self.assertIn('empty response' if not body.strip() else 'unrecognized HTML', str(ctx.exception))
+                self.assertNotIn('request failed with HTTP 200', str(ctx.exception))
+                self.assertFalse(locus._author_page_cache)
+                save.assert_not_called()
+
+    def test_failed_response_is_retried_and_valid_author_still_works(self):
+        with patch.object(locus, '_request_html', return_value=(200, '<html>unexpected</html>')):
+            with self.assertRaises(locus.LocusSourceError):
+                locus.lookup('Hyperion', 'Dan Simmons')
+        with patch.object(locus, '_request_html', side_effect=_fake_request):
+            results = locus.lookup('Hyperion', 'Dan Simmons')
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0].rank, 1)
+
+    def test_empty_annual_200_reports_content_problem(self):
+        with patch.object(locus, '_request_html', return_value=(200, '')):
+            with self.assertRaisesRegex(locus.LocusSourceError, 'annual page returned an empty response'):
+                locus._load_live_annual(None, URL_1990)
+
+    def test_valid_author_without_locus_section_still_returns_empty(self):
+        with patch.object(locus, '_request_html', return_value=(200, HTML_NO_LOCUS)):
+            page = locus._load_live_author_page(None, URL_SIMMONS)
+        self.assertTrue(page.page_name)
+        self.assertEqual(page.entries, ())
 
 
 class RedirectHostTests(LocusTestCase):

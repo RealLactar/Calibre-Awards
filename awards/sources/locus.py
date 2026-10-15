@@ -1029,6 +1029,63 @@ def _resolve_author_page(
     return None
 
 
+class _AuthorAbsenceParser(HTMLParser):
+    """Recognize explicit absence text, never missing author/award markup.
+
+    Require SFADB's document identity and a complete message block. Scripts,
+    comments and incidental prose mentioning an absent author are not evidence.
+    """
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.title = ''
+        self.messages = []
+        self._blocks = []
+        self._hidden = 0
+
+    def handle_starttag(self, tag, attrs):
+        if tag in ('script', 'style'):
+            self._hidden += 1
+        if tag in ('title', 'p', 'h1', 'h2', 'div'):
+            self._blocks.append((tag, []))
+
+    def handle_data(self, data):
+        if not self._hidden:
+            for _, parts in self._blocks:
+                parts.append(data)
+
+    def handle_endtag(self, tag):
+        if tag in ('script', 'style'):
+            self._hidden = max(0, self._hidden - 1)
+        for i in range(len(self._blocks) - 1, -1, -1):
+            if self._blocks[i][0] == tag:
+                text = _collapse_ws(''.join(self._blocks[i][1])).casefold()
+                del self._blocks[i:]
+                if tag == 'title':
+                    self.title = text
+                else:
+                    self.messages.append(text.rstrip('.'))
+                break
+
+
+def _explicit_author_absence(body: str) -> bool:
+    parser = _AuthorAbsenceParser()
+    parser.feed(body)
+    parser.close()
+    # These are deliberately exact explicit messages, not a generic "not found"
+    # search, HTTP status inference, or an assumption about Anne Carson.
+    problem = re.search(
+        r'access denied|captcha|cloudflare|just a moment|server error|account suspended',
+        ' '.join([parser.title] + parser.messages),
+    )
+    return (not problem and parser.title.startswith('sfadb :') and any(
+        message in {
+            'author not found',
+            'this author is not listed in the science fiction awards database',
+        } for message in parser.messages
+    ))
+
+
 def _load_live_author_page(
     opener: urllib.request.OpenerDirector,
     canonical_url: str,
@@ -1036,12 +1093,25 @@ def _load_live_author_page(
     status, body = _request_html(opener, canonical_url)
     if status == 404:
         return None
-    if status != 200 or not body.strip():
+    if status != 200:
         raise LocusSourceError(
             f'Locus author page request failed with HTTP {status} for '
             f'{canonical_url}'
         )
-    return _parse_author_page(body, canonical_url)
+    if not body.strip():
+        raise LocusSourceError(
+            f'SFADB author page returned an empty response (HTTP 200): '
+            f'{canonical_url}; author absence could not be established'
+        )
+    page = _parse_author_page(body, canonical_url)
+    if page.page_name:
+        return page
+    if _explicit_author_absence(body):
+        return None  # Like a 404: continue slug probing, do not negative-cache.
+    raise LocusSourceError(
+        f'SFADB author page returned unrecognized HTML (HTTP 200): '
+        f'{canonical_url}; expected an author identity or explicit absence message'
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -1546,10 +1616,15 @@ def _load_live_annual(
             f'SFADB Locus annual URL is not a usable year page: {canonical_url}'
         )
     status, body = _request_html(opener, canonical_url)
-    if status != 200 or not body.strip():
+    if status != 200:
         raise LocusSourceError(
             'Locus annual page request failed with HTTP '
             f'{status} for {canonical_url}'
+        )
+    if not body.strip():
+        raise LocusSourceError(
+            f'SFADB Locus annual page returned an empty response (HTTP 200): '
+            f'{canonical_url}'
         )
     return _parse_annual_page(body, award_year, canonical_url)
 
