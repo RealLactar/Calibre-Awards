@@ -243,8 +243,17 @@ def _reset_runtime_state():
 def _mappings():
     path = 'awards/data/medicis_mappings.json'
     resource = globals().get('get_resources')
-    raw = resource(path) if resource else (Path(__file__).resolve().parents[2] / path).read_bytes()
-    return json.loads(raw.decode('utf-8'))
+    try:
+        raw = resource(path) if resource else (Path(__file__).resolve().parents[2] / path).read_bytes()
+        if not isinstance(raw, bytes) or not raw:
+            raise MedicisSourceError(
+                'Missing Médicis title mappings. Reinstall the complete plugin ZIP and restart Calibre.'
+            )
+        return json.loads(raw.decode('utf-8'))
+    except (OSError, ValueError) as err:
+        raise MedicisSourceError(
+            'Could not read Médicis title mappings. Reinstall the complete plugin ZIP and restart Calibre.'
+        ) from err
 
 
 def lookup(title, author, series=None):

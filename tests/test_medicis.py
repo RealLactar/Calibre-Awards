@@ -35,6 +35,18 @@ class MedicisTests(unittest.TestCase):
     def lookup(self, title, author):
         with patch.object(m, '_get_records', return_value=ROWS):
             return m.lookup(title, author)
+    def test_missing_or_invalid_mapping_resources(self):
+        for raw in (None, b'', 'unexpected text', b'{', b'\xff'):
+            with self.subTest(raw=raw), patch.object(m, 'get_resources', return_value=raw, create=True):
+                with self.assertRaisesRegex(m.MedicisSourceError, 'Reinstall the complete plugin ZIP and restart Calibre'):
+                    m._mappings()
+
+    def test_mapping_resource_oserror(self):
+        with patch.object(m, 'get_resources', side_effect=OSError('unavailable'), create=True):
+            with self.assertRaisesRegex(m.MedicisSourceError, 'Could not read') as raised:
+                m._mappings()
+        self.assertIsInstance(raised.exception.__cause__, OSError)
+
     def test_full_history_and_categories(self):
         self.assertEqual(len(W), 168)
         self.assertEqual({r.year for r in W if r.category == m.CATEGORIES[0]}, set(range(1958, 2026)))

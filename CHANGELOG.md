@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Prix Médicis: report missing, empty, unreadable or invalid packaged title mappings as a clear source error with guidance to reinstall the complete plugin ZIP and restart Calibre, instead of failing while decoding a missing resource. The cause of the reported installed-resource retrieval failure remains unconfirmed.
+
 - Newbery: accept historical ALA header credits that omit "by" but include an explicit publisher delimiter. Match Esther Hoskins Forbes to the official Esther Forbes credit only for the 1944 Johnny Tremain winning record, preserving ALA provenance and rejecting unrelated authors and records.
 
 - Locus: keep empty HTTP-200 responses from individual SFADB author lookups out of the main results dialog while retaining a URL-specific diagnostic in Calibre's debug log. Empty responses remain indeterminate and uncached; validated fallback and other-source awards survive. Explicit author absence stays silent. Network, access, nonempty parsing/content and annual-page failures remain visible when no validated fallback applies.
