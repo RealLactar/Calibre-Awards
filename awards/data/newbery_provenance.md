@@ -1,5 +1,13 @@
 # Newbery 2024–2026 provenance
 
+## Historical byline and author identity correction (2026-10-31)
+
+https://www.ala.org/winner/johnny-tremain explicitly credits "Esther Forbes, and published by Houghton" and identifies the 1944 Newbery Winner. Historical header bylines may omit "by"; the parser accepts that form only with the explicit ", and published by" delimiter, still excluding About text.
+
+The publisher's Fall 2011 catalog, page 120, credits Johnny Tremain to Esther Hoskins Forbes, gives ISBN 978-0-547-61432-8, and identifies Esther Forbes in the accompanying biography: https://edelweiss-assets.abovethetreeline.com/HM/pdfs/hmhjuv_cat_fall2011.pdf . These names are accepted as aliases only for the exact Johnny Tremain / 1944 / Winner / https://www.ala.org/winner/johnny-tremain record. Result author and source URL retain the official ALA credit; no general middle-name omission rule is introduced.
+
+The captured header excerpt is tests/fixtures/newbery/detail_johnny_tremain.html. Regression coverage checks both names, incorrect authors, exact record scope, RAM author caching, and exclusion of About paragraphs.
+
 Reviewed 2026-10-07 against official ALA HTML and the March 2026 cumulative PDF. Existing historical Drupal listings remain the source for 1930–2023; no 1922–1929 coverage or translation mappings were added.
 
 Historical listing URLs (all HTTPS, ALA):

@@ -447,8 +447,17 @@ def _author_from_byline(text: str) -> str | None:
     remainder = _QUOTED_TITLE_PREFIX_RE.sub('', cleaned, count=1).strip()
     match = _BYLINE_LEAD_RE.fullmatch(remainder)
     if match is None:
-        return None
-    author = _PUBLISHER_CUT_RE.sub('', match.group('author')).strip()
+        # Some historical headers omit "by", but retain this explicit credit
+        # delimiter. Do not accept an arbitrary bare name or About paragraph.
+        credit = re.fullmatch(
+            r'(?P<author>[^,;.!?]+),\s+and\s+published\s+by\s+\S.*',
+            remainder, re.IGNORECASE,
+        )
+        if credit is None:
+            return None
+        author = credit.group('author').strip()
+    else:
+        author = _PUBLISHER_CUT_RE.sub('', match.group('author')).strip()
     author = author.strip(' ,.;')
     if not author:
         return None
@@ -569,6 +578,23 @@ def _author_match_key(author: str) -> str:
 def _authors_match(query_author: str, record_author: str) -> bool:
     # Exact normalized strings, plus the explicit Le Guin alias above.
     return _author_match_key(query_author) == _author_match_key(record_author)
+
+
+def _record_authors_match(
+    query_author: str, official_author: str, record: _ListingRecord,
+) -> bool:
+    if _authors_match(query_author, official_author):
+        return True
+    # Verified publisher identity; scoped to this exact ALA winning record.
+    # See awards/data/newbery_provenance.md. Preserve the official result credit.
+    return (
+        record.work_title == 'Johnny Tremain'
+        and record.award_year == 1944
+        and record.status == 'Winner'
+        and record.detail_url == 'https://www.ala.org/winner/johnny-tremain'
+        and {_normalize_text(query_author), _normalize_text(official_author)}
+        == {'esther hoskins forbes', 'esther forbes'}
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -1085,7 +1111,7 @@ def lookup(
         official_author = record.work_author or _get_detail_author(
             opener, record.detail_url,
         )
-        if not _authors_match(cleaned_author, official_author):
+        if not _record_authors_match(cleaned_author, official_author, record):
             continue
         key = (
             record.award_year,

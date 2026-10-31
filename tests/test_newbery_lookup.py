@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+from dataclasses import replace
 from pathlib import Path
 import unittest
 from unittest.mock import Mock, patch
@@ -258,6 +259,39 @@ class NewberyLookupTests(unittest.TestCase):
     def _lookup(self, title: str, author: str):
         with patch.object(newbery, '_fetch_html', side_effect=self._fetch):
             return newbery.lookup(title, author)
+
+    def test_johnny_tremain_both_author_names_and_wrong_author(self):
+        url = 'https://www.ala.org/winner/johnny-tremain'
+        record = newbery._ListingRecord(
+            'Johnny Tremain', 1944, 'Winner', url, ARCHIVE_URL_1930_1991,
+        )
+        html = (Path(__file__).parent / 'fixtures/newbery/detail_johnny_tremain.html').read_text(encoding='utf-8')
+        with patch.object(newbery, '_get_listing_records', return_value=(record,)), \
+                patch.object(newbery, '_fetch_html', return_value=html) as fetch:
+            for author in ('Esther Forbes', 'Esther Hoskins Forbes'):
+                with self.subTest(author=author):
+                    results = newbery.lookup('Johnny Tremain', author)
+                    self.assertEqual(len(results), 1)
+                    result = results[0]
+                    self.assertEqual(result.work_author, 'Esther Forbes')
+                    self.assertEqual(result.award_year, 1944)
+                    self.assertEqual(result.status, 'Winner')
+                    self.assertEqual(result.source_url, url)
+            self.assertEqual(newbery.lookup('Johnny Tremain', 'Other Forbes'), [])
+            self.assertEqual(fetch.call_count, 1)
+
+    def test_forbes_alias_is_restricted_to_exact_winning_record(self):
+        record = newbery._ListingRecord(
+            'Johnny Tremain', 1944, 'Winner',
+            'https://www.ala.org/winner/johnny-tremain', ARCHIVE_URL_1930_1991,
+        )
+        for changes in ({'work_title': 'Other Book'}, {'award_year': 1945},
+                        {'status': 'Honor'}, {'detail_url': 'https://www.ala.org/winner/other'}):
+            with self.subTest(changes=changes):
+                self.assertFalse(newbery._record_authors_match(
+                    'Esther Hoskins Forbes', 'Esther Forbes', replace(record, **changes),
+                ))
+        self.assertFalse(_authors_match('Esther Hoskins Forbes', 'Esther Forbes'))
 
     def test_all_three_archive_pages_are_fetched(self):
         results = self._lookup('Crispin: The Cross of Lead', 'Avi')

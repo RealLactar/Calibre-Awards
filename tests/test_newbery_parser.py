@@ -270,6 +270,17 @@ class NewberyTitleMatchingTests(unittest.TestCase):
 
 
 class NewberyAuthorBylineTests(unittest.TestCase):
+    def test_unprefixed_author_requires_explicit_publisher_delimiter(self):
+        self.assertEqual(
+            _author_from_byline('Esther Forbes, and published by Houghton'),
+            'Esther Forbes',
+        )
+        for text in ('Esther Forbes', 'Published by Houghton',
+                     'Esther Forbes, and published by',
+                     'A story. Esther Forbes, and published by Houghton'):
+            with self.subTest(text=text):
+                self.assertIsNone(_author_from_byline(text))
+
     def test_written_by_stops_before_publisher(self):
         self.assertEqual(
             _author_from_byline(
@@ -313,6 +324,16 @@ class NewberyAuthorBylineTests(unittest.TestCase):
 
 
 class NewberyDetailAuthorHtmlTests(unittest.TestCase):
+    def test_johnny_tremain_live_header_excerpt(self):
+        html = _load_fixture('detail_johnny_tremain.html')
+        self.assertEqual(_parse_detail_author(html), 'Esther Forbes')
+
+    def test_unprefixed_credit_in_about_is_not_used(self):
+        self.assertIsNone(_parse_detail_author(_detail_page(
+            'Johnny Tremain', None,
+            'Esther Forbes, and published by Houghton',
+        )))
+
     def test_written_by_subtitle_from_html(self):
         html = _load_fixture('detail_written_by.html')
         self.assertEqual(_parse_detail_author(html), 'Amina Luqman-Dawson')
